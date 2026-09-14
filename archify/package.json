@@ -23,7 +23,10 @@
     "build:readme-showcase": "node ../scripts/build-readme-showcase.mjs",
     "test:webm": "node test/webm-artifact.smoke.mjs && node --test test/site-language-integration.mjs",
     "test": "npm run check:brand-marks && npm run check:validators && npm run check:release-identity && node test/golden.mjs && node ../scripts/run-tests.mjs",
-    "render:examples": "node scripts/render-examples.mjs ../examples"
+    "render:examples": "node scripts/render-examples.mjs ../examples",
+    "code-analysis": "node bin/archify.mjs code-analysis",
+    "setup:code-analysis": "npm ci --prefix modules/code-analysis",
+    "test:code-analysis": "npm test --prefix modules/code-analysis"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

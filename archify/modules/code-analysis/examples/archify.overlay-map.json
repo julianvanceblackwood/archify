@@ -1,0 +1,13 @@
+{
+  "user": [],
+  "agents": ["bin", "recipes"],
+  "skill": [],
+  "ir": ["migrations", "delta"],
+  "schemas": [],
+  "renderers": ["renderers-architecture", "renderers-dataflow", "renderers-lifecycle", "renderers-sequence", "renderers-workflow", "renderers-shared"],
+  "template": [],
+  "checker": ["scripts"],
+  "html": [],
+  "zip": [],
+  "ci": []
+}

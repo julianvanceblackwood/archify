@@ -14,6 +14,7 @@ const TYPES = new Set(['architecture', 'workflow', 'sequence', 'dataflow', 'life
 
 function usage() {
   return `Usage:
+  archify code-analysis <command> [options]  (Code Analysis module)
   archify render <type> <input.json> [output.html] [--quality standard|showcase] [--repo-root path (architecture only)]
   archify compare architecture <base.json> <head.json> [output.html] [--receipt path] [--json] [--quality standard|showcase] [--repo-root path]
   archify deliver <type> <input.json> [output.html] [--json] [--open] [--quality standard|showcase] [--repo-root path (architecture only)]
@@ -2032,6 +2033,12 @@ try {
     case 'help':
       console.log(usage());
       break;
+    case 'code-analysis': {
+      const result = runNode([path.join(skillRoot, 'modules', 'code-analysis', 'bin', 'analyze.mjs'), ...args]);
+      if (result.error) throw result.error;
+      process.exitCode = result.status ?? 1;
+      break;
+    }
     case 'render':
       commandRender(args);
       break;

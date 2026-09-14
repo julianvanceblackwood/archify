@@ -19,7 +19,7 @@ jobs:
           cache: npm
           cache-dependency-path: archify/package-lock.json
       - name: Install renderer dependencies
-        run: npm ci
+        run: npm ci && npm run setup:code-analysis
         working-directory: archify
       - name: Golden-file + schema tests
         run: npm test
