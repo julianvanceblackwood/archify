@@ -367,10 +367,11 @@ const JS = `
   if (!toolbar || !svg) return;
   var byId = {}; data.components.forEach(function (c) { byId[c.id] = c; });
 
-  var btn = document.createElement('button');
-  btn.id = 'btn-bauify'; btn.type = 'button'; btn.setAttribute('aria-pressed', 'false');
-  btn.title = 'Toggle Bauify code analysis (C)'; btn.textContent = 'Code analysis';
-  toolbar.appendChild(btn);
+  var externalToggle = document.getElementById('analysis-view-toggle');
+  var btn = externalToggle || document.createElement('button');
+  if (!externalToggle) btn.id = 'btn-bauify'; btn.type = 'button'; btn.setAttribute('aria-pressed', 'false');
+  btn.title = '切换架构图与分析图 (C)'; btn.textContent = '分析图切换';
+  if (!externalToggle) toolbar.appendChild(btn);
 
   var panel = document.createElement('aside');
   panel.id = 'bauify-panel'; panel.hidden = true; panel.setAttribute('aria-label', 'Bauify code analysis');

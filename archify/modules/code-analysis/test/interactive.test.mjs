@@ -1,0 +1,37 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { test } from 'node:test';
+import { startAnalysisView } from '../bin/serve.mjs';
+const moduleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+test('interactive analysis waits for an authorized click and reuses completed results', async t => {
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-click-analysis-'));
+  t.after(() => fs.rmSync(out, { recursive: true, force: true }));
+  const fixture = path.join(moduleRoot, 'test/fixtures/ts-basic');
+  execFileSync(process.execPath, [path.join(moduleRoot, 'bin/analyze.mjs'), 'run', fixture, '--out', path.join(out, 'seed'), '--language', 'ts', '--json']);
+  const view = await startAnalysisView([fixture, '--ir', path.join(out, 'seed/repo.architecture.json'), '--out', path.join(out, 'view'), '--language', 'ts', '--config', path.join(out, 'config.json')]);
+  t.after(() => new Promise(resolve => { view.server.close(resolve); view.server.closeAllConnections(); }));
+  const facts = path.join(out, 'view/analysis/raw-facts.json');
+  const page = await (await fetch(view.url)).text();
+  assert.match(page, /Code Analysis/);
+  assert.match(page, /分析图切换/);
+  assert.equal(fs.existsSync(facts), false);
+  assert.equal((await fetch(view.url + '/analyze', { method: 'POST' })).status, 403);
+  assert.equal(fs.existsSync(facts), false);
+  const headers = { Origin: view.url, 'X-Analysis-Token': view.token };
+  assert.equal((await fetch(view.url + '/analyze', { method: 'POST', headers: { ...headers, Origin: 'https://example.com' } })).status, 403);
+  const failure = await fetch(view.url + '/analyze', { method: 'POST', headers });
+  assert.equal(failure.status, 500);
+  assert.ok((await failure.json()).error);
+  assert.equal(fs.existsSync(facts), false);
+  fs.writeFileSync(path.join(out, 'config.json'), '{}');
+  const responses = await Promise.all([1, 2].map(() => fetch(view.url + '/analyze', { method: 'POST', headers })));
+  for (const response of responses) { assert.equal(response.status, 200); assert.match(await response.text(), /id="bauify-analysis"/); }
+  assert.equal(fs.existsSync(facts), true);
+  const written = fs.statSync(facts).mtimeMs;
+  assert.equal((await fetch(view.url + '/analyze', { method: 'POST', headers })).status, 200);
+  assert.equal(fs.statSync(facts).mtimeMs, written);
+});

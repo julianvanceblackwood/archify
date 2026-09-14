@@ -13,6 +13,7 @@ import { evaluate } from '../evaluate/index.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const USAGE = `Usage:
+  archify code-analysis serve <repo-root> --ir <architecture.json> --out <dir> [--language ts|py]
   archify code-analysis run      <repo-root> --out <dir> [--language ts|py] [--config file.json] [--json]
   archify code-analysis extract  <repo-root> [--out raw-facts.json] [--language ts|py] [--config file.json] [--json]
   archify code-analysis graphs   raw-facts.json [--out module-graph.json] [--config file.json] [--json]

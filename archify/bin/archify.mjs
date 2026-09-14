@@ -2034,7 +2034,8 @@ try {
       console.log(usage());
       break;
     case 'code-analysis': {
-      const result = runNode([path.join(skillRoot, 'modules', 'code-analysis', 'bin', 'analyze.mjs'), ...args]);
+      const interactive = args[0] === 'serve';
+      const result = runNode([path.join(skillRoot, 'modules', 'code-analysis', 'bin', interactive ? 'serve.mjs' : 'analyze.mjs'), ...(interactive ? args.slice(1) : args)]);
       if (result.error) throw result.error;
       process.exitCode = result.status ?? 1;
       break;
