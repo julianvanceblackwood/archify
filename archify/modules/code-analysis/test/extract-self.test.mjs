@@ -11,7 +11,8 @@ import { schemaErrors } from '../extract/shared/schema.mjs';
 const ARCHIFY = ARCHIFY_PACKAGE;
 const SELF_CONFIG = path.join(os.tmpdir(), 'archify-code-analysis-self-config.json');
 const selfConfig = JSON.parse(fs.readFileSync(new URL('../config/defaults.json', import.meta.url)));
-selfConfig.exclude.push('modules/code-analysis/test/fixtures/**');
+// Local test workspaces and analysis outputs are not part of the self fixture.
+selfConfig.exclude.push('modules/code-analysis/test/fixtures/**', '.validator-check-*/**', 'out/**');
 fs.writeFileSync(SELF_CONFIG, JSON.stringify(selfConfig));
 const SKIP = ARCHIFY_AVAILABLE ? false : 'set BAUIFY_ARCHIFY_ROOT to a tt-a1i/archify checkout';
 const OUT_A = path.join(process.env.TMPDIR || os.tmpdir(), 'bauify-self-a.json');

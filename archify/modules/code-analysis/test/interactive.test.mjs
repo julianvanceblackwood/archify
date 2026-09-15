@@ -24,7 +24,15 @@ test('serve: delivers, waits for an authorized click, reuses the completed analy
   const map = path.join(out, 'map.json'); fs.writeFileSync(map, JSON.stringify({ app: ['src'], lib: ['src-lib'] }));
   const config = path.join(out, 'config.json');
   const view = await startAnalysisView([fixture, '--ir', ir, '--out', path.join(out, 'view'), '--language', 'ts', '--map', map, '--config', config]);
-  t.after(() => new Promise((resolve) => { view.server.close(resolve); view.server.closeAllConnections(); }));
+  const sockets = new Set();
+  view.server.on('connection', socket => {
+    sockets.add(socket);
+    socket.on('close', () => sockets.delete(socket));
+  });
+  t.after(() => new Promise((resolve) => {
+    view.server.close(resolve);
+    for (const socket of sockets) socket.destroy();
+  }));
   assert.ok(fs.existsSync(view.delivered), 'Archify delivered the diagram before anything else');
   const facts = path.join(out, 'view/analysis/raw-facts.json');
   const page = await (await fetch(view.url)).text();

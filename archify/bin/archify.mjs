@@ -2041,7 +2041,7 @@ try {
       }
       const { startAnalysisView } = await import('../modules/code-analysis/bin/serve.mjs');
       const launchArgs = [...args];
-      if (!launchArgs.includes('--out')) launchArgs.push('--out', path.join(os.tmpdir(), 'archify', createHash('sha256').update(path.resolve(args[0])).digest('hex').slice(0, 16)));
+      if (!launchArgs.includes('--out')) launchArgs.push('--out', fs.mkdtempSync(path.join(os.tmpdir(), 'archify-' + createHash('sha256').update(path.resolve(args[0])).digest('hex').slice(0, 16) + '-')));
       const { url, delivered } = await startAnalysisView(launchArgs);
       console.log(`Archify: ${url}\nDiagram: ${delivered}\nOpen the URL, then click "Code Analysis" to analyze. Press Ctrl+C to stop.`);
       break;

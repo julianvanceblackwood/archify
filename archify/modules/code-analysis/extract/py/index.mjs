@@ -22,11 +22,16 @@ export function detect(root, config) {
   return listFiles(root, config).some((f) => PY_EXT.test(f));
 }
 
-function runPython(request) {
+export function runPython(request, candidates = CANDIDATES, spawn = spawnSync) {
   const input = JSON.stringify(request);
   const attempts = [];
-  for (const [command, args] of CANDIDATES) {
-    const result = spawnSync(command, [...args, SCRIPT], { input, encoding: 'utf8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' }, maxBuffer: 256 * 1024 * 1024 });
+  for (const [command, args] of candidates) {
+    const probe = spawn(command, [...args, '-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)'], { encoding: 'utf8', timeout: 5000 });
+    if (probe.error || probe.status !== 0) {
+      attempts.push(`${command}: incompatible or unavailable Python 3.8+ (${probe.error?.code || probe.status})`);
+      continue;
+    }
+    const result = spawn(command, [...args, SCRIPT], { input, encoding: 'utf8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' }, maxBuffer: 256 * 1024 * 1024 });
     if (result.error) { attempts.push(`${command}: ${result.error.code || result.error.message}`); continue; }
     if (result.status !== 0) fail('extract/python-failed', 'The Python extractor exited with an error.', {
       subject: { command, script: SCRIPT },
@@ -36,7 +41,7 @@ function runPython(request) {
     return { command, output: JSON.parse(result.stdout) };
   }
   fail('extract/python-unavailable', 'No Python 3 interpreter could be started.', {
-    subject: { tried: CANDIDATES.map(([c]) => c) },
+    subject: { tried: candidates.map(([c]) => c) },
     evidence: { attempts },
     supportedFixes: ['install Python 3.8+ and put it on PATH', 'set BAUIFY_PYTHON to the interpreter path'],
   });

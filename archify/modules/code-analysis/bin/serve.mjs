@@ -12,7 +12,6 @@ import { randomBytes } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { analyzeRepository } from '../lib/analysis.mjs';
 import { DiagnosticError } from '../extract/shared/diagnostics.mjs';
 
 const execute = promisify(execFile);
@@ -63,6 +62,7 @@ export function parseArgs(argv) {
 export async function startAnalysisView(argv) {
   const { repo, options } = parseArgs(argv);
   await ensureDependencies();
+  const { analyzeRepository } = await import('../lib/analysis.mjs');
   const root = path.resolve(repo), ir = path.resolve(options['--ir']), out = path.resolve(options['--out']);
   fs.mkdirSync(out, { recursive: true });
 
