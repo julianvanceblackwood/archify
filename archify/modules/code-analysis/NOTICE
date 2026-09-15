@@ -1,16 +1,12 @@
-Bauify
+Archify Code Analysis
 
-Bauify began as the `analyzers/` subsystem proposed to Archify in
-https://github.com/tt-a1i/archify/pull/352. At the Archify maintainer's
-suggestion it now lives as an independent tool that produces Archify's
-diagram IR rather than living inside Archify.
+Code Analysis is an integrated module maintained in the Archify repository.
 
-The Git history of this repository was split from that pull request with
-`git subtree split` and preserves the original commits and authorship,
-including fixes contributed by tt-a1i (Archify's author):
+Portions of this module were first developed as the `analyzers/` subsystem
+proposed in https://github.com/tt-a1i/archify/pull/352 and include fixes
+contributed by tt-a1i (Archify's author):
 
   - fix(analyzers): preserve import facts and cover extraction regressions
   - fix(analyzers): constrain createRequire to the source module base
 
-Archify itself (https://github.com/tt-a1i/archify) is MIT-licensed and is
-not bundled here; Bauify invokes a separately installed Archify CLI.
+See LICENSE for the copyright and permission notice.
