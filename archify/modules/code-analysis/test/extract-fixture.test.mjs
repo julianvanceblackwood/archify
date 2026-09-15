@@ -3,12 +3,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { BAUIFY_ROOT, runCli } from './helpers.mjs';
+import { BAUIFY_ROOT, runExtract } from './helpers.mjs';
 
 const FIXTURE = path.join(BAUIFY_ROOT, 'test', 'fixtures', 'ts-basic');
 
 test('extract: synthetic fixture yields the expected files, imports, and unresolved counts', () => {
-  const result = runCli(['extract', FIXTURE, '--json', '--out', path.join(process.env.TMPDIR || os.tmpdir(), 'bauify-fixture.json')]);
+  const result = runExtract([FIXTURE, '--json', '--out', path.join(process.env.TMPDIR || os.tmpdir(), 'bauify-fixture.json')]);
   assert.equal(result.status, 0, result.stderr);
   const facts = JSON.parse(fs.readFileSync(result.json.out, 'utf8'));
   const expected = JSON.parse(fs.readFileSync(path.join(FIXTURE, 'expected.json'), 'utf8'));
@@ -20,12 +20,12 @@ test('extract: synthetic fixture yields the expected files, imports, and unresol
 });
 
 test('extract: failures are structured diagnostics, never stacks', () => {
-  const missing = runCli(['extract', path.join(FIXTURE, 'nope'), '--json']);
+  const missing = runExtract([path.join(FIXTURE, 'nope'), '--json']);
   assert.equal(missing.status, 1);
   assert.equal(missing.json.status, 'failed');
   assert.equal(missing.json.diagnostics[0].code, 'cli/root-invalid');
   assert.ok(!missing.stdout.includes('at '), 'no stack frames in machine output');
 
-  const badOption = runCli(['extract', FIXTURE, '--bogus', '--json']);
+  const badOption = runExtract([FIXTURE, '--bogus', '--json']);
   assert.equal(badOption.json.diagnostics[0].code, 'cli/option-unknown');
 });

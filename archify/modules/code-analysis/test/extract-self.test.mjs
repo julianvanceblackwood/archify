@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { ARCHIFY_AVAILABLE, ARCHIFY_PACKAGE, runCli } from './helpers.mjs';
+import { ARCHIFY_AVAILABLE, ARCHIFY_PACKAGE, runExtract } from './helpers.mjs';
 import { schemaErrors } from '../extract/shared/schema.mjs';
 
 const ARCHIFY = ARCHIFY_PACKAGE;
@@ -22,8 +22,8 @@ function edges(facts, from) {
 }
 
 test('extract: archify/ self-bootstrap passes schema and is byte-for-byte deterministic', { skip: SKIP }, () => {
-  assert.equal(runCli(['extract', ARCHIFY, '--language', 'ts', '--config', SELF_CONFIG, '--out', OUT_A]).status, 0);
-  assert.equal(runCli(['extract', ARCHIFY, '--language', 'ts', '--config', SELF_CONFIG, '--out', OUT_B]).status, 0);
+  assert.equal(runExtract([ARCHIFY, '--language', 'ts', '--config', SELF_CONFIG, '--out', OUT_A]).status, 0);
+  assert.equal(runExtract([ARCHIFY, '--language', 'ts', '--config', SELF_CONFIG, '--out', OUT_B]).status, 0);
   assert.equal(fs.readFileSync(OUT_A, 'utf8'), fs.readFileSync(OUT_B, 'utf8'));
   const facts = JSON.parse(fs.readFileSync(OUT_A, 'utf8'));
   assert.deepEqual(schemaErrors('raw-facts', facts), []);
@@ -34,7 +34,7 @@ test('extract: archify/ self-bootstrap passes schema and is byte-for-byte determ
 test('extract: hand-verified import lists for two archify files', { skip: SKIP }, () => {
   // Independent of test ordering: this test produces its own extraction.
   const OUT_C = path.join(process.env.TMPDIR || os.tmpdir(), 'bauify-self-c.json');
-  assert.equal(runCli(['extract', ARCHIFY, '--language', 'ts', '--config', SELF_CONFIG, '--out', OUT_C]).status, 0);
+  assert.equal(runExtract([ARCHIFY, '--language', 'ts', '--config', SELF_CONFIG, '--out', OUT_C]).status, 0);
   const facts = JSON.parse(fs.readFileSync(OUT_C, 'utf8'));
   // renderers/shared/validator.mjs — verified by hand against its two import lines.
   assert.deepEqual(edges(facts, 'renderers/shared/validator.mjs'), [

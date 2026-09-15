@@ -80,7 +80,7 @@ export function buildOverlay({ ir, graph, html, map, facts = null, findings = []
     components,
     edges,
     unmapped,
-    snippets: sourceRoot ? collectSnippets(findings, sourceRoot) : {},
+    snippets: sourceRoot ? collectSnippets(findings, sourceRoot, components) : {},
   };
 
   const injection = `\n<!-- bauify overlay: authored diagram untouched; analysis layer below -->\n<script type="application/json" id="bauify-analysis">${JSON.stringify(payload).replace(/<\//g, '<\\/')}</script>\n<style id="bauify-style">${CSS}</style>\n<script id="bauify-script">${JS}</script>\n`;
@@ -201,6 +201,9 @@ function resolveMapping(ir, graph, map) {
     if (map && Array.isArray(map[c.id])) { result.set(c.id, [...new Set(map[c.id])]); continue; }
     const ids = new Set();
     for (const s of c.sources || []) { const id = moduleForFile(s.path); if (id) ids.add(id); }
+    // A component with no sources whose id is a module id (the bridge IR, or an IR that reuses
+    // module ids on purpose) maps to that module.
+    if (!ids.size && !(c.sources || []).length && graph.modules.some((m) => m.id === c.id)) ids.add(c.id);
     result.set(c.id, [...ids]);
   }
   // Descendants: a module whose path starts with a claimed module's path joins it when unclaimed.
@@ -233,9 +236,9 @@ function aggregate(edges, side, mapping) {
 // Full text of every file a finding points at (evidence imports, the
 // partial-init proof), read from the analyzed tree at overlay time, so the
 // page can show the cited line with the whole file around it to scroll
-// through. Only cited files are embedded, not the repository.
-function collectSnippets(findings, sourceRoot) {
-  const wanted = new Set();
+// through. Include listed component files as well as cited evidence files.
+function collectSnippets(findings, sourceRoot, components) {
+  const wanted = new Set(components.flatMap((c) => (c.fileList || []).map((f) => f.path)));
   for (const f of findings) {
     const ev = f.evidence || {};
     for (const v of ev.imports || []) if (v.file) wanted.add(v.file);
@@ -247,7 +250,13 @@ function collectSnippets(findings, sourceRoot) {
   const out = {};
   for (const file of [...wanted].sort()) {
     let text;
-    try { text = fs.readFileSync(path.join(sourceRoot, file), 'utf8'); } catch { continue; }
+    try {
+      const root = fs.realpathSync(sourceRoot);
+      const target = fs.realpathSync(path.resolve(root, file));
+      const relative = path.relative(root, target);
+      if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) continue;
+      text = fs.readFileSync(target, 'utf8');
+    } catch { continue; }
     const lines = text.split(/\r?\n/);
     if (lines.length && lines[lines.length - 1] === '') lines.pop();
     out[file] = { total: lines.length, lines };
@@ -337,14 +346,16 @@ html[data-bauify="on"] .guided-views, html[data-bauify="on"] [class*="story"], h
 #bauify-detail .ref b { color: var(--backend-stroke, #34D399); font-weight: 600; }
 #bauify-detail .ref span { color: var(--text-muted, #94a3b8); }
 #bauify-detail .ref em { color: var(--text-muted, #94a3b8); font-style: normal; }
-#bauify-code { position: fixed; left: 844px; top: 76px; width: min(600px, calc(100vw - 860px)); max-height: calc(100vh - 92px); overflow: auto; z-index: 60; background: linear-gradient(var(--panel, #0f172a), var(--panel, #0f172a)), var(--bg, #0b1220); color: var(--text, #f8fafc); border: 1px solid var(--panel-border, #1e293b); border-radius: 12px; padding: 14px 16px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5; box-shadow: 0 18px 48px rgba(0,0,0,.3); }
+#bauify-code { position: fixed; right: 12px; top: 76px; width: min(600px, max(300px, calc(100vw - 860px))); box-sizing: border-box; max-height: calc(100vh - 92px); overflow: auto; z-index: 60; background: linear-gradient(var(--panel, #0f172a), var(--panel, #0f172a)), var(--bg, #0b1220); color: var(--text, #f8fafc); border: 1px solid var(--panel-border, #1e293b); border-radius: 12px; padding: 14px 16px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5; box-shadow: 0 18px 48px rgba(0,0,0,.3); }
+.source-file { padding: 0; border: 0; background: none; color: var(--backend-stroke, #159f88); font: inherit; cursor: pointer; text-align: left; }
+.source-file:hover { text-decoration: underline; }
 #bauify-code[hidden] { display: none; }
 #bauify-code h3 { margin: 0 0 2px; font-size: 13px; word-break: break-all; }
 #bauify-code h3 a { color: var(--backend-stroke, #34D399); text-decoration: none; } #bauify-code h3 a:hover { text-decoration: underline; }
 #bauify-code .k { color: var(--text-muted, #94a3b8); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; margin-top: 12px; }
 #bauify-code .close { float: right; margin: -2px -6px 0 0; background: none; border: 0; color: var(--text-muted, #94a3b8); font-size: 16px; cursor: pointer; }
 #bauify-code .why { color: var(--text-muted, #94a3b8); font-size: 11px; margin-top: 4px; }
-#bauify-code pre { margin: 8px 0 0; padding: 6px 0; border: 1px solid var(--panel-border, #1e293b); border-radius: 8px; background: var(--bg, #0b1220); overflow-x: auto; font-size: 10px; line-height: 1.35; }
+#bauify-code pre { margin: 8px 0 0; padding: 6px 0; border: 1px solid var(--panel-border, #1e293b); border-radius: 8px; background: var(--bg, #0b1220); overflow: auto; max-height: calc(100vh - 210px); overscroll-behavior: contain; font-size: 12px; line-height: 1.35; }
 #bauify-code .grip { position: sticky; top: -14px; z-index: 1; cursor: grab; user-select: none; margin: -14px -16px 0; padding: 10px 16px 4px; background: linear-gradient(var(--panel, #0f172a), var(--panel, #0f172a)), var(--bg, #0b1220); border-bottom: 1px dashed var(--panel-border, #1e293b); }
 #bauify-code .grip:active { cursor: grabbing; }
 #bauify-code .grip .k { margin-top: 0; }
@@ -370,7 +381,7 @@ const JS = `
   var externalToggle = document.getElementById('analysis-view-toggle');
   var btn = externalToggle || document.createElement('button');
   if (!externalToggle) btn.id = 'btn-bauify'; btn.type = 'button'; btn.setAttribute('aria-pressed', 'false');
-  btn.title = '切换架构图与分析图 (C)'; btn.textContent = '分析图切换';
+  btn.title = 'Show or hide the code analysis layer (C)'; btn.textContent = 'Code Analysis';
   if (!externalToggle) toolbar.appendChild(btn);
 
   var panel = document.createElement('aside');
@@ -427,7 +438,7 @@ const JS = `
     });
     svg.appendChild(layer);
   }
-  function esc(s) { return String(s).replace(/[&<>]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]; }); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
   function show(id) {
     var c = byId[id]; if (!c) return;
     hint.hidden = true;
@@ -456,7 +467,7 @@ const JS = `
         list.forEach(function (e) {
           var target = e.component ? (byId[e.component] ? byId[e.component].label : e.component) : (e.module + ' (not on diagram)');
           s += '<div class="edge"><b>' + arrow + '</b> ' + esc(target) + ' <span class="ev">' + e.weight + ' import' + (e.weight === 1 ? '' : 's') + '</span><div class="ev">' +
-            e.evidence.map(function (v) { return '<div>' + esc(v.file) + ':' + v.line + ' → ' + esc(v.to) + '</div>'; }).join('') + '</div></div>';
+            e.evidence.map(function (v) { return '<div>' + fileLink(v.file, v.line) + ' → ' + esc(v.to) + '</div>'; }).join('') + '</div></div>';
         });
         return s + '</details>';
       };
@@ -517,11 +528,11 @@ const JS = `
   // Source excerpt for one file:line, from the windows embedded at overlay time.
   function showCode(file, line, why, tone) {
     var snip = (data.snippets || {})[file];
-    var b = repoBase();
-    var h = '<div class="grip" title="Drag to move up or down"><button class="close" aria-label="Close">×</button><div class="k">Source · line ' + line + ' · drag to move</div><h3>' + (b ? '<a href="' + b.blob + esc(file) + '#L' + line + '" target="_blank" rel="noopener">' + esc(file) + '</a>' : esc(file)) + '</h3></div>';
+    line = Number.isInteger(line) && line > 0 ? line : null;
+    var h = '<div class="grip" title="Drag to move up or down"><button class="close" aria-label="Close">×</button><div class="k">Source · ' + (line ? 'line ' + line : 'full file · no specific finding line') + ' · drag to move</div><h3>' + esc(file) + '</h3></div>';
     if (why) h += '<div class="why">' + esc(why) + '</div>';
     if (!snip) {
-      h += '<div class="why" style="margin-top:10px">Source lines are not embedded in this page. Re-run <code>bauify overlay</code> with <code>--source &lt;analyzed dir&gt;</code> to embed the cited files' + (b ? ', or open the file on GitHub above.' : '.') + '</div>';
+      h += '<div class="why" style="margin-top:10px">Source lines are not embedded in this page. Restart Code Analysis to include this file and its context.</div>';
     } else {
       h += '<pre>';
       snip.lines.forEach(function (text, i) {
@@ -573,23 +584,50 @@ const JS = `
   // Source links: GitHub-style blob/tree URLs from the origin + revision the facts were taken at.
   function repoBase() {
     var r = data.repository || {}; if (!r.url || !r.revision) return null;
-    var u = String(r.url).replace(/^git@([^:]+):/, 'https://$1/').replace(/\\.git$/, '');
+    var u = String(r.url).replace(/^git@([^:]+):/, 'https://$1/').replace(/^([a-z][a-z0-9+.-]*:\\/\\/)[^/@\\s]+@/i, '$1').replace(/\\.git$/, '');
     if (!/^https?:\\/\\//.test(u)) return null;
     var root = r.root && r.root !== '.' ? r.root.replace(/\\/$/, '') + '/' : '';
     return { blob: u + '/blob/' + r.revision + '/' + root, tree: u + '/tree/' + r.revision + '/' + root };
   }
   function fileLink(path, line) {
-    var b = repoBase();
-    return b ? '<a href="' + b.blob + esc(path) + (line ? '#L' + line : '') + '" target="_blank" rel="noopener">' + esc(path) + (line ? ':' + line : '') + '</a>' : esc(path) + (line ? ':' + line : '');
+    return '<button type="button" class="source-file" data-file="' + esc(path) + '" data-line="' + (line || '') + '">' + esc(path) + (line ? ':' + line : '') + '</button>';
+  }
+  document.body.addEventListener('click', function (event) {
+    var link = event.target.closest && event.target.closest('.source-file');
+    if (!link || (!panel.contains(link) && !detail.contains(link))) return;
+    event.preventDefault();
+    showCode(link.getAttribute('data-file'), Number(link.getAttribute('data-line')) || null, '', '');
+  });
+  function sourceLinks(c, file) {
+    var lines = [];
+    function add(record) {
+      if (record && record.file === file && Number.isInteger(record.line) && record.line > 0) lines.push(record.line);
+    }
+    allFindings(c).forEach(function (finding) {
+      add(finding.subject);
+      var ev = finding.evidence || {};
+      (ev.imports || []).forEach(add);
+      (ev.pathImports || []).forEach(add);
+      var pr = ev.partialInitCandidate || ev.proof;
+      if (pr) {
+        add({file:pr.entry,line:pr.viaLine}); add({file:pr.entry,line:pr.boundAt});
+        add({file:pr.importer,line:pr.line});
+      }
+    });
+    // Hub findings describe module coupling; their supporting import lines
+    // live on graph edges rather than on the module-level finding itself.
+    if (!lines.length) (c.incoming || []).concat(c.outgoing || []).forEach(function (edge) { (edge.evidence || []).forEach(add); });
+    lines = Array.from(new Set(lines)).sort(function (a, b) { return a - b; });
+    return lines.length ? lines.map(function (line) { return fileLink(file, line); }).join('<br>') : fileLink(file);
   }
   function hubSources(c, f) {
     var m = c.modules.filter(function (x) { return f ? x.id === f.subject.module : true; })[0]; if (!m) return '';
     var files = (c.fileList || []).filter(function (x) { return x.module === m.id; });
     var b = repoBase();
-    var h = '<div class="k">Hub module source</div><div class="ev">' + (b ? '<a href="' + b.tree + esc(m.path) + '" target="_blank" rel="noopener">' + esc(m.path || '(repository root)') + '/</a>' : esc(m.path || '(repository root)')) +
+    var h = '<div class="k">Hub module source</div><div class="ev">' + esc(m.path || '(repository root)') +
       ' · ' + m.files + ' files · ' + m.loc + ' LOC</div>';
     if (files.length) {
-      h += '<table>' + files.slice(0, 40).map(function (x) { return '<tr><td class="p">' + fileLink(x.path) + '</td><td class="n">' + x.loc + ' LOC</td><td class="n">out ' + x.importsOut + '</td><td class="n">in ' + x.importedBy + '</td></tr>'; }).join('') + '</table>';
+      h += '<table>' + files.slice(0, 40).map(function (x) { return '<tr><td class="p">' + sourceLinks(c, x.path) + '</td><td class="n">' + x.loc + ' LOC</td><td class="n">out ' + x.importsOut + '</td><td class="n">in ' + x.importedBy + '</td></tr>'; }).join('') + '</table>';
       if (files.length > 40) h += '<div class="ev">… ' + (files.length - 40) + ' more</div>';
     }
     return h;
@@ -667,8 +705,15 @@ const JS = `
     }
     var n = Math.max(left.length, right.length, 1), rowH = 26, W = 400, H = Math.max(120, n * rowH + 30), bw = 110, bh = 22;
     var svg = svgOpen(W, H), mid = { x: W / 2, y: H / 2 };
-    left.slice(0, 12).forEach(function (m, i) { var p = { x: 70, y: 20 + i * rowH + bh / 2 }; svg += arrow(p, mid, bw, bh, '') + nodeRect(p.x, p.y, bw, bh, short(m)); });
-    right.slice(0, 12).forEach(function (m, i) { var p = { x: W - 70, y: 20 + i * rowH + bh / 2 }; svg += arrow(mid, p, bw, bh, '') + nodeRect(p.x, p.y, bw, bh, short(m)); });
+    // All arrow segments stay in the open gutters, outside every node column.
+    function gutterArrow(x1, y1, x2, y2) {
+      var bend = (x1 + x2) / 2;
+      return '<path class="e" marker-end="url(#bauify-arrow)" d="M' + x1 + ',' + y1 + ' C' + bend + ',' + y1 + ' ' + bend + ',' + y2 + ' ' + x2 + ',' + y2 + '"/>';
+    }
+    var boxes = '';
+    left.slice(0, 12).forEach(function (m, i) { var p = { x: 70, y: 20 + i * rowH + bh / 2 }; svg += gutterArrow(p.x + bw / 2 + 2, p.y, mid.x - bw / 2 - 4, mid.y); boxes += nodeRect(p.x, p.y, bw, bh, short(m)); });
+    right.slice(0, 12).forEach(function (m, i) { var p = { x: W - 70, y: 20 + i * rowH + bh / 2 }; svg += gutterArrow(mid.x + bw / 2 + 2, mid.y, p.x - bw / 2 - 4, p.y); boxes += nodeRect(p.x, p.y, bw, bh, short(m)); });
+    svg += boxes;
     svg += nodeRect(mid.x, mid.y, bw, bh, centre, 'focus') + '</svg>';
     return svg + '<div class="caption">Left: modules that depend on it (fan-in ' + left.length + '). Right: modules it depends on (fan-out ' + right.length + ').' + (f ? ' Threshold ' + f.evidence.threshold.fanIn + ' / ' + f.evidence.threshold.fanOut + ' from config.' : ' Below the hub threshold.') +
       '<br>A hub is a module that is both widely depended on (fan-in) and depends widely (fan-out). High fan-in means every change here ripples out to its dependents; high fan-out means changes elsewhere ripple in. Both at once is the usual shape of a module that has absorbed several responsibilities — a coordination point, not a bug. Check whether its dependents cluster by reason: that is where a split would go.</div>' + (f ? hubSources(c, f) : '');

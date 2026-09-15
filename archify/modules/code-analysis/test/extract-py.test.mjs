@@ -5,14 +5,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { BAUIFY_ROOT, runCli } from './helpers.mjs';
+import { BAUIFY_ROOT, runExtract } from './helpers.mjs';
 
 const FIXTURE = path.join(BAUIFY_ROOT, 'test', 'fixtures', 'py-basic');
 const MIXED = path.join(BAUIFY_ROOT, 'test', 'fixtures', 'mixed');
 const OUT = path.join(process.env.TMPDIR || os.tmpdir(), 'bauify-py-fixture.json');
 
 test('py: fixture yields hand-verified files, imports, unresolved counts, and parse errors', () => {
-  const result = runCli(['extract', FIXTURE, '--json', '--out', OUT]);
+  const result = runExtract([FIXTURE, '--json', '--out', OUT]);
   assert.equal(result.status, 0, result.stdout);
   assert.equal(result.json.adapter, 'py');
   const facts = JSON.parse(fs.readFileSync(OUT, 'utf8'));
@@ -38,17 +38,17 @@ test('py: a `from pkg import sub` edge lands on the submodule, not only the pack
 });
 
 test('py: output is byte-for-byte deterministic', () => {
-  const a = runCli(['extract', FIXTURE]).stdout;
-  const b = runCli(['extract', FIXTURE]).stdout;
+  const a = runExtract([FIXTURE]).stdout;
+  const b = runExtract([FIXTURE]).stdout;
   assert.equal(a, b);
 });
 
 test('adapter selection: mixed trees must name a language; --language settles it', () => {
-  const ambiguous = runCli(['extract', MIXED, '--json']);
+  const ambiguous = runExtract([MIXED, '--json']);
   assert.equal(ambiguous.status, 1);
   assert.equal(ambiguous.json.diagnostics[0].code, 'extract/adapter-ambiguous');
   assert.deepEqual(ambiguous.json.diagnostics[0].evidence.detected, ['ts', 'py']);
-  const py = runCli(['extract', MIXED, '--language', 'py', '--json']);
+  const py = runExtract([MIXED, '--language', 'py', '--json']);
   assert.equal(py.status, 0);
   assert.equal(py.json.files, 1);
 });

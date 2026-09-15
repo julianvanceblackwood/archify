@@ -1,45 +1,57 @@
 # Code Analysis
 
+Start Archify with `npm start -- "/path/to/project" --ir architecture.json` from the Archify package directory. Open the printed URL and click **Code Analysis**. Use `--out` to choose an output directory; otherwise artifacts go to the system temporary directory. The legacy command below remains supported.
+
+[Quick start guide](docs/USAGE.md) — installation, startup, and viewing analysis results.
+
 Code Analysis is Archify's integrated static code analysis module, imported from
-Bauify (commit 4bb811c). It extracts Python and JS/TS dependencies, checks coupling
-and import cycles, exports architecture IR, and overlays findings on delivered diagrams.
+Bauify (commit 4bb811c) and maintained here. It reads a repository's imports
+(Python and JS/TS), folds files into modules, checks coupling and import cycles,
+and shows the result on the architecture diagram Archify delivered — as an
+extra layer the reader switches on, never as a change to the diagram itself.
+
+There is exactly one way to use it, and it follows Archify's own order:
+
+1. **Archify delivers the authored diagram** (`archify deliver architecture …`),
+   exactly as it would without this module.
+2. The delivered page is served locally with one extra toolbar button,
+   **Code Analysis**.
+3. **Clicking the button runs the analysis** — source extraction, module graph,
+   rules, overlay — and switches the page to the analysis view. Nothing is
+   analyzed before the click. From then on the same button shows or hides the
+   layer; a second click never re-runs the analysis.
 
 From the `archify/` package directory:
 
 ```sh
-npm run setup:code-analysis
-npm run code-analysis -- --help
-npm run code-analysis -- run /path/to/repo --language ts --out out/analysis --json
-npm run code-analysis -- analyze /path/to/repo --ir architecture.json --out out/analysis --json
-npm run test:code-analysis
+node bin/archify.mjs code-analysis serve /path/to/repo --ir architecture.json --out out/analysis --language py
 ```
 
-The equivalent CLI entry is `node bin/archify.mjs code-analysis`.
-Commands: `extract`, `graphs`, `evaluate`, `bridge`, `run`, `overlay`, `analyze`.
-Python analysis requires Python 3; `BAUIFY_PYTHON` can select its executable.
-`analyze` uses the containing Archify installation by default. Explicit `--archify`
-and `BAUIFY_ARCHIFY_ROOT` overrides remain supported for compatibility.
-The original Bauify source repository remains independent; future changes to this
-module are maintained here. Existing evidence schemas and diagnostic codes remain compatible.
+No separate setup: the first run installs the module's two dependencies
+(typescript, ajv) into `modules/code-analysis/node_modules`; `npm ci` in
+`archify/` does the same through its `postinstall`. Open the URL the command
+prints and keep the process running. Options:
+`--language ts|py` (required when the tree has both), `--map overlay-map.json`
+(`{"componentId": ["moduleId", …]}` when the IR's `sources` do not say which
+modules a component stands for), `--config file.json` (thresholds, include /
+exclude, roles), `--quality standard|showcase` (passed to `archify deliver`).
 
-Analysis does not execute repository code. Cycle findings describe potential risk,
-not proven runtime failure. See [technical guide](docs/TECH-GUIDE.md) for details.
+Output under `--out`: `architecture.html` (Archify's artifact, untouched) and,
+after the click, `analysis/raw-facts.json`, `analysis/module-graph.json`,
+`analysis/findings.json`, and `analysis/repo.analysis.html` — the delivered page
+plus the appended analysis layer, self-contained. Restart the command for a
+fresh analysis after changing source code.
 
-## Interactive architecture view
+The local process exists because a standalone HTML cannot run the Python /
+TypeScript extractor. It listens only on loopback and accepts analysis requests
+only from its own page; browser requests cannot select repository or output
+paths. Python analysis requires Python 3; `BAUIFY_PYTHON` can select its
+executable. The analyzed code is never executed.
+
+Findings describe facts with evidence (file, line, import, commit) and grade
+potential import-time risks without claiming that execution is safe or that a runtime failure is proven. See
+[ARCHITECTURE.md](ARCHITECTURE.md) and the [technical guide](docs/TECH-GUIDE.md).
 
 ```sh
-npm run code-analysis -- serve /path/to/repo --ir architecture.json --out out/interactive --language ts
+npm run test:code-analysis
 ```
-
-Open the local URL printed by the command and keep it running. The architecture
-is delivered first; source extraction does not run until you click **Code Analysis**
-in the top-right toolbar. **分析图切换**, on the right side, becomes available after
-analysis succeeds. It shows or hides the analysis layer and its component details
-without running analysis again. Failures show a retry action. Restart the command
-for a fresh analysis after changing source code.
-
-The interactive page requires this local process because standalone HTML cannot
-run the Python/TypeScript extractor. The existing `run` and `analyze` commands
-remain available for batch output. The service listens only on loopback and accepts
-analysis requests only from its own page; browser requests cannot select arbitrary
-repository or output paths.

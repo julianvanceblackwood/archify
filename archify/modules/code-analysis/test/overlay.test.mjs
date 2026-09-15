@@ -7,8 +7,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { ARCHIFY_AVAILABLE, ARCHIFY_PACKAGE, ARCHIFY_ROOT, BAUIFY_ROOT, runCli } from './helpers.mjs';
+import { ARCHIFY_AVAILABLE, ARCHIFY_PACKAGE, BAUIFY_ROOT } from './helpers.mjs';
 import { buildOverlay } from '../overlay/inject.mjs';
+import { analyzeRepository } from '../lib/analysis.mjs';
+import { DiagnosticError } from '../extract/shared/diagnostics.mjs';
 
 const FAKE_HTML = '<html><body><div class="toolbar"></div><svg><g data-node-id="app"></g><g data-node-id="lib"></g></svg></body></html>';
 const graph = {
@@ -89,33 +91,6 @@ test('overlay: the delivered HTML is extended, never rewritten, and refuses non-
   assert.throws(() => buildOverlay({ ir, graph, html: '<html><body>plain</body></html>', map: null }), /not-archify-html|does not look like/);
 });
 
-test('overlay: CLI refuses to overwrite the delivered artifact', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bauify-overlay-'));
-  const html = path.join(dir, 'repo.html'); fs.writeFileSync(html, FAKE_HTML);
-  const irPath = path.join(dir, 'ir.json'); fs.writeFileSync(irPath, JSON.stringify(ir));
-  const graphPath = path.join(dir, 'graph.json'); fs.writeFileSync(graphPath, JSON.stringify(graph));
-  const same = runCli(['overlay', html, irPath, graphPath, '--out', html, '--json']);
-  assert.equal(same.status, 1);
-  assert.equal(same.json.diagnostics[0].code, 'cli/out-invalid');
-  const ok = runCli(['overlay', html, irPath, graphPath, '--out', path.join(dir, 'repo.analysis.html'), '--json']);
-  assert.equal(ok.status, 0, ok.stdout);
-  assert.equal(ok.json.mapped, 2);
-});
-
-test('overlay: works on a real Archify-delivered artifact', { skip: ARCHIFY_AVAILABLE ? false : 'set BAUIFY_ARCHIFY_ROOT' }, () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bauify-overlay-real-'));
-  const run = runCli(['run', path.join(BAUIFY_ROOT, 'test', 'fixtures', 'ts-basic'), '--out', dir, '--json']);
-  assert.equal(run.status, 0, run.stdout);
-  const deliver = spawnSync(process.execPath, [path.join(ARCHIFY_PACKAGE, 'bin', 'archify.mjs'), 'deliver', 'architecture', path.join(dir, 'repo.architecture.json'), path.join(dir, 'repo.html'), '--quality', 'standard', '--repo-root', ARCHIFY_ROOT, '--json'], { encoding: 'utf8' });
-  assert.equal(deliver.status, 0, deliver.stderr);
-  const overlay = runCli(['overlay', path.join(dir, 'repo.html'), path.join(dir, 'repo.architecture.json'), path.join(dir, 'module-graph.json'), '--out', path.join(dir, 'repo.analysis.html'), '--json']);
-  assert.equal(overlay.status, 0, overlay.stdout);
-  assert.equal(overlay.json.mapped, 2);
-  const html = fs.readFileSync(path.join(dir, 'repo.analysis.html'), 'utf8');
-  assert.ok(html.includes('id="bauify-analysis"'));
-  assert.ok(html.includes('data-node-id="src"'), 'authored nodes still present');
-});
-
 test('overlay: --source embeds the full text of every file a finding cites, nothing more', () => {
   const finding = { id: 'COUP-0001', code: 'coupling/import-cycle', dimension: 'coupling', severity: 'info', confidence: 1, message: 'm', subject: { files: ['src/index.mjs', 'src/lib/helper.mjs'] },
     evidence: { kind: 'lazy-closed', path: [], imports: [{ file: 'src/index.mjs', line: 2, to: 'src/lib/helper.mjs' }, { file: 'does/not/exist.mjs', line: 1, to: 'x' }], lazyImports: 1, totalImports: 2, threshold: null }, supportedFixes: [] };
@@ -132,14 +107,12 @@ test('overlay: --source embeds the full text of every file a finding cites, noth
   assert.deepEqual(payloadOf(buildOverlay({ ir, graph, html: FAKE_HTML, map: null, findings: [finding] }).html).snippets, {}, 'without --source nothing is embedded');
 });
 
-test('analyze: one command runs the pipeline, delivers the authored IR through Archify, and overlays', { skip: ARCHIFY_AVAILABLE ? false : 'needs an Archify checkout' }, () => {
-  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'bauify-analyze-'));
-  // A tiny hand-authored diagram for the py-basic fixture. No sources (Archify then insists on a pinned
-  // meta.repository); the component-to-module mapping comes from --map instead.
-  const ir = path.join(out, 'fixture.architecture.json');
-  const map = path.join(out, 'map.json');
-  fs.writeFileSync(map, JSON.stringify({ app: ['app'], util: ['app-util'] }));
-  fs.writeFileSync(ir, JSON.stringify({
+test('analysis: the delivered page is read, never rewritten; the analysis page and every stage land in the output directory', { skip: ARCHIFY_AVAILABLE ? false : 'needs an Archify checkout' }, () => {
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-analysis-'));
+  const fixture = path.join(BAUIFY_ROOT, 'test', 'fixtures', 'py-basic');
+  // A tiny authored diagram for the py-basic fixture; no sources, so the mapping is explicit.
+  const irPath = path.join(out, 'fixture.architecture.json');
+  fs.writeFileSync(irPath, JSON.stringify({
     schema_version: 1, diagram_type: 'architecture', meta: { title: 'py-basic', quality_profile: 'standard' },
     components: [
       { id: 'app', type: 'backend', label: 'App', pos: [40, 40], size: [170, 64] },
@@ -147,15 +120,21 @@ test('analyze: one command runs the pipeline, delivers the authored IR through A
     ],
     connections: [{ from: 'app', to: 'util', label: 'uses' }],
   }));
-  const result = runCli(['analyze', path.join(BAUIFY_ROOT, 'test', 'fixtures', 'py-basic'), '--ir', ir, '--map', map, '--out', out, '--json']);
-  assert.equal(result.status, 0, result.stdout + result.stderr);
-  assert.equal(result.json.command, 'analyze');
-  for (const f of ['raw-facts.json', 'module-graph.json', 'findings.json', 'repo.html', 'repo.analysis.html']) assert.ok(fs.existsSync(path.join(out, f)), f);
-  assert.equal(result.json.deliver.validation.compositionStatus, 'pass');
-  assert.equal(result.json.overlay.components, 2);
-  assert.equal(result.json.overlay.mapped, 2);
-  assert.ok(fs.readFileSync(path.join(out, 'repo.analysis.html'), 'utf8').includes('id="bauify-analysis"'));
-  const missing = runCli(['analyze', path.join(BAUIFY_ROOT, 'test', 'fixtures', 'py-basic'), '--ir', ir, '--out', out, '--archify', path.join(out, 'nowhere'), '--json']);
-  assert.equal(missing.status, 1);
-  assert.equal(missing.json.diagnostics[0].code, 'cli/archify-missing');
+  const mapPath = path.join(out, 'map.json');
+  fs.writeFileSync(mapPath, JSON.stringify({ app: ['app'], util: ['app-util'] }));
+  const delivered = path.join(out, 'architecture.html');
+  const deliver = spawnSync(process.execPath, [path.join(ARCHIFY_PACKAGE, 'bin', 'archify.mjs'), 'deliver', 'architecture', irPath, delivered, '--quality', 'standard', '--json'], { encoding: 'utf8' });
+  assert.equal(deliver.status, 0, deliver.stderr);
+  const before = fs.readFileSync(delivered, 'utf8');
+  const receipt = analyzeRepository({ root: fixture, ir: irPath, html: delivered, out: path.join(out, 'analysis'), language: 'py', map: mapPath });
+  assert.equal(receipt.status, 'ok');
+  assert.equal(fs.readFileSync(delivered, 'utf8'), before, 'the delivered artifact is untouched');
+  for (const f of ['raw-facts.json', 'module-graph.json', 'findings.json', 'repo.analysis.html']) assert.ok(fs.existsSync(path.join(out, 'analysis', f)), f);
+  assert.equal(receipt.overlay.components, 2);
+  assert.equal(receipt.overlay.mapped, 2);
+  const html = fs.readFileSync(path.join(out, 'analysis', 'repo.analysis.html'), 'utf8');
+  assert.ok(html.startsWith(before.slice(0, before.indexOf('</body>'))), 'the analysis page is the delivered page plus the appended layer');
+  assert.ok(html.includes('id="bauify-analysis"'));
+  const clash = path.join(out, 'repo.analysis.html'); fs.copyFileSync(delivered, clash);
+  assert.throws(() => analyzeRepository({ root: fixture, ir: irPath, html: clash, out, language: 'py' }), (e) => e instanceof DiagnosticError && e.diagnostics[0].code === 'cli/out-invalid');
 });

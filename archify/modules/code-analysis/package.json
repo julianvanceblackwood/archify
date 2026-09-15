@@ -3,10 +3,10 @@
   "version": "0.1.0-dev.1",
   "private": true,
   "type": "module",
-  "description": "Deterministic, evidence-first code analysis that produces facts, findings, and Archify architecture IR.",
+  "description": "Archify's integrated code analysis: deliver the diagram, click Code Analysis, see the analysis layer on it.",
   "license": "MIT",
   "bin": {
-    "code-analysis": "./bin/analyze.mjs"
+    "code-analysis": "./bin/serve.mjs"
   },
   "engines": {
     "node": ">=18"

@@ -4,8 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { CLI } from './helpers.mjs';
-import { describeRepository } from '../extract/shared/git.mjs';
+import { EXTRACT_RUNNER } from './helpers.mjs';
+import { describeRepository, stripCredentials } from '../extract/shared/git.mjs';
 function fixture(t, files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-extract-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -16,7 +16,7 @@ function fixture(t, files) {
   return root;
 }
 function extract(root, extra = [], env = process.env) {
-  return spawnSync(process.execPath, [CLI, 'extract', root, ...extra], { encoding: 'utf8', timeout: 10000, env });
+  return spawnSync(process.execPath, [EXTRACT_RUNNER, root, ...extra], { encoding: 'utf8', timeout: 20000, env });
 }
 test('extract preserves import-equals and ignores locally bound require calls', (t) => {
   const root = fixture(t, {
@@ -113,4 +113,15 @@ test('raw-facts schema requires unresolved counters and enforces the resolved/to
   assert.ok(schemaErrors('raw-facts', { ...base, imports: [{ ...edge, resolved: false, to: 'b.mjs' }] }).length, 'unresolved with to must fail');
   assert.deepEqual(schemaErrors('raw-facts', { ...base, imports: [{ ...edge, resolved: true, to: 'b.mjs' }] }), []);
   assert.deepEqual(schemaErrors('raw-facts', { ...base, imports: [{ ...edge, resolved: false }], unresolved: { ...base.unresolved, unknown: 1 } }), []);
+});
+
+test('regression: a credentialed origin (https://user@github.com/…) is recorded without the credential, so evidence mode and links still work', (t) => {
+  assert.equal(stripCredentials('https://yijiez666-alt@github.com/a/b.git'), 'https://github.com/a/b.git');
+  assert.equal(stripCredentials('https://user:token@github.com/a/b'), 'https://github.com/a/b');
+  assert.equal(stripCredentials('git@github.com:a/b.git'), 'git@github.com:a/b.git', 'ssh form is untouched');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-origin-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const git = (...args) => spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
+  git('init', '-q'); git('remote', 'add', 'origin', 'https://someone@github.com/someone/repo.git');
+  assert.equal(describeRepository(root).url, 'https://github.com/someone/repo.git');
 });

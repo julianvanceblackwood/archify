@@ -12,6 +12,7 @@
     "node": ">=18"
   },
   "scripts": {
+    "start": "node bin/archify.mjs start",
     "generate:brand-marks": "node scripts/generate-brand-marks.mjs",
     "check:brand-marks": "node scripts/generate-brand-marks.mjs --check",
     "generate:validators": "node scripts/generate-validators.mjs",
@@ -24,8 +25,8 @@
     "test:webm": "node test/webm-artifact.smoke.mjs && node --test test/site-language-integration.mjs",
     "test": "npm run check:brand-marks && npm run check:validators && npm run check:release-identity && node test/golden.mjs && node ../scripts/run-tests.mjs",
     "render:examples": "node scripts/render-examples.mjs ../examples",
-    "code-analysis": "node bin/archify.mjs code-analysis",
-    "setup:code-analysis": "npm ci --prefix modules/code-analysis",
+    "postinstall": "npm ci --prefix modules/code-analysis --no-audit --no-fund",
+    "code-analysis": "node bin/archify.mjs code-analysis serve",
     "test:code-analysis": "npm test --prefix modules/code-analysis"
   },
   "devDependencies": {

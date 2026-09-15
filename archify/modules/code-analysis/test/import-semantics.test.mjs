@@ -11,7 +11,8 @@ import { buildModuleGraph } from '../graphs/module.mjs';
 import { evaluate } from '../evaluate/index.mjs';
 import { buildOverlay } from '../overlay/inject.mjs';
 import { schemaErrors } from '../extract/shared/schema.mjs';
-import { runCli } from './helpers.mjs';
+import { evaluateGraph } from '../lib/analysis.mjs';
+import { DiagnosticError } from '../extract/shared/diagnostics.mjs';
 
 const config = JSON.parse(fs.readFileSync(new URL('../config/defaults.json', import.meta.url)));
 
@@ -188,23 +189,14 @@ test('Semantic validation rejects duplicate IDs, dangling edges and inconsistent
   assert.ok(schemaErrors('raw-facts', badFacts).some((e) => e.message.includes('recorded file')));
 });
 
-test('CLI rejects raw facts from a different revision and invalid file records', (t) => {
-  const { root, graph, facts } = analyze(t, { 'a.py': 'import b\n', 'b.py': '' });
-  const graphPath = path.join(root, 'module-graph.json');
-  const factsPath = path.join(root, 'raw-facts.json');
-  fs.writeFileSync(graphPath, JSON.stringify(graph));
+test('evaluate rejects raw facts from a different revision and invalid file records', (t) => {
+  const { graph, facts } = analyze(t, { 'a.py': 'import b\n', 'b.py': '' });
+  const code = (fn) => { try { fn(); } catch (error) { assert.ok(error instanceof DiagnosticError); return error.diagnostics[0].code; } assert.fail('expected a diagnostic'); };
   const other = structuredClone(facts); other.repository.revision = 'a'.repeat(40);
-  fs.writeFileSync(factsPath, JSON.stringify(other));
-  const mismatch = runCli(['evaluate', graphPath, '--facts', factsPath, '--json']);
-  assert.equal(mismatch.status, 1);
-  assert.equal(mismatch.json.diagnostics[0].code, 'input/facts-incompatible');
+  assert.equal(code(() => evaluateGraph(graph, {}, other)), 'input/facts-incompatible');
   const invalid = structuredClone(facts); invalid.files[0] = null;
-  fs.writeFileSync(factsPath, JSON.stringify(invalid));
-  const malformed = runCli(['evaluate', graphPath, '--facts', factsPath, '--json']);
-  assert.equal(malformed.status, 1);
-  assert.equal(malformed.json.diagnostics[0].code, 'input/facts-incompatible');
+  assert.equal(code(() => evaluateGraph(graph, {}, invalid)), 'input/facts-incompatible');
 });
-
 
 test('single-file runtime cycles retain eager and deferred risk semantics', (t) => {
   const eager = analyze(t, { 'a/x.py': 'from a.x import X as Y\nX = 1\n' });
@@ -301,18 +293,12 @@ test('review regressions: overlay renders candidate references without safety cl
   assert.doesNotThrow(() => new Function(script));
 });
 
-test('CLI rejects changed dependency aggregates with identical metadata', (t) => {
-  const { root, graph, facts } = analyze(t, { 'a.py': 'import b\n', 'b.py': 'import a\n' });
-  const gp = path.join(root, 'graph.json'), fp = path.join(root, 'facts.json');
-  fs.writeFileSync(fp, JSON.stringify(facts));
-  fs.writeFileSync(gp, JSON.stringify(graph));
-  assert.equal(runCli(['evaluate', gp, '--facts', fp, '--json']).status, 0);
+test('evaluate rejects changed dependency aggregates with identical metadata', (t) => {
+  const { graph, facts } = analyze(t, { 'a.py': 'import b\n', 'b.py': 'import a\n' });
+  assert.doesNotThrow(() => evaluateGraph(graph, {}, facts));
   for (const change of [(g) => { g.edges.pop(); }, (g) => { g.edges[0].weight++; }, (g) => { g.edges[0].kinds.eager = 0; }]) {
     const altered = structuredClone(graph); change(altered);
-    fs.writeFileSync(gp, JSON.stringify(altered));
-    const result = runCli(['evaluate', gp, '--facts', fp, '--json']);
-    assert.equal(result.status, 1);
-    assert.equal(result.json.diagnostics[0].code, 'input/facts-incompatible');
+    assert.throws(() => evaluateGraph(altered, {}, facts), (error) => error instanceof DiagnosticError && error.diagnostics[0].code === 'input/facts-incompatible');
   }
 });
 

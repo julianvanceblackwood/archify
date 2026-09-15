@@ -1,0 +1,584 @@
+{
+  "schema_version": 1,
+  "repository": {
+    "root": ".",
+    "revision": "591f6bcaf188d54a685e7b5fc01dba021abbf1c6",
+    "url": "https://github.com/yijiez666-alt/AI-voice-assistant.git",
+    "language": "py",
+    "adapter": "python@3.10.12"
+  },
+  "rules": [
+    "coupling/import-cycle",
+    "coupling/cycle",
+    "coupling/hub"
+  ],
+  "summary": {
+    "errors": 0,
+    "warnings": 2,
+    "info": 2,
+    "suppressed": 0
+  },
+  "diagnostics": [
+    {
+      "id": "COUP-0001",
+      "code": "coupling/cycle",
+      "dimension": "coupling",
+      "severity": "info",
+      "confidence": 1,
+      "message": "11 modules form a package-level dependency component containing deferred, conditional, or type-only edges: asr → tools → tools/weather → asr. This grouping does not establish initialization behavior; it may also contain module-scope subcycles.",
+      "subject": {
+        "modules": [
+          "asr",
+          "llm",
+          "tools",
+          "tools-finance",
+          "tools-gmail",
+          "tools-news",
+          "tools-search",
+          "tools-summary",
+          "tools-weather",
+          "tts",
+          "utils"
+        ]
+      },
+      "evidence": {
+        "kind": "mixed",
+        "path": [
+          "asr",
+          "tools",
+          "tools-weather"
+        ],
+        "edges": [
+          {
+            "from": "asr",
+            "to": "tools",
+            "weight": 1,
+            "lazy": 0,
+            "deferred": false
+          },
+          {
+            "from": "asr",
+            "to": "tools-search",
+            "weight": 2,
+            "lazy": 0,
+            "deferred": false
+          },
+          {
+            "from": "asr",
+            "to": "utils",
+            "weight": 1,
+            "lazy": 0,
+            "deferred": false
+          },
+          {
+            "from": "llm",
+            "to": "tools",
+            "weight": 3,
+            "lazy": 0,
+            "deferred": false
+          },
+          {
+            "from": "llm",
+            "to": "tools-search",
+            "weight": 2,
+            "lazy": 0,
+            "deferred": false
+          },
+          {
+            "from": "llm",
+            "to": "utils",
+            "weight": 1,
+            "lazy": 0,
+            "deferred": false
+          },
+          {
+            "from": "tools",
+            "to": "tools-finance",
+            "weight": 2,
+            "lazy": 0,
+            "deferred": false
+          },
+          {
+            "from": "tools",
+            "to": "tools-gmail",
+            "weight": 9,
+            "lazy": 9,
+            "deferred": true
+          },
+          {
+            "from": "tools",
+            "to": "tools-news",
+            "weight": 4,
+            "lazy": 2,
+            "deferred": false
+          },
+          {
+            "from": "tools",
+            "to": "tools-search",
+            "weight": 6,
+            "lazy": 2,
+            "deferred": false
+          },
+          {
+            "from": "tools",
+            "to": "tools-summary",
+            "weight": 2,
+            "lazy": 2,
+            "deferred": true
+          },
+          {
+            "from": "tools",
+            "to": "tools-weather",
+            "weight": 2,
+            "lazy": 0,
+            "deferred": false
+          },
+          {
+            "from": "tools-finance",
+            "to": "tools-search",
+            "weight": 2,
+            "lazy": 0,
+            "deferred": false
+          },
+          {
+            "from": "tools-gmail",
+            "to": "tools",
+            "weight": 1,
+            "lazy": 0,
+            "deferred": false
+          },
+          {
+            "from": "tools-gmail",
+            "to": "tools-search",
+            "weight": 2,
+            "lazy": 2,
+            "deferred": true
+          },
+          {
+            "from": "tools-news",
+            "to": "llm",
+            "weight": 1,
+            "lazy": 1,
+            "deferred": true
+          },
+          {
+            "from": "tools-news",
+            "to": "tools",
+            "weight": 1,
+            "lazy": 0,
+            "deferred": false
+          },
+          {
+            "from": "tools-news",
+            "to": "tools-search",
+            "weight": 6,
+            "lazy": 4,
+            "deferred": false
+          },
+          {
+            "from": "tools-search",
+            "to": "tools",
+            "weight": 1,
+            "lazy": 0,
+            "deferred": false
+          },
+          {
+            "from": "tools-summary",
+            "to": "llm",
+            "weight": 1,
+            "lazy": 1,
+            "deferred": true
+          },
+          {
+            "from": "tools-summary",
+            "to": "tools-gmail",
+            "weight": 3,
+            "lazy": 3,
+            "deferred": true
+          },
+          {
+            "from": "tools-summary",
+            "to": "tools-news",
+            "weight": 2,
+            "lazy": 0,
+            "deferred": false
+          },
+          {
+            "from": "tools-summary",
+            "to": "tools-search",
+            "weight": 2,
+            "lazy": 2,
+            "deferred": true
+          },
+          {
+            "from": "tools-weather",
+            "to": "asr",
+            "weight": 1,
+            "lazy": 1,
+            "deferred": true
+          },
+          {
+            "from": "tools-weather",
+            "to": "tools-search",
+            "weight": 4,
+            "lazy": 4,
+            "deferred": true
+          },
+          {
+            "from": "tts",
+            "to": "utils",
+            "weight": 3,
+            "lazy": 1,
+            "deferred": false
+          },
+          {
+            "from": "utils",
+            "to": "llm",
+            "weight": 1,
+            "lazy": 1,
+            "deferred": true
+          },
+          {
+            "from": "utils",
+            "to": "tts",
+            "weight": 1,
+            "lazy": 1,
+            "deferred": true
+          }
+        ],
+        "closingLazyImports": [
+          {
+            "file": "tools/local_tool.py",
+            "line": 161,
+            "to": "tools/gmail/__init__.py"
+          },
+          {
+            "file": "tools/local_tool.py",
+            "line": 161,
+            "to": "tools/gmail/auth.py"
+          },
+          {
+            "file": "tools/local_tool.py",
+            "line": 161,
+            "to": "tools/gmail/client.py"
+          },
+          {
+            "file": "tools/local_tool.py",
+            "line": 182,
+            "to": "tools/gmail/__init__.py"
+          },
+          {
+            "file": "tools/local_tool.py",
+            "line": 182,
+            "to": "tools/gmail/auth.py"
+          },
+          {
+            "file": "tools/local_tool.py",
+            "line": 294,
+            "to": "tools/summary/__init__.py"
+          },
+          {
+            "file": "tools/local_tool.py",
+            "line": 294,
+            "to": "tools/summary/digest.py"
+          },
+          {
+            "file": "tools/gmail/client.py",
+            "line": 104,
+            "to": "tools/search/__init__.py"
+          }
+        ],
+        "imports": [
+          {
+            "file": "asr/correct.py",
+            "line": 34,
+            "to": "tools/__init__.py"
+          },
+          {
+            "file": "asr/correct.py",
+            "line": 34,
+            "to": "tools/search/__init__.py"
+          },
+          {
+            "file": "asr/correct.py",
+            "line": 34,
+            "to": "tools/search/lexicon.py"
+          },
+          {
+            "file": "asr/manager.py",
+            "line": 9,
+            "to": "utils/logger.py"
+          },
+          {
+            "file": "llm/llm_client.py",
+            "line": 46,
+            "to": "tools/__init__.py"
+          },
+          {
+            "file": "llm/llm_client.py",
+            "line": 46,
+            "to": "tools/local_tool.py"
+          },
+          {
+            "file": "llm/llm_client.py",
+            "line": 47,
+            "to": "tools/search/__init__.py"
+          },
+          {
+            "file": "llm/llm_client.py",
+            "line": 47,
+            "to": "tools/search/pipeline.py"
+          },
+          {
+            "file": "llm/llm_client.py",
+            "line": 48,
+            "to": "utils/logger.py"
+          },
+          {
+            "file": "tools/local_tool.py",
+            "line": 34,
+            "to": "tools/finance/__init__.py"
+          },
+          {
+            "file": "tools/local_tool.py",
+            "line": 34,
+            "to": "tools/finance/quotes.py"
+          },
+          {
+            "file": "tools/local_tool.py",
+            "line": 161,
+            "to": "tools/gmail/__init__.py",
+            "lazy": true
+          }
+        ],
+        "totalImports": 67,
+        "threshold": null
+      },
+      "supportedFixes": [
+        "move the shared piece both sides need into a new leaf module",
+        "invert one edge by passing the dependency in as a parameter",
+        "if one direction is a single import, check whether it is a convenience re-export that can be dropped"
+      ]
+    },
+    {
+      "id": "COUP-0002",
+      "code": "coupling/hub",
+      "dimension": "coupling",
+      "severity": "warning",
+      "confidence": 1,
+      "message": "asr is a hub: 5 modules depend on it and it depends on 5.",
+      "subject": {
+        "module": "asr"
+      },
+      "evidence": {
+        "fanIn": 5,
+        "fanOut": 5,
+        "instability": 0.5,
+        "dependents": [
+          "main",
+          "scripts",
+          "tools-weather",
+          "ui",
+          "voice_lock"
+        ],
+        "dependencies": [
+          "config",
+          "tools",
+          "tools-search",
+          "utils",
+          "wakeword"
+        ],
+        "threshold": {
+          "fanIn": 5,
+          "fanOut": 5
+        }
+      },
+      "supportedFixes": [
+        "split the module by the reasons it changes; the dependents list usually clusters",
+        "move outgoing dependencies behind an interface the hub owns"
+      ]
+    },
+    {
+      "id": "COUP-0003",
+      "code": "coupling/hub",
+      "dimension": "coupling",
+      "severity": "warning",
+      "confidence": 1,
+      "message": "tools is a hub: 10 modules depend on it and it depends on 8.",
+      "subject": {
+        "module": "tools"
+      },
+      "evidence": {
+        "fanIn": 10,
+        "fanOut": 8,
+        "instability": 0.444,
+        "dependents": [
+          "asr",
+          "llm",
+          "main",
+          "scripts",
+          "scripts-news",
+          "scripts-search",
+          "tools-gmail",
+          "tools-news",
+          "tools-search",
+          "ui"
+        ],
+        "dependencies": [
+          "config",
+          "tools-finance",
+          "tools-flight",
+          "tools-gmail",
+          "tools-news",
+          "tools-search",
+          "tools-summary",
+          "tools-weather"
+        ],
+        "threshold": {
+          "fanIn": 5,
+          "fanOut": 5
+        }
+      },
+      "supportedFixes": [
+        "split the module by the reasons it changes; the dependents list usually clusters",
+        "move outgoing dependencies behind an interface the hub owns"
+      ]
+    },
+    {
+      "id": "COUP-0004",
+      "code": "coupling/import-cycle",
+      "dimension": "coupling",
+      "confidence": 0.7,
+      "severity": "info",
+      "message": "5 files form a dependency cycle containing deferred or conditional imports: llm/llm_client.py → tools/local_tool.py → tools/news/digest.py → llm/llm_client.py. Initialization-time behavior is not proven: functions can be called during import, and dynamic imports or guards need execution context. Any module-scope subcycles are reported separately.",
+      "subject": {
+        "files": [
+          "llm/llm_client.py",
+          "tools/local_tool.py",
+          "tools/news/digest.py",
+          "tools/search/pipeline.py",
+          "tools/summary/digest.py"
+        ]
+      },
+      "evidence": {
+        "kind": "deferred",
+        "risk": {
+          "loading": "not-proven",
+          "coupling": "present",
+          "loadingNote": "call timing and conditional execution are not modeled; no import-safety guarantee"
+        },
+        "path": [
+          "llm/llm_client.py",
+          "tools/local_tool.py",
+          "tools/news/digest.py"
+        ],
+        "pathImports": [
+          {
+            "file": "llm/llm_client.py",
+            "to": "tools/local_tool.py",
+            "line": 46,
+            "deferred": false
+          },
+          {
+            "file": "tools/local_tool.py",
+            "to": "tools/news/digest.py",
+            "line": 252,
+            "deferred": true
+          },
+          {
+            "file": "tools/news/digest.py",
+            "to": "llm/llm_client.py",
+            "line": 78,
+            "deferred": true
+          }
+        ],
+        "imports": [
+          {
+            "file": "llm/llm_client.py",
+            "line": 46,
+            "to": "tools/local_tool.py",
+            "names": [
+              "*"
+            ],
+            "kind": "static"
+          },
+          {
+            "file": "llm/llm_client.py",
+            "line": 47,
+            "to": "tools/search/pipeline.py",
+            "names": [
+              "*"
+            ],
+            "kind": "static"
+          },
+          {
+            "file": "tools/local_tool.py",
+            "line": 93,
+            "to": "tools/search/pipeline.py",
+            "names": [
+              "*"
+            ],
+            "lazy": true,
+            "kind": "static"
+          },
+          {
+            "file": "tools/local_tool.py",
+            "line": 252,
+            "to": "tools/news/digest.py",
+            "names": [
+              "*"
+            ],
+            "lazy": true,
+            "kind": "static"
+          },
+          {
+            "file": "tools/local_tool.py",
+            "line": 294,
+            "to": "tools/summary/digest.py",
+            "names": [
+              "*"
+            ],
+            "lazy": true,
+            "kind": "static"
+          },
+          {
+            "file": "tools/news/digest.py",
+            "line": 78,
+            "to": "llm/llm_client.py",
+            "names": [
+              "ask_llm"
+            ],
+            "lazy": true,
+            "kind": "static"
+          },
+          {
+            "file": "tools/search/pipeline.py",
+            "line": 27,
+            "to": "tools/local_tool.py",
+            "names": [
+              "*"
+            ],
+            "kind": "static"
+          },
+          {
+            "file": "tools/summary/digest.py",
+            "line": 139,
+            "to": "llm/llm_client.py",
+            "names": [
+              "ask_llm"
+            ],
+            "lazy": true,
+            "kind": "static"
+          }
+        ],
+        "lazyImports": 5,
+        "totalImports": 8,
+        "threshold": null
+      },
+      "supportedFixes": [
+        "keep the lazy import if the call-back is intentional, and say so in a comment at the import",
+        "if the two sides should be testable in isolation, inject the callee (a callback or protocol) from the composition root instead of importing it"
+      ]
+    }
+  ]
+}

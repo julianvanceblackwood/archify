@@ -1,9 +1,9 @@
-# Bauify — Architecture of the code-module analysis tool
+# Code Analysis — Architecture of the code-module analysis module
 
-Status: draft · 2026-09-09
-Home: the standalone repository `yijiez666-alt/bauify`. Bauify produces facts, findings, and Archify `architecture` IR; validation, layout, and rendering are done by a separately installed Archify. Bauify depends on none of Archify's internal modules and only calls its CLI.
+Status: draft · 2026-09-15
+Home: `archify/modules/code-analysis`, Archify's integrated code analysis, imported from Bauify (`yijiez666-alt/bauify`, commit 4bb811c) and maintained here. The module produces facts and findings and layers them onto the diagram Archify delivered; validation, layout, and rendering stay Archify's. The module calls Archify only through its CLI (`archify deliver`) and touches the delivered page only by appending to a copy of it.
 
-> Origin: this tool was first proposed as an `analyzers/` subdirectory of Archify (tt-a1i/archify PR #352). Archify's author suggested that the long-term maintenance burden of language parsing, module resolution, and dependency accuracy belongs in an external tool, with Archify only consuming the resulting graph data. This repository is the split along that boundary; the Git history and authorship were preserved with `git subtree split`. Integration shape: `bauify → facts / findings → Archify IR → archify validate / deliver`. Archify's existing IR is used as is; an extension is only proposed once a concrete integration exposes a gap.
+> Origin: this work was first proposed as an `analyzers/` subdirectory of Archify (tt-a1i/archify PR #352), then developed as the standalone tool Bauify, and finally brought back as this module. There is one way to use it, and it follows Archify's own order: Archify delivers the authored diagram; the page gets a **Code Analysis** button; clicking it runs the analysis and switches the page to the analysis view. Nothing is analyzed before the click.
 
 ---
 
@@ -35,7 +35,7 @@ Outputs: JSON for the five graphs, `findings.json`, `report.json` grouped by dim
 
 ### 1.2 Non-goals
 
-- Archify is not modified; the bridge only generates Archify's existing IR, and validation and rendering are left to the separately installed Archify CLI.
+- Archify's IR and delivered artifact are not modified; the analysis is a layer appended to a copy of the delivered page, and validation and rendering are left to `archify deliver`.
 - The analyzed code is never executed (no tests run, no sampling, no instrumentation).
 - The analysis core calls no LLM; every finding traces back to a file, line, edge, or set of commits.
 - No automatic fixes in the first phase.
@@ -57,11 +57,13 @@ Anything that fails is either downgraded to an "optional external-tool adapter" 
 ## 2. Pipeline
 
 ```
-target repo ──▶ 1. extract ──▶ 2. build-graphs ──▶ 3. evaluate ──▶ 4. report ──┬─▶ 5a. bridge / enrich → archify deliver
-(git checkout)   language        five graphs +        rule engine    per-dimension  ├─▶ 5b. overlay → repo.analysis.html
-                 adapters        function metrics                    summary        └─▶ 5c. (optional) LLM explanation
-                     │                 │                  │               │
-              raw-facts.json     graphs/*.json       findings.json    report.json
+authored IR ──▶ archify deliver ──▶ architecture.html ──▶ served locally with a "Code Analysis" button
+                                                                      │ click
+target repo ──▶ 1. extract ──▶ 2. build-graphs ──▶ 3. evaluate ──▶ 4. overlay ──▶ repo.analysis.html (delivered page + layer)
+(git checkout)   language        five graphs +        rule engine        │
+                 adapters        function metrics                        └─▶ (later) report per dimension, optional LLM explanation
+                     │                 │                  │
+              raw-facts.json     graphs/*.json       findings.json
 ```
 
 Every stage is a pure JSON → JSON transformation whose input and output are written to disk, have a schema, and can be tested on their own. Any stage can be replaced independently.
@@ -121,33 +123,21 @@ Constraints: thresholds come from configuration and are echoed in the evidence; 
 
 Groups findings by dimension and reports each dimension's **error / warning / info counts and the raw values of its key metrics** (number of cycles, maximum fan-in, duplicate-code ratio, …). No 0–100 score. If a score is ever wanted, its formula must be published in `config/scoring.json` and the formula version echoed in the report.
 
-### 2.5 The Archify side: `bridge/`, `enrich`, and `overlay/`
+### 2.5 The Archify side: `serve` and `overlay/`
 
-Bauify meets Archify in two ways. The **IR path** is the one Archify's author asked for: Bauify writes Archify `architecture` IR (`schema_version: 1`) and Archify validates and renders it. The **overlay** is Bauify's own viewing mode on top of an already-delivered artifact. The two are kept apart on purpose: the IR path uses nothing but Archify's public schema and CLI, while the overlay depends on a handful of viewer hooks.
+The module meets Archify at exactly one point. `archify code-analysis serve <repo> --ir <architecture.json> --out <dir>` first runs `archify deliver architecture` on the authored IR — the same command, the same checks, the same artifact a person would get without this module — then serves that page on a loopback port with one extra toolbar button, **Code Analysis**. The button is the only trigger: clicking it runs extract → graphs → evaluate → overlay for the repository (`lib/analysis.mjs`, in the serving process), writes every stage to `<dir>/analysis/`, and switches the page to the analysis view. A second click never re-runs the analysis; from then on the same button shows or hides the layer. There is no batch command, no auto-generated diagram, and no way to run a stage on its own from the product CLI; the stages remain separate, schema-checked JSON files so a result can still be inspected and diffed.
 
-**`bridge/to-archify.mjs` — module graph → generated IR.** Only Archify's existing fields are used; the IR is not extended.
+An earlier "bridge" that generated an Archify IR from the module graph was removed: a folded dependency graph is far more detailed than a diagram a person would draw, and the order above — diagram first, analysis on request — is the one the product wants.
 
-- **Nodes**: module → component; `type` is always `backend` unless `bridge.types` maps it explicitly; `sublabel` carries file count and LOC, `tag` carries fan-in / fan-out. No semantic colour is inferred from names.
-- **Node budget of 12**: when exceeded, whole sibling groups fold into their parent directory (deepest parents first), so a parent is never half expanded and half folded; if still over budget, the top N by degree are kept and the rest merge into `other`. Folding is written into a card.
-- **Edges**: inter-module dependency → connection, `label` is `N imports`; `bridge.minWeight` hides weak edges and the hidden count goes into a card.
-- **Layout**: Archify has no automatic layout, so the bridge lays out with `layout.mode: grid`: layers by longest path (DFS breaks cycles), **one column per module** (ordered by instability ascending, sinks left, sources right), and every edge gets an explicit `via`: source bottom → a private lane in the gap below its row → target top; back edges leave from the top through the gap above. Lanes within a gap are ordered by "whose endpoint falls inside whose span" to avoid crossings where possible; nested spans cross unavoidably.
-- **Quality profile**: `quality_profile: standard` by default. Real dependency graphs are usually non-planar and Archify's `showcase` rejects every crossing, so showcase is only feasible for sparse graphs (`bridge.qualityProfile` overrides).
-- **Evidence mode is decided by facts, not by a switch**: when `repository.revision` is a 40-hex sha and the origin is github.com (ssh form is normalised to https), `meta.repository` and each node's `sources` (module entry files, ≤ 3) are written and left for `archify deliver --repo-root` to verify; otherwise the IR is source-free.
-- Comparing two commits reuses `archify compare`.
-
-A generated module map is far more detailed than a diagram a person would draw for the same system, so in 2026-09 the bridge was demoted from main path to capability. `run` still writes it, it still passes `deliver`, and it is the right answer when there is no hand-authored diagram at all.
-
-**`enrich` (planned) — hand-authored IR → annotated copy.** Reads the authored IR, the module graph, and the findings, and writes a new IR that differs only in what the schema already allows: each component gains `sources` from the component-to-module mapping (file paths with line evidence, verified by `--repo-root`), components with findings gain a `tag` (`info · runtime cycle`, `warning · hub`), and a "Code analysis" entry is added to `cards` listing the findings with their risk level. Archify then validates and renders as usual. This is the closest match to "external analyzer → facts → existing IR → Archify validation and rendering", with no viewer coupling; the trade is that it has no interactive panels.
-
-**`overlay/inject.mjs` — analysis layered onto a delivered HTML.** An agent-authored Archify diagram says how a system *runs*; Bauify says what the code *imports*. `bauify overlay <delivered.html> <ir.json> <module-graph.json> --out <new.html>` appends one data block, one style block, and one script to a *copy* of the delivered HTML and adds a **Code analysis** toolbar button. The delivered file is never rewritten (`--out` may not equal the input), so `deliver`'s sha receipt still holds for the original.
+**`overlay/inject.mjs` — the analysis layer.** An agent-authored Archify diagram says how a system *runs*; the analysis says what the code *imports*. The overlay appends one data block, one style block, and one script to a *copy* of the delivered HTML. The delivered file is never rewritten, so `deliver`'s sha receipt still holds for the original.
 
 - Component-to-module mapping comes from the IR's `sources` by default; `--map` states it explicitly. Modules no component claims are listed as "not on this diagram" rather than dropped.
 - With the button on, the authored diagram and guided views recede and every component gets a blurred halo just outside its box, coloured by danger level: red (pulsing) = a supplied error finding (not currently emitted by cycle rules); amber = a rule warns (a module-scope cycle or a hub); blue = structural coupling with initialization behavior unverified; green = nothing fired; grey = no code maps here. A legend next to the button names the levels. No import lines are drawn on the diagram; Archify's picture stays the subject.
-- Clicking a component opens a panel with its indicators (circular dependency, hub module, instability), the mapped modules, every file with LOC and import counts, and module edges with file:line evidence. Clicking an indicator opens a second panel with the findings behind it and a small diagram Bauify draws to explain them: the cycle as a ring with lazy edges dashed, the hub as a star of dependents and dependencies with links to its source files, instability as in/out bars. Every file:line a finding cites is a button; with `--source <analyzed dir>` the cited files are embedded whole, and the button opens a third, draggable panel scrolled to the cited line. GitHub links are pinned to the analyzed commit.
+- Clicking a component opens a panel with its indicators (circular dependency, hub module, instability), the mapped modules, every file with LOC and import counts, and module edges with file:line evidence. Clicking an indicator opens a second panel with the findings behind it and a small diagram Bauify draws to explain them: the cycle as a ring with lazy edges dashed, the hub as a star of dependents and dependencies with links to its source files, instability as in/out bars. Every file:line a finding cites is a button; the cited files are embedded whole, and the button opens a third, draggable panel scrolled to the cited line. GitHub links are pinned to the analyzed commit.
 - The page embeds the full Bauify dataset (module graph plus every file's facts), and `findings.json` next to the module graph is picked up automatically; findings attach to components through `subject.component`, `subject.module(s)`, and `subject.files`, so future `redundancy/*` findings land in the same panels without changes to the page.
 - Root-level files are modules of their own (`main.py` → `main`, `config.py` → `config`); merging an entry point with a constants table into one `root` module manufactured a false cycle in an early run.
 
-Later: `coupling/*` and `impact/*` findings may carry `views` (Archify guided views, ≤ 5 chapters) so a diagram can narrate an analysis conclusion through the IR path.
+Later: `coupling/*` and `impact/*` findings may carry `views` (Archify guided views, ≤ 5 chapters) so a diagram can narrate an analysis conclusion.
 
 ### 2.6 LLM explanation (optional, `explain/`)
 
@@ -273,34 +263,30 @@ Their confidence is the minimum of their components.
 ## 5. Repository layout
 
 ```
-bauify/
-  ARCHITECTURE.md
-  README.md  LICENSE  NOTICE
-  .github/workflows/ci.yml      ← Node 18/20/22/24; self-analysis tests use a pinned Archify checkout
+archify/modules/code-analysis/
+  ARCHITECTURE.md  README.md  LICENSE  NOTICE
   package.json                  ← devDependencies: typescript, ajv
-  bin/analyze.mjs               ← run | extract | graphs | evaluate | bridge | overlay | analyze
+  bin/serve.mjs                 ← the one entry point: archify deliver → serve → analyze on click
+  lib/analysis.mjs              ← the stages as a library: extractFacts, buildGraph, evaluateGraph, overlayHtml, analyzeRepository
   config/
-    defaults.json               ← every threshold
-    external-apis.json          ← API catalog for the error-handling rules
+    defaults.json               ← every threshold, include / exclude, roles
+    external-apis.json          ← API catalog for the error-handling rules (planned)
   schemas/                      ← raw-facts / module-graph / findings (the other graphs and report follow)
   extract/
     index.mjs
     ts/                         ← TypeScript Compiler API adapter
     py/                         ← standard-library ast script + Node-side resolution
-    shared/                     ← git, files, glob, schema, diagnostics
+    shared/                     ← git, files, glob, schema, diagnostics, semantics
   graphs/
     module.mjs                  ← symbol.mjs call.mjs test.mjs git-change.mjs follow
   evaluate/
     index.mjs
     rules/coupling/{import-cycle,cycle,hub}.mjs   ← complexity, redundancy, error-handling, impact, ai-smell follow
-  report/index.mjs
-  bridge/to-archify.mjs
-  overlay/inject.mjs            ← layers module facts onto an Archify-delivered HTML (new file)
-  explain/                      ← optional: prompt templates + evidence-citation checks
-  examples/                     ← hand-authored IR and overlay maps for the two end-to-end repositories
-  docs/                         ← TECH-GUIDE.md, e2e/ screenshots
+  overlay/inject.mjs            ← appends the analysis layer to a copy of the delivered page
+  docs/TECH-GUIDE.md
   test/
     fixtures/<case>/            ← one minimal synthetic repository per case + expected output
+    run-extract.mjs             ← test harness only (extraction in a child process)
     *.test.mjs
 ```
 
@@ -309,42 +295,35 @@ bauify/
 ## 6. CLI
 
 ```bash
-bauify run      <repo-root> --out out/ [--language ts|py] [--config f] [--since <ref>] [--json]
-bauify extract | graphs | evaluate | bridge ...            # single steps
-bauify overlay  <delivered.html> <ir.json> <module-graph.json> --out <analysis.html> [--map m.json] [--source <dir>]
-bauify analyze  <repo-root> --ir <architecture.json> --out <dir> [--map m.json] [--archify <dir>]   # run + archify deliver + overlay
-bauify run      <repo-root> --fail-on error                # CI gate (planned)
-bauify explain  out/findings.json                          # optional, needs an LLM configuration (planned)
-
-# Archify is installed separately; Bauify only produces IR
-node <archify>/bin/archify.mjs deliver architecture out/repo.architecture.json out/repo.html \
-  --quality standard --repo-root <repo-root> --json
+# from the archify/ package directory
+node bin/archify.mjs code-analysis serve <repo-root> --ir <architecture.json> --out <dir> \
+  [--language ts|py] [--map overlay-map.json] [--config file.json] [--quality standard|showcase]
 ```
 
-`--since <ref>` restricts `pattern-deviation` and `ai-smell/pattern-drift` to edges added after that ref; this is the main "review one AI-generated PR" usage.
+That is the whole surface. `serve` delivers the diagram with `archify deliver` (with `--repo-root` when the IR pins a repository), prints a loopback URL, and analyzes the repository when **Code Analysis** is clicked on that page. `--since <ref>` (planned) will restrict `pattern-deviation` and `ai-smell/pattern-drift` to edges added after that ref for reviewing one AI-generated PR; a `--fail-on` gate and the optional `explain` step are also still planned and will hang off the same command.
 
 ---
 
 ## 7. Tests and acceptance
 
 1. Rule-level fixtures: at least one positive and one negative case each, expected findings compared field by field. The `import-cycle` proof is checked against a real Python `ImportError`.
-2. Contract tests: every artifact passes ajv; bridge output passes `archify validate architecture`.
+2. Contract tests: every artifact passes ajv; the analysis page is the delivered page plus the appended layer, byte for byte.
 3. Self-analysis golden: the whole pipeline over `archify/`, output frozen; changes must be updated explicitly and explained in the PR.
 4. Determinism: two runs on the same input are byte-identical.
 5. Precision sampling: from M2, every rule with `confidence < 1.0` is spot-checked by hand on 20 findings across three real open-source repositories; a rule above 20 % false positives is downgraded to info or narrowed.
 6. CI: this repository's own workflow; the self-analysis tests find Archify through `BAUIFY_ARCHIFY_ROOT` pointing at a pinned checkout and are skipped, not failed, when it is absent.
 
-M1 acceptance: self-analysis of Archify's `archify/` package draws the `bin → renderers/<type> → renderers/shared` layering with zero false `layer-violation` findings, and `deliver --repo-root .` passes.
+M1 acceptance: self-analysis of Archify's `archify/` package finds the `bin → renderers/<type> → renderers/shared` layering with zero false `layer-violation` findings, and the click flow on a delivered page passes end to end.
 
 ---
 
 ## 8. Milestones
 
-Progress (2026-09-09): `extract` (TS + Python, with lazy-import flags and module-scope symbols), `graphs` (Module Graph), `evaluate` (`coupling/import-cycle` in three tiers, `coupling/cycle`, `coupling/hub`), `bridge`, `overlay`, and `run` are done. Both end-to-end repositories — Archify's `archify/` package and AI-voice-assistant — pass `archify deliver` (standard profile, 9/9 checks, evidence verified) and render with the analysis layer; screenshots in `docs/e2e/`. The Python adapter moved from M6 to M1 because the end-to-end test needed it. Next: `enrich`, `coupling/layer-violation`, the redundancy rules, and layout compaction for the bridge.
+Progress (2026-09-15): `extract` (TS + Python, with lazy / conditional / type-only import flags and module-scope symbols), `graphs` (Module Graph), `evaluate` (`coupling/import-cycle` in tiers, `coupling/cycle`, `coupling/hub`), `overlay`, and the `serve` click flow are done and exercised end to end on Archify's `archify/` package and on AI-voice-assistant. The Python adapter moved from M6 to M1 because the end-to-end test needed it. The bridge and the batch commands were removed in favour of the single deliver → click → analyze path. Next: `coupling/layer-violation` and the redundancy rules.
 
 | # | Scope | Deliverable |
 |---|---|---|
-| M1 | TS + Python extraction, Module Graph, `bridge`, `run`, `overlay`, `coupling/import-cycle` / `cycle` / `hub` (done); `enrich`; `layer-violation`; layout compaction | two real repositories end to end |
+| M1 | TS + Python extraction, Module Graph, `overlay`, `serve` click flow, `coupling/import-cycle` / `cycle` / `hub` (done); `layer-violation` | two real repositories end to end |
 | M2 | Symbol / Call / Git graphs + the remaining `coupling/*` + `complexity/*` | coupling and complexity complete |
 | M3 | `redundancy/*` (duplicate blocks, dead exports, pass-through, single-implementation abstractions) | redundancy analysis |
 | M4 | Test graph + `impact/*` + `error-handling/*` + `ai-smell/*` + `--since` | PR-review usage |
@@ -358,11 +337,8 @@ Progress (2026-09-09): `extract` (TS + Python, with lazy-import flags and module
 - Is a default grouping depth of 2 right for monorepos? It may need to switch to package boundaries automatically when `workspaces` is present.
 - The 20 % "dominant direction" threshold of `pattern-deviation` needs calibration on real repositories.
 - Is a Python call graph worth bringing in `pycg` (a research-grade tool with uneven maintenance), or should Python stay at import level for now?
-- Layout compaction for the bridge: one module per column makes wide diagrams for many top-level modules and tall ones for deep chains. Candidates are sharing a column between modules whose spans do not conflict, or placing several modules side by side in a row with `channelX` lanes.
-- Under `showcase`, Archify returned `internal/unclassified` ("Renderer failed before emitting a structured diagnostic") for a graph with 40+ edges — probably an upstream issue triggered by a large diagnostic payload; worth reporting to tt-a1i.
 - Should `explain` live in this repository, or be a prompt the calling agent runs itself?
-- A second bridge for consumers other than Archify (Mermaid, Graphviz) — only when there is a real need.
-- Should Archify declare the viewer hooks the overlay uses (`g[data-node-id]`, `path[data-edge-id]`, `.toolbar`, the panel CSS variables) as a stable contract? Until it does, the overlay is a best-effort extension and `enrich` is the supported integration.
+- The overlay relies on a few viewer hooks (`g[data-node-id]`, `path[data-edge-id]`, `.toolbar`, the panel CSS variables). Now that the module lives in Archify, a viewer change that renames them must update the overlay in the same change; a test that renders a fixture and clicks through guards it.
 
 ---
 

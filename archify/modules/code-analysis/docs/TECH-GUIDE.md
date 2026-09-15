@@ -1,8 +1,8 @@
-# Bauify technical guide: what is behind the code
+# Code Analysis technical guide: what is behind the code
 
-Written for someone reading this repository for the first time. Each section answers four questions: what this is, where it is in the code, why it is used, and where it bites. When you meet something unfamiliar while reading the code, come back here.
+Written for someone reading this module for the first time. Each section answers four questions: what this is, where it is in the code, why it is used, and where it bites. When you meet something unfamiliar while reading the code, come back here.
 
-The suggested reading order follows the pipeline: the runtime first (Node, ESM), then the contracts (JSON Schema), then the technology behind each stage in the order extract → graphs → evaluate → overlay / bridge, and finally tests and cross-platform issues.
+The suggested reading order follows the pipeline: the runtime first (Node, ESM), then the contracts (JSON Schema), then the technology behind each stage in the order extract → graphs → evaluate → overlay, then the `serve` process that ties them to the click, and finally tests and cross-platform issues.
 
 ---
 
@@ -280,7 +280,7 @@ For each component the indicators are computed on the Node side from the finding
 
 ### Diagrams and source excerpts
 
-The second panel's diagrams are plain SVG strings built in the page: the cycle ring places the files of the shortest cycle on an ellipse and draws clipped arrows between them (dashed when the closing import is lazy); the hub star puts dependents on the left and dependencies on the right; instability is two bars and a marker on a 0–1 scale. With `--source`, `collectSnippets` reads every file a finding cites from the analyzed tree and embeds its full text, so the third panel can show the cited line inside the whole file.
+The second panel's diagrams are plain SVG strings built in the page: the cycle ring places the files of the shortest cycle on an ellipse and draws clipped arrows between them (dashed when the closing import is lazy); the hub star puts dependents on the left and dependencies on the right; instability is two bars and a marker on a 0–1 scale. `collectSnippets` reads every file a finding cites from the analyzed tree and embeds its full text, so the third panel can show the cited line inside the whole file.
 
 ### Where it bites
 
@@ -289,45 +289,25 @@ The second panel's diagrams are plain SVG strings built in the page: the cycle r
 
 ---
 
-## 10. bridge/to-archify: graph algorithms and layout
+## 10. bin/serve: deliver first, analyze on click
 
-This is the most algorithm-dense file in the repository, though it is no longer the main path (see ARCHITECTURE.md §2.5).
+### What it does
 
-### Folding to 12 nodes
+`serve` is the module's only entry point. It runs `archify deliver architecture` on the authored IR through Archify's own CLI (a child process, so Archify's checks and receipt are exactly what a person would get), reads the delivered HTML, appends one small `<script>` that adds a **Code Analysis** button to the toolbar, and serves that page on a loopback port. Nothing else happens until the button is clicked.
 
-Archify recommends at most 12 main nodes per diagram. `foldToBudget` folds **whole sibling groups** into their parent directory, deepest first: `tools/dram`, `tools/finance`, … all merge into `tools`. The first version stopped as soon as the count reached 12, which left half of `tools/*` folded and half not; a test caught it, and folding became all-or-nothing per group. Folding **remaps** edges: an edge into a folded module now points at the parent, a parent–child edge becomes a self-loop and is removed, and fan-in / fan-out are recomputed.
+### The click
 
-### Breaking cycles with DFS, then layering
+The button POSTs to `/analyze`. The request must come from the served page (the `Origin` header) and carry a token minted for this process; anything else is refused, so a page in another tab cannot start an analysis or pick paths. On the first accepted request the server calls `analyzeRepository` from `lib/analysis.mjs` in-process: extract → graphs → evaluate → overlay, each stage written to `<out>/analysis/` and validated against its schema. The response is the analysis page. Concurrent clicks share the one run; later clicks get the finished page back without running again.
 
-Real dependency graphs often have cycles. To lay nodes out in layers the graph must first become a DAG (directed acyclic graph). **Depth-first search** does it: nodes are marked "in progress" while being visited; an edge that points at an in-progress node is a **back edge**, part of a cycle, and is ignored for layering (`state.get(next) === 1` in `layerModules`).
+### Handing over to the layer
 
-Layering uses **longest path**: topologically sort, then set each node's layer to the maximum of its predecessors' layers plus one. Sources (no incoming edges) sit in layer 0; the deepest sink is at the bottom.
+The page does not navigate to the analysis page. It parses the response, copies the three overlay blocks (`bauify-analysis`, `bauify-style`, `bauify-script`) into itself, removes its own start button — the overlay adds a **Code Analysis** toggle of its own to the toolbar — and clicks that toggle once. So the reader sees the same page, now with the layer on; the toggle then shows or hides it. A failure comes back as structured diagnostics (section 12) and is shown next to the button with the option to retry.
 
-### Topological order and Kahn's algorithm
+### Where it bites
 
-`orderLanes` uses **Kahn's algorithm**: keep the set of unplaced items, take every item whose constraints are satisfied each round, and pick one by a stable rule. The constraints say which edge must sit above which (below). When constraints form a cycle (nested spans), it falls back to sorting by span — the unavoidable crossing.
-
-### Why one module per column
-
-Archify treats "an edge passes through an unrelated node" as a hard error. With one module per column, a vertical segment only ever crosses its own column, which contains no other node. The cost is width; that is a known limitation.
-
-Columns are ordered by instability ascending: sinks on the left, sources on the right, so most lanes run right-to-left towards sinks and a source's short vertical rarely lands inside someone else's horizontal span.
-
-### Explicit routing: `via` and lanes
-
-Archify has no automatic layout, only `grid` mode and explicit `via` waypoints. Every edge takes three segments: straight down from the source's bottom to a **lane** (a horizontal line in the gap below the row, one per edge, 24 px apart), horizontally to the target's column, and down to the target's top. Back edges (pointing upwards) leave from the top through the gap above. The label is pinned with `labelAt` on the lane near the source, where no other column's vertical can be.
-
-Lanes within one gap are ordered by two rules: if an edge's **source** falls inside another edge's horizontal span, it must be above; if its **target** falls inside another's span, it must be below. When neither can be satisfied (nested spans) they cross.
-
-### standard versus showcase
-
-Archify's `showcase` profile demands zero crossings. Real dependency graphs are mostly non-planar (they cross however they are drawn), so Bauify declares `standard` by default: crossings are warnings, the diagram is delivered, and evidence is still verified.
-
-### Evidence mode
-
-`meta.repository` and each node's `sources` are written only when both conditions hold: the revision is a 40-hex sha and the origin is github.com (the ssh form `git@github.com:a/b.git` is normalised to `https://github.com/a/b`). Once written, `archify deliver --repo-root` uses git to check that every path exists at that commit — so Bauify does not claim evidence itself; it hands Archify verifiable leads.
-
----
+- The client script is injected as `client.toString()`, so it must be plain, self-contained, ES5-ish JavaScript: no imports, no references to module scope, no template literals with nested backticks.
+- Appending a `<script>` element with `textContent` runs it; appending the overlay's script this way is what makes the layer come alive without a reload.
+- `execFile` on Windows needs `process.execPath` plus the script path, never `archify` on `PATH`.
 
 ## 11. Determinism: why "byte-identical" matters so much
 
@@ -353,7 +333,7 @@ Bauify never prints a Node stack trace to the user. Every failure is an object o
   "supportedFixes": ["pass --language ts", "pass --language py"] }
 ```
 
-Implementation: `fail(code, message, details)` throws a custom `DiagnosticError`; the outermost `try/catch` in `bin/analyze.mjs` catches it, `--json` mode prints `{ status: "failed", diagnostics: [...] }`, human mode prints `code: message` and the fixes, and the process exits with 1. An unexpected error that is not a `DiagnosticError` takes the same path with code `internal/unclassified` — it says "unclassified" rather than inventing a fix.
+Implementation: `fail(code, message, details)` throws a custom `DiagnosticError`; `serve` catches it around the click and answers the page with `{ error, diagnostics: [...] }` (HTTP 500), which the button shows with a retry. An unexpected error that is not a `DiagnosticError` takes the same path with code `internal/unclassified` — it says "unclassified" rather than inventing a fix.
 
 The shape is identical to Archify's diagnostic contract, which is why findings could attach to Archify node cards later.
 
@@ -379,11 +359,11 @@ Each test in `test/extract-regressions.test.mjs` corresponds to a bug a review c
 
 ### Self-analysis
 
-Analysing Archify's own `archify/` package asserts the three layers `bin → renderers/* → renderers/shared`, that `shared` has fan-out 0, that there is no static edge from bin to the renderers but `opaque ≥ 1`, and finally validates the bridge output with Archify's own `validate`. This tests Bauify and doubles as a health check of the upstream code structure.
+Analysing Archify's own `archify/` package asserts the three layers `bin → renderers/* → renderers/shared`, that `shared` has fan-out 0, and that there is no static edge from bin to the renderers but `opaque ≥ 1`. This tests the module and doubles as a health check of the surrounding code structure.
 
-### Running the CLI as a subprocess
+### Subprocess tests
 
-`runCli` in `test/helpers.mjs` really starts the command line with `spawnSync(process.execPath, [CLI, ...args])` rather than calling functions directly. What gets tested is what a user meets: exit codes, the JSON on stdout, the text on stderr.
+Most tests call the library directly (`extractFacts`, `buildGraph`, `evaluateGraph`, `analyzeRepository`). A few need a separate process — a different locale, a clean environment, the structured failure shape — and use `test/run-extract.mjs`, a harness that exists only for tests. The click flow is tested by starting `serve` in-process and driving it with `fetch`: the page before the click has no analysis, unauthorized requests are refused, the first accepted click writes the stages, a second click reuses them.
 
 ---
 
@@ -432,4 +412,4 @@ Analysing Archify's own `archify/` package asserts the three layers `bin → ren
 - JSON Schema: "Understanding JSON Schema" on json-schema.org, especially `if/then/else` and `additionalProperties`.
 - Graph algorithms: the DFS, topological sort, and strongly connected components (Tarjan) chapters of any algorithms textbook; `coupling/cycle` and `coupling/import-cycle` are Tarjan.
 - Dependency metrics: Robert C. Martin, *Agile Software Development: Principles, Patterns, and Practices*, chapter 20, "Principles of Package Design".
-- Archify's contract: `archify/references/authoring-contract.md`; the "Executable geometry rules" section explains why the bridge draws the way it does.
+- Archify's contract: `archify/references/authoring-contract.md` and `delivery-contract.md`; they explain what `deliver` checks and what its receipt guarantees.

@@ -16,5 +16,12 @@ export function describeRepository(analyzedRoot) {
   const rel = toPosix(path.relative(fs.realpathSync(top), fs.realpathSync(analyzedRoot))) || '.';
   const revision = git(analyzedRoot, ['rev-parse', 'HEAD']);
   const url = git(analyzedRoot, ['remote', 'get-url', 'origin']);
-  return { revision: revision && /^[a-f0-9]{40}$/.test(revision) ? revision : null, root: rel, url: url || null };
+  return { revision: revision && /^[a-f0-9]{40}$/.test(revision) ? revision : null, root: rel, url: url ? stripCredentials(url) : null };
+}
+
+// `https://user:token@host/...` is a common per-repository credential setup.
+// The credential is never a fact about the repository and must not land in
+// any artifact; the origin is recorded without it.
+export function stripCredentials(url) {
+  return url.replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@\s]+@/i, '$1');
 }
