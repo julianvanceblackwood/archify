@@ -1,5 +1,22 @@
 # Code Analysis PR 419 validation
 
+## Latest merged-source verification
+
+The remote PR merged main while these fixes were being validated. That update was preserved in merge commit `a3ec5820050c8cf966a85526e40361410fd8f973`.
+
+A clean Ubuntu/Node 22.23.2 run on that source, with its freshly rebuilt archive, completed 1,372 tests: 1,323 passed, 1 failed, and 48 skipped. The sole failure was the Chinese README line budget after combining the upstream additions and the module link. The link was folded into the existing contribution paragraph, and this targeted check then passed:
+
+```sh
+node --test --test-name-pattern="README stays scannable" archify/test/readme-showcase.test.mjs
+```
+
+No runtime code changed after that full run. The full suite was not repeated for the final repository-only README/evidence edits. The archive was regenerated from the clean merged source; its SHA-256 is `305d4f6c4a026862acd155d94d9884824cc2b8b932b24d3ab987d6e3f9e6a4b4`.
+
+The browser flow below was also rerun against the merged Viewer: source line 34, context scrolling, and toggling analysis off passed. Source-panel screenshots were inspected again. This latest run supersedes the pre-merge evidence below where upstream behavior changed; the earlier results remain identified by their original revision.
+
+## Pre-merge verification
+
+
 Runtime and package revision: `e2700b0fe5528d8a1639ce7eaa2ac7d80dd7fe5f`.
 Comparison base for these fixes: `dec33fa941d3f35a4b9e36c73dd0b41d89b3e3d2`.
 This evidence document is a subsequent documentation-only change and is outside the packaged skill.
