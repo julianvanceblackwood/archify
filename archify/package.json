@@ -29,6 +29,7 @@
     "postinstall": "npm ci --prefix modules/code-analysis --no-audit --no-fund",
     "code-analysis": "node bin/archify.mjs code-analysis serve",
     "test:code-analysis": "npm test --prefix modules/code-analysis",
+    "test:browser": "node ../scripts/run-browser-tests.mjs",
     "test": "npm run check:viewer && npm run check:brand-marks && npm run check:validators && npm run check:release-identity && node test/golden.mjs && node ../scripts/run-tests.mjs",
     "render:examples": "node scripts/render-examples.mjs ../examples"
   },
@@ -39,6 +40,6 @@
     "simple-icons": "16.28.0"
   },
   "overrides": {
-    "fast-uri": "3.1.5"
+    "fast-uri": "^3.1.7"
   }
 }

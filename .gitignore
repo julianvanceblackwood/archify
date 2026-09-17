@@ -9,3 +9,5 @@ node_modules/
 /archify/out/
 /out/
 /archify/.validator-check-*/
+__pycache__/
+*.py[cod]

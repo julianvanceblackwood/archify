@@ -60,13 +60,15 @@ test('Motion Governor preserves mode, ownership, ambient completion and real cal
     const expectedNavigation = ++navigationId;
     if (!preserveStorage) {
       fixtureUrl = pathToFileURL(files[mode]).href + `?theme=${theme}&testNavigation=${expectedNavigation}${query}`;
+      // Reset the disposable browser profile before navigation. Touching
+      // localStorage in a new-document script can disturb file-backed storage
+      // in Chrome; leave startup and reload reads to the Viewer itself.
+      await send('Storage.clearDataForStorageKey', { storageKey: 'file:///', storageTypes: 'local_storage' });
     }
     if (startup) await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: startup });
     ({ identifier: startup } = await send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
       if (location.href !== ${JSON.stringify(fixtureUrl)}) return;
       window.motionNavigation = ${expectedNavigation};
-      try { window.motionStartupPreference = localStorage.getItem('archify-motion'); }
-      catch (error) { window.motionStartupPreference = String(error); }
       window.motionErrors = []; window.motionEnds = []; window.motionAmbient = [];
       addEventListener('error', e => motionErrors.push(e.message));
       addEventListener('unhandledrejection', e => motionErrors.push(String(e.reason)));
@@ -87,7 +89,6 @@ test('Motion Governor preserves mode, ownership, ambient completion and real cal
         }
         requestAnimationFrame(sample);
       });
-      ${preserveStorage ? '' : "try { localStorage.removeItem('archify-motion'); } catch (_) {}"}
       ${fixture}
     })();` }));
     await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
@@ -156,11 +157,14 @@ test('Motion Governor preserves mode, ownership, ambient completion and real cal
     assert.equal(await run('Archify.motionGovernor.pause()'), true);
     assert.equal(await run(`localStorage.getItem('archify-motion')`), 'still');
     const storedUrl = await run('location.href');
+    // Observe after normal startup. A CDP new-document localStorage read can
+    // change Chrome's file-backed storage behavior, even in script-free HTML.
+    // The Viewer must restore the saved choice itself on every reload.
     for (let reload = 0; reload < 5; reload++) {
       await load('architecture', { preserveStorage: true });
-      const stored = await run(`({initial:motionStartupPreference,current:localStorage.getItem('archify-motion'),navigation:motionNavigation,url:location.href})`);
+      const stored = await run(`({current:localStorage.getItem('archify-motion'),navigation:motionNavigation,url:location.href})`);
       assert.equal(stored.url, storedUrl, 'Preference persistence must reload the same file URL.');
-      assert.equal(stored.initial, 'still', 'Preference must survive before application startup.');
+      assert.equal(stored.current, 'still', 'Preference must survive reloading the standalone file.');
       assert.equal((await snapshot('stored-still-' + reload)).mode, 'still', JSON.stringify(stored));
     }
     assert.equal(await run(`Archify.motionGovernor.setMode('live', {persist:false})`), 'live');
@@ -180,6 +184,10 @@ test('Motion Governor preserves mode, ownership, ambient completion and real cal
     assert.equal((await snapshot('released')).mode, 'live');
     assert.equal(await run('Archify.motionGovernor.toggle()'), true);
     assert.equal(await run('Archify.motionGovernor.toggle()'), false);
+    await run('Archify.motionGovernor.pause()');
+    await load();
+    assert.equal(await run(`localStorage.getItem('archify-motion')`), null, 'Fresh fixtures reset prior stored intent.');
+    assert.equal((await snapshot('fresh-after-stored-intent')).mode, 'live');
     await load('architecture', { fixture: `Storage.prototype.getItem = Storage.prototype.setItem = Storage.prototype.removeItem = function () { throw new Error('storage fixture'); };` });
     assert.equal(await run('Archify.motionGovernor.pause()'), true);
     assert.equal(await run('Archify.motionGovernor.resume()'), false);

@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { parseFragment } from 'parse5';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -10,6 +11,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-checks-'));
 const checker = path.join(skillRoot, 'scripts/check-render-output.mjs');
+
+test('render output check: finite_svg preserves slashes in unquoted HTML attribute values', () => {
+  for (const [markup, expected] of [
+    ['<line x1=NaN/>', 'NaN/'],
+    ['<line x1=NaN />', 'NaN'],
+    ['<line x1="NaN"/>', 'NaN'],
+    ['<line x1=NaN/ x2=10 />', 'NaN/'],
+    ['<line x1=NaN/></line>', 'NaN/'],
+  ]) {
+    const svg = parseFragment(`<svg>${markup}</svg>`).childNodes[0];
+    const value = svg.childNodes[0].attrs.find((attr) => attr.name === 'x1').value;
+    assert.equal(value, expected, markup);
+    const { result } = checkHtml('unquoted-attribute-slash', markup);
+    const check = result.checks.find((entry) => entry.name === 'finite_svg');
+    assert.equal(check.ok, false, markup);
+    assert.deepEqual(check.details, [`line x1="${value}"`], markup);
+  }
+});
 
 function checkHtml(name, svgBody, profile = 'standard', viewBox = '0 0 240 160') {
   const htmlPath = path.join(tmp, `${name}.html`);
@@ -234,6 +253,99 @@ test('render output check: relationship labels cannot hide another shared-source
   }
 });
 
+// `check` also runs against artifacts it did not produce, so a label the SVG
+// canvas clips has to be measurable from the emitted markup alone.
+test('render output check: a relationship label cannot leave the canvas', () => {
+  for (const profile of ['standard', 'showcase']) {
+    const { code, result } = checkHtml(`label-canvas-${profile}`, `
+      <path data-edge-key="0" data-edge-id="approved" data-edge-from="dlq" data-edge-to="replay" data-composition-points="20,60;200,60" d="M 20 60 L 200 60" class="a-default" marker-end="url(#arrowhead)"/>
+      <g data-detail="context" data-edge-key="0" data-edge-id="approved" data-edge-from="dlq" data-edge-to="replay" data-edge-label="approved replay">
+        <rect x="200" y="48" width="60" height="14" rx="3" class="c-mask"/>
+        <text x="230" y="58">approved replay</text>
+      </g>
+    `, profile);
+
+    assert.equal(result.composition.metrics.labelCanvasOverflowIssues, 1);
+    const issue = result.composition.issues.find((item) => item.code === 'composition/label-canvas-containment');
+    assert.equal(issue.label, 'approved replay');
+    assert.deepEqual(issue.labelRect, { x: 200, y: 48, width: 60, height: 14 });
+    assert.deepEqual(issue.viewBox, [240, 160]);
+    assert.deepEqual(issue.overflowPx, { right: 20 });
+    assert.match(issue.detail, /extends past the right edge by 20px/);
+    // The rule owns no named check: it fails the receipt through composition,
+    // exactly like composition/desktop-readability.
+    assert.equal(result.checks.length, 9);
+    assert.ok(result.checks.every((check) => check.ok));
+    if (profile === 'standard') {
+      assert.equal(code, 0);
+      assert.equal(issue.severity, 'warning');
+      assert.deepEqual(result.composition.summary, { errors: 0, warnings: 1 });
+    } else {
+      assert.notEqual(code, 0);
+      assert.equal(issue.severity, 'error');
+      assert.deepEqual(result.composition.summary, { errors: 1, warnings: 0 });
+      assert.equal(result.ok, false);
+    }
+  }
+});
+
+test('render output check: a contained relationship label reports no overflow', () => {
+  const { code, result } = checkHtml('label-canvas-contained', `
+    <path data-edge-key="0" data-edge-id="approved" data-edge-from="dlq" data-edge-to="replay" data-composition-points="20,60;200,60" d="M 20 60 L 200 60" class="a-default" marker-end="url(#arrowhead)"/>
+    <g data-detail="context" data-edge-key="0" data-edge-id="approved" data-edge-from="dlq" data-edge-to="replay" data-edge-label="approved replay">
+      <rect x="170" y="48" width="60" height="14" rx="3" class="c-mask"/>
+      <text x="200" y="58">approved replay</text>
+    </g>
+  `, 'showcase');
+  assert.equal(code, 0);
+  assert.equal(result.composition.metrics.labelCanvasOverflowIssues, 0);
+});
+
+// A foreign artifact may author a legal non-zero viewBox origin, so containment
+// is measured against [min-x, min-x + width], not [0, width]: measuring from
+// zero passed a label the canvas clips and rejected a contained one.
+test('render output check: label containment respects a positive viewBox origin', () => {
+  const svgFor = (rect) => `
+    <path data-edge-key="0" data-edge-from="a" data-edge-to="b" data-composition-points="110,80;330,80" d="M 110 80 L 330 80" class="a-default" marker-end="url(#arrowhead)"/>
+    <g data-edge-key="0" data-edge-from="a" data-edge-to="b" data-edge-label="ship">
+      <rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" rx="3" class="c-mask"/>
+      <text x="${rect.x + rect.width / 2}" y="${rect.y + 10}">ship</text>
+    </g>
+  `;
+
+  const contained = checkHtml('origin-positive-contained', svgFor({ x: 280, y: 48, width: 40, height: 14 }), 'showcase', '100 0 240 160');
+  assert.equal(contained.code, 0, JSON.stringify(contained.result.composition.issues));
+  assert.equal(contained.result.composition.metrics.labelCanvasOverflowIssues, 0);
+
+  const clipped = checkHtml('origin-positive-clipped', svgFor({ x: 80, y: 48, width: 60, height: 14 }), 'showcase', '100 0 240 160');
+  assert.notEqual(clipped.code, 0);
+  const issue = clipped.result.composition.issues.find((item) => item.code === 'composition/label-canvas-containment');
+  assert.deepEqual(issue.overflowPx, { left: 20 });
+  assert.deepEqual(issue.viewBoxOrigin, [100, 0]);
+  assert.match(issue.detail, /extends past the left edge by 20px \(label rect \[80, 48, 60, 14\]; viewBox 240x160 at 100,0\)/);
+});
+
+test('render output check: label containment respects a negative viewBox origin', () => {
+  const svgFor = (rect) => `
+    <path data-edge-key="0" data-edge-from="a" data-edge-to="b" data-composition-points="-40,80;170,80" d="M -40 80 L 170 80" class="a-default" marker-end="url(#arrowhead)"/>
+    <g data-edge-key="0" data-edge-from="a" data-edge-to="b" data-edge-label="ship">
+      <rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" rx="3" class="c-mask"/>
+      <text x="${rect.x + rect.width / 2}" y="${rect.y + 10}">ship</text>
+    </g>
+  `;
+
+  const contained = checkHtml('origin-negative-contained', svgFor({ x: -50, y: -30, width: 40, height: 14 }), 'showcase', '-60 -40 240 160');
+  assert.equal(contained.code, 0, JSON.stringify(contained.result.composition.issues));
+  assert.equal(contained.result.composition.metrics.labelCanvasOverflowIssues, 0);
+
+  const clipped = checkHtml('origin-negative-clipped', svgFor({ x: 150, y: 48, width: 60, height: 14 }), 'showcase', '-60 -40 240 160');
+  assert.notEqual(clipped.code, 0);
+  const issue = clipped.result.composition.issues.find((item) => item.code === 'composition/label-canvas-containment');
+  assert.deepEqual(issue.overflowPx, { right: 30 });
+  assert.deepEqual(issue.viewBoxOrigin, [-60, -40]);
+  assert.match(issue.detail, /extends past the right edge by 30px \(label rect \[150, 48, 60, 14\]; viewBox 240x160 at -60,-40\)/);
+});
+
 test('render output check: repeated endpoint messages keep their own stable owner identity', () => {
   const { code, result } = checkHtml('sequence-repeated-endpoints', `
     <g data-edge-key="0" data-edge-from="client" data-edge-to="api" data-edge-label="first request">
@@ -434,6 +546,18 @@ test('render output check: endpoint stubs from 8px pass while cramped interior t
 
 process.on('exit', () => fs.rmSync(tmp, { recursive: true, force: true }));
 
+test('readability node ownership survives nested groups and does not leak after closing', () => {
+  const nested = checkHtml('nested-owner', `
+    <g data-node-id="outer"><g/><g><text data-detail="context" font-size="7">Repeated</text></g></g>
+  `, 'showcase', '0 0 1200 400');
+  assert.equal(nested.result.composition.issues[0].nodeId, 'outer');
+  const loose = checkHtml('closed-owner', `
+    <g data-node-id="outer"><g><text data-node-label font-size="12">Readable</text></g></g>
+    <text data-boundary-label font-size="7">Repeated</text>
+  `, 'showcase', '0 0 1200 400');
+  assert.equal(loose.result.composition.issues[0].nodeId, undefined);
+});
+
 for (const position of ['before', 'after']) {
   test(`render output check: finite_svg ignores HTML numeric attributes ${position} SVG`, () => {
     const htmlPath = path.join(tmp, `finite-html-${position}.html`);
@@ -586,3 +710,19 @@ test('render output check: finite_svg keeps context-sensitive values attributes 
   assert.equal(check.ok, true);
   assert.deepEqual(check.details, []);
 });
+
+for (const [name, markup] of [
+  ['comment-open', '<!-- <g data-node-id="other"> -->'],
+  ['comment-close', '<!-- </g> -->'],
+  ['cdata', '<![CDATA[<g data-node-id="other"></g></g>]]>'],
+]) {
+  test(`readability node ownership ignores ${name}`, () => {
+    const { result } = checkHtml(`owner-${name}`, `
+      <g data-node-id="actual">${markup}<text data-detail="context" font-size="7">Repeated</text></g>
+    `, 'showcase', '0 0 1200 400');
+    const issue = result.composition.issues.find(item => item.code === 'composition/desktop-readability');
+    assert.equal(issue.nodeId, 'actual');
+    assert.equal(issue.text, 'Repeated');
+    assert.equal(issue.projectedFontPx, 5.425);
+  });
+}
