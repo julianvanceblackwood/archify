@@ -8,15 +8,15 @@ function git(cwd, args) {
   return result.status === 0 ? result.stdout.trim() : null;
 }
 
-// Returns { revision, root } where root is the analyzed dir relative to the Git
-// top level. Both are null-safe: a non-Git directory still extracts.
+// Extractors read working-tree files, never a pinned Git tree. HEAD is context
+// only and must not be used to build source links for these results.
 export function describeRepository(analyzedRoot) {
   const top = git(analyzedRoot, ['rev-parse', '--show-toplevel']);
-  if (!top) return { revision: null, root: '.', url: null };
+  if (!top) return { revision: null, baseRevision: null, sourceKind: 'working-tree', root: '.', url: null };
   const rel = toPosix(path.relative(fs.realpathSync(top), fs.realpathSync(analyzedRoot))) || '.';
   const revision = git(analyzedRoot, ['rev-parse', 'HEAD']);
   const url = git(analyzedRoot, ['remote', 'get-url', 'origin']);
-  return { revision: revision && /^[a-f0-9]{40}$/.test(revision) ? revision : null, root: rel, url: url ? stripCredentials(url) : null };
+  return { revision: null, baseRevision: revision && /^[a-f0-9]{40}$/.test(revision) ? revision : null, sourceKind: 'working-tree', root: rel, url: url ? stripCredentials(url) : null };
 }
 
 // `https://user:token@host/...` is a common per-repository credential setup.

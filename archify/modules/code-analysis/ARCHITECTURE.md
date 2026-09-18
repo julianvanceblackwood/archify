@@ -67,4 +67,4 @@ The module uses `typescript` for JS/TS parsing and `ajv` for JSON schema checks.
 
 The local server checks the request host and requires the matching origin and per-server token for analysis requests. Embedded source collection is bounded to the analyzed source root.
 
-The analyzer does not execute the analyzed application or call an LLM. It currently does not implement separate call, test, or Git-change graphs, complexity or duplication rules, taint analysis, concurrency or resource-safety verification, automatic fixes, or a composite quality score. Git metadata identifies the analyzed repository revision; it is not a change-impact analysis.
+The analyzer does not execute the analyzed application or call an LLM. It currently does not implement separate call, test, or Git-change graphs, complexity or duplication rules, taint analysis, concurrency or resource-safety verification, automatic fixes, or a composite quality score. Results identify a working-tree extraction with captured source text and a snapshot digest. Git HEAD is contextual base metadata, not the revision of the analyzed content; it is not a change-impact analysis.

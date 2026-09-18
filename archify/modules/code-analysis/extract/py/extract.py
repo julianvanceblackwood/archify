@@ -269,7 +269,7 @@ def main():
             text = raw.decode("utf-8")
         except UnicodeDecodeError:
             text = raw.decode("latin-1")
-        record = {"path": rel, "loc": line_count(text), "imports": [], "symbols": []}
+        record = {"path": rel, "loc": line_count(text), "imports": [], "symbols": [], "sourceText": text}
         try:
             tree = ast.parse(text, filename=rel)
             record["imports"] = collect(tree)

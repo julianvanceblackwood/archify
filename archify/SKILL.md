@@ -132,18 +132,9 @@ Never start preview by default. Read `references/delivery-contract.md` when usin
 
 ## Code Analysis (architecture diagrams that must reflect real code)
 
-When the user asks whether the code behind an architecture diagram is well structured — coupling, circular dependencies, hub modules — use the Code Analysis module instead of reasoning about imports by hand. It follows the same order as delivery: the authored diagram is delivered first, and the analysis runs only when the reader clicks **Code Analysis** on that page.
+For coupling, circular dependencies, and hub modules, use Code Analysis on a validated architecture candidate: `node bin/archify.mjs code-analysis serve <repo-root> --ir <candidate.json> --out <dir> [--language ts|py]`. It delivers first, installs its dependencies on first use, and analyzes only after the reader opens the printed URL and clicks **Code Analysis**.
 
-1. Author and validate the `architecture` candidate as above. Give every component that stands for code 1–3 `sources` (real entry files of that module) and pin `meta.repository` to the repository origin and current commit; the analysis maps components to code through `sources`, so no separate mapping is needed.
-2. Start the served view (it runs `deliver` itself; the first run installs the module's two dependencies):
-
-   ```bash
-   node bin/archify.mjs code-analysis serve <repo-root> --ir <candidate.json> --out <dir> [--language ts|py]
-   ```
-
-3. Tell the user to open the printed loopback URL and click **Code Analysis**. Nothing is analyzed before the click; afterwards the same button shows or hides the analysis layer. Findings are facts with file:line evidence, not verdicts: a cycle closed by function-scope imports is `info`, a module-scope cycle is `warning`, and `error` is reserved for a proven load-time failure. Report them as such.
-
-`--map <file>` (`{"componentId": ["moduleId", …]}`) is only needed when a component has no `sources`. Read `modules/code-analysis/README.md` for options and outputs.
+Analysis describes the working tree, not a committed snapshot. Keep authored commit evidence separate; never pin uncommitted content to HEAD. Use verified `sources` or an explicit `--map` to associate components with modules. Source panels retain the extracted text. If the architecture JSON changes, regenerate the diagram before analysis. Findings describe static evidence, not proven runtime failures. Read `modules/code-analysis/docs/USAGE.md` for the workflow and `modules/code-analysis/README.md` for options.
 
 ## Optional viewer capabilities
 

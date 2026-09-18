@@ -29,7 +29,9 @@ test('extract: archify/ self-bootstrap passes schema and is byte-for-byte determ
   const facts = JSON.parse(fs.readFileSync(OUT_A, 'utf8'));
   assert.deepEqual(schemaErrors('raw-facts', facts), []);
   assert.equal(facts.unresolved.unknown, 0, 'every path-like import inside archify/ must resolve');
-  assert.match(facts.repository.revision, /^[a-f0-9]{40}$/);
+  assert.equal(facts.repository.sourceKind, 'working-tree');
+  assert.equal(facts.repository.revision, null);
+  assert.match(facts.repository.baseRevision, /^[a-f0-9]{40}$/);
 });
 
 test('extract: hand-verified import lists for two archify files', { skip: SKIP }, () => {

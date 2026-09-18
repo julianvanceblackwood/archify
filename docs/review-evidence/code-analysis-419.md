@@ -1,5 +1,35 @@
 # Code Analysis PR 419 validation
 
+## P1/P2 working-tree verification (2026-09-17)
+
+The PR branch now includes upstream `dev` at `31bfbc8` through local merge
+`1cce859`. The fixes below were tested as uncommitted working-tree changes after
+that merge, on Windows with Node 24.19.0. This is not final-head remote CI evidence.
+
+- P1: JS/TS and Python extraction explicitly identifies working-tree results.
+  HEAD is only `baseRevision`; source panels retain the parsed text, and results
+  cannot generate commit-based source links. A snapshot digest pairs graphs and
+  findings with their captured facts. Dirty, untracked, post-extraction edits,
+  removed source files, and non-Git extraction are covered.
+- P2: changing or removing the authored JSON after startup returns HTTP 409 with
+  `analysis/architecture-changed`. The page asks the reader to regenerate the
+  diagram. Original input bytes are never rewritten, and cached responses are
+  checked too.
+
+Passed: `node --test archify/modules/code-analysis/test/source-identity.test.mjs archify/modules/code-analysis/test/interactive.test.mjs` (6 tests).
+Passed with `ARCHIFY_CHROME` pointing to Chrome: `node --test archify/test/code-analysis-browser.test.mjs archify/test/code-analysis.test.mjs archify/test/start.test.mjs` (5 top-level tests, including the complete module regression subprocess).
+The Chrome test verifies the exact changed-architecture notification and the
+button, finding, captured-source panel, and return-to-diagram flow. It is
+registered in the shared browser gate; the entire browser gate was not run.
+
+`npm test` completed with 1,571 passed, 12 failed, and 72 skipped. The Skill-length
+failure was subsequently fixed and its `packaged skill puts` targeted check
+passed. The other failures concern missing `unzip`, Bash/path handling in the
+Star History and archive-build checks, and eight Git null-device fixture failures
+on Windows. The full suite was not repeated after the documentation correction.
+`git diff --check` passed. The release ZIP has not been rebuilt, no new perceptual
+visual acceptance is claimed, and no changes have been pushed for remote CI.
+
 ## Latest merged-source verification
 
 The remote PR merged main while these fixes were being validated. That update was preserved in merge commit `a3ec5820050c8cf966a85526e40361410fd8f973`.

@@ -68,15 +68,19 @@ export async function startAnalysisView(argv) {
 
   // 1. Archify delivers the diagram. Repository evidence is checked when the IR pins a repository.
   const delivered = path.join(out, 'architecture.html');
-  const doc = JSON.parse(fs.readFileSync(ir, 'utf8'));
+  const irBytes = fs.readFileSync(ir);
+  const doc = JSON.parse(irBytes.toString('utf8'));
   let evidenceArgs = [];
   if (doc.meta?.repository) {
     const top = await execute('git', ['-C', root, 'rev-parse', '--show-toplevel']);
     evidenceArgs = ['--repo-root', top.stdout.trim()];
   }
   const quality = options['--quality'] || doc.meta?.quality_profile || 'standard';
+  // Deliver exactly the bytes captured for this session, without touching the original IR.
+  const deliveryInput = path.join(out, `.analysis-input-${randomBytes(12).toString('hex')}.json`);
+  fs.writeFileSync(deliveryInput, irBytes, { flag: 'wx' });
   try {
-    await execute(process.execPath, [archify, 'deliver', 'architecture', ir, delivered, '--quality', quality, ...evidenceArgs, '--json'], { maxBuffer: 16 * 1024 * 1024 });
+    await execute(process.execPath, [archify, 'deliver', 'architecture', deliveryInput, delivered, '--quality', quality, ...evidenceArgs, '--json'], { maxBuffer: 16 * 1024 * 1024 });
   } catch (error) {
     // Archify refused the diagram. Show its receipt, not a bare "command failed": the IR needs
     // repair (validate → fix what the diagnostics point at → validate again) before it can be served.
@@ -92,6 +96,8 @@ export async function startAnalysisView(argv) {
       `Repair the IR, then check with:`,
       `  node ${path.relative(process.cwd(), archify)} validate architecture ${path.relative(process.cwd(), ir)} --quality ${quality}${evidenceArgs.length ? ` --repo-root ${evidenceArgs[1]}` : ''} --json`,
     ].filter(Boolean).join('\n'));
+  } finally {
+    fs.rmSync(deliveryInput, { force: true });
   }
 
   // 2. Serve it with the button. The token ties analysis requests to this page.
@@ -104,13 +110,20 @@ export async function startAnalysisView(argv) {
     if (req.method === 'GET' && req.url === '/') return send(200, page, 'text/html; charset=utf-8');
     if (req.method !== 'POST' || req.url !== '/analyze') return send(404, '{}');
     if (req.headers.origin !== origin || req.headers['x-analysis-token'] !== token) return send(403, '{}');
+    // Check before cached results as well: this page belongs to the delivered IR.
+    let unchanged = false;
+    try { unchanged = fs.readFileSync(ir).equals(irBytes); } catch { /* Removed or unreadable input also requires redelivery. */ }
+    if (!unchanged) return send(409, JSON.stringify({
+      error: 'Architecture has changed. Please regenerate the diagram.',
+      diagnostics: [{ code: 'analysis/architecture-changed', severity: 'error', message: 'Architecture has changed. Please regenerate the diagram.', subject: { file: ir }, evidence: {}, supportedFixes: ['restart with the updated IR to regenerate the diagram'] }],
+    }));
     // 3. The click. One analysis per server lifetime; concurrent clicks share it.
     try {
       if (!result) {
         pending ??= new Promise((resolve, reject) => {
           try {
             const receipt = analyzeRepository({
-              root, ir, html: delivered, out: path.join(out, 'analysis'),
+              root, ir, irSnapshot: doc, html: delivered, out: path.join(out, 'analysis'),
               language: options['--language'] || null, config: options['--config'] || null, map: options['--map'] || null,
             });
             resolve(fs.readFileSync(receipt.overlay.html, 'utf8'));
@@ -140,19 +153,41 @@ function client(token) {
   toolbar.appendChild(button);
   var note = document.createElement('div');
   note.id = 'code-analysis-note'; note.setAttribute('role', 'status');
-  note.style.cssText = 'position:fixed;left:16px;top:76px;z-index:59;max-width:420px;padding:8px 12px;border-radius:8px;background:var(--panel,#0f172a);color:var(--text-muted,#94a3b8);border:1px solid var(--panel-border,#1e293b);font:12px ui-monospace,Menlo,Consolas,monospace;display:none';
+  note.style.cssText = 'position:fixed;z-index:59;width:max-content;max-width:min(420px,calc(100vw - 16px));box-sizing:border-box;overflow-wrap:anywhere;padding:8px 12px;border-radius:8px;background:var(--panel,#0f172a);color:var(--text-muted,#94a3b8);border:1px solid var(--panel-border,#1e293b);font:12px ui-monospace,Menlo,Consolas,monospace;display:none';
   document.body.appendChild(note);
-  var say = function (text) { note.textContent = text; note.style.display = text ? 'block' : 'none'; };
+  button.setAttribute('aria-describedby', note.id);
+  var positionNote = function () {
+    if (note.style.display === 'none' || !button.isConnected) return;
+    var bounds = button.getBoundingClientRect();
+    note.style.top = (bounds.bottom + 8) + 'px';
+    note.style.left = Math.max(8, Math.min(bounds.right - note.offsetWidth, window.innerWidth - note.offsetWidth - 8)) + 'px';
+  };
+  window.addEventListener('resize', positionNote);
+  window.addEventListener('scroll', positionNote, true);
+  var toolbarObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(positionNote) : null;
+  if (toolbarObserver) toolbarObserver.observe(toolbar);
+  var say = function (text) { note.textContent = text; note.style.display = text ? 'block' : 'none'; positionNote(); };
   button.addEventListener('click', async function () {
     button.disabled = true; button.textContent = 'Analyzing…'; say('Reading the repository — imports, modules, rules. This runs once.');
     try {
       var response = await fetch('/analyze', { method: 'POST', headers: { 'X-Analysis-Token': token } });
-      if (!response.ok) { var body = await response.json(); throw new Error(body.error || 'analysis failed'); }
+      if (!response.ok) {
+        var body = await response.json();
+        if (response.status === 409 && body.diagnostics?.[0]?.code === 'analysis/architecture-changed') {
+          button.disabled = true; button.textContent = 'Code Analysis';
+          say('Architecture has changed. Please regenerate the diagram.');
+          return;
+        }
+        throw new Error(body.error || 'analysis failed');
+      }
       var parsed = new DOMParser().parseFromString(await response.text(), 'text/html');
       var ids = ['bauify-analysis', 'bauify-style', 'bauify-script'];
       for (var i = 0; i < ids.length; i++) if (!parsed.getElementById(ids[i])) throw new Error('analysis result is incomplete');
       // Hand over to the layer: it adds its own toggle to the toolbar, so this button retires.
       button.remove(); say('');
+      window.removeEventListener('resize', positionNote);
+      window.removeEventListener('scroll', positionNote, true);
+      if (toolbarObserver) toolbarObserver.disconnect();
       for (var j = 0; j < ids.length; j++) {
         var original = parsed.getElementById(ids[j]), element = document.createElement(original.tagName);
         element.id = ids[j]; if (ids[j] === 'bauify-analysis') element.type = 'application/json';

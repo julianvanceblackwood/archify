@@ -40,7 +40,7 @@ export function extract(root, config) {
   for (const rel of files) {
     const abs = path.join(absRoot, rel);
     const source = program.getSourceFile(abs);
-    fileRecords.push({ path: rel, loc: lineCount(source.text), role: classifyRole(rel, config.roles) });
+    fileRecords.push({ path: rel, loc: lineCount(source.text), role: classifyRole(rel, config.roles), sourceText: source.text });
     for (const found of collectImports(source, checker, options)) {
       const record = { from: rel, specifier: found.specifier, kind: found.kind, line: found.line, resolved: false };
       if (found.names.length) record.names = found.names;
@@ -58,7 +58,7 @@ export function extract(root, config) {
   const repo = describeRepository(absRoot);
   return {
     schema_version: 1,
-    repository: { root: repo.root, revision: repo.revision, url: repo.url, language: 'ts', adapter: `typescript@${ts.version}` },
+    repository: { ...repo, language: 'ts', adapter: `typescript@${ts.version}` },
     files: fileRecords,
     imports,
     symbols: [],

@@ -194,7 +194,7 @@ Every file is tagged `source` / `test` / `generated`. The rules are globs, with 
 
 ### Git
 
-`extract/shared/git.mjs` runs three **read-only** commands through `spawnSync('git', [...])`: `rev-parse --show-toplevel` (repository root), `rev-parse HEAD` (the 40-hex sha of the current commit), and `remote get-url origin` (the remote URL). These are Git's "plumbing" commands with stable output made for programs. Without Git everything returns null and analysis proceeds; evidence mode is simply unavailable.
+`extract/shared/git.mjs` runs three **read-only** commands through `spawnSync('git', [...])`: `rev-parse --show-toplevel` (repository root), `rev-parse HEAD` (contextual `baseRevision`), and `remote get-url origin` (the remote URL). Extraction reads the working tree, so `sourceKind` is `working-tree` and `revision` is null, even in a clean checkout. Without Git, the base revision and URL are null and analysis still proceeds. Each file retains the text parsed by its adapter; `extractFacts` hashes the captured facts into `snapshotId`, propagated to graphs and findings. Source panels use the captured text instead of rereading changed files, and working-tree results do not produce commit-based source links.
 
 ---
 

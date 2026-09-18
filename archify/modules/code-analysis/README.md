@@ -48,7 +48,7 @@ only from its own page; browser requests cannot select repository or output
 paths. Python analysis requires Python 3; `BAUIFY_PYTHON` can select its
 executable. The analyzed code is never executed.
 
-Findings describe facts with evidence (file, line, import, commit) and grade
+Findings describe working-tree facts with evidence (file, line, import, captured source) and grade
 potential import-time risks without claiming that execution is safe or that a runtime failure is proven. See
 [ARCHITECTURE.md](ARCHITECTURE.md) and the [technical guide](docs/TECH-GUIDE.md).
 

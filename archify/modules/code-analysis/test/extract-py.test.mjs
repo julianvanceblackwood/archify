@@ -22,7 +22,8 @@ function extractFixture(t) {
 test('py: fixture yields hand-verified files, imports, unresolved counts, and parse errors', (t) => {
   const facts = extractFixture(t);
   const expected = JSON.parse(fs.readFileSync(path.join(FIXTURE, 'expected.json'), 'utf8'));
-  assert.deepEqual(facts.files, expected.files);
+  assert.deepEqual(facts.files.map(({ sourceText, ...file }) => file), expected.files);
+  for (const file of facts.files) assert.equal(file.sourceText, fs.readFileSync(path.join(FIXTURE, file.path), 'utf8'));
   assert.deepEqual(facts.imports, expected.imports);
   assert.deepEqual(facts.unresolved, expected.unresolved);
   assert.deepEqual(facts.parse_errors, expected.parse_errors);

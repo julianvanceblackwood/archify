@@ -56,6 +56,37 @@ test('serve: delivers, waits for an authorized click, reuses the completed analy
   assert.equal((await fetch(view.url + '/analyze', { method: 'POST', headers })).status, 200);
   assert.equal(fs.statSync(facts).mtimeMs, written, 'a second click reuses the result');
   assert.equal(fs.readFileSync(view.delivered, 'utf8').includes('bauify-analysis'), false, 'the delivered artifact stays untouched');
+  fs.appendFileSync(ir, '\n');
+  assert.equal((await fetch(view.url + '/analyze', { method: 'POST', headers })).status, 409, 'changed IR also invalidates cached analysis responses');
+});
+
+test('serve: editing or removing the IR requires redelivery before the first analysis', async t => {
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-ir-change-'));
+  t.after(() => fs.rmSync(out, { recursive: true, force: true }));
+  const ir = path.join(out, 'input.json');
+  const original = JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title: 'Snapshot' }, components: [{ id: 'before', type: 'backend', label: 'Before', pos: [40, 40], size: [170, 64] }], connections: [] });
+  fs.writeFileSync(ir, original);
+  const view = await startAnalysisView([path.join(BAUIFY_ROOT, 'test/fixtures/ts-basic'), '--ir', ir, '--out', path.join(out, 'view'), '--language', 'ts']);
+  const sockets = new Set();
+  view.server.on('connection', socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
+  t.after(() => new Promise(resolve => { view.server.close(resolve); for (const socket of sockets) socket.destroy(); }));
+  const html = fs.readFileSync(view.delivered, 'utf8');
+  assert.match(html, /data-node-id="before"/);
+  const headers = { Origin: view.url, 'X-Analysis-Token': view.token };
+  for (const update of [() => fs.writeFileSync(ir, original.replaceAll('before', 'after')), () => fs.writeFileSync(ir, '{'), () => fs.unlinkSync(ir)]) {
+    update();
+    const response = await fetch(view.url + '/analyze', { method: 'POST', headers });
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).diagnostics[0].code, 'analysis/architecture-changed');
+    assert.equal(fs.existsSync(path.join(out, 'view/analysis/raw-facts.json')), false);
+    assert.equal(fs.readFileSync(view.delivered, 'utf8'), html);
+  }
+  fs.writeFileSync(ir, original);
+  const response = await fetch(view.url + '/analyze', { method: 'POST', headers });
+  assert.equal(response.status, 200);
+  const payload = JSON.parse((await response.text()).match(/id="bauify-analysis">([\s\S]*?)<\/script>/)[1]);
+  assert.deepEqual(payload.components.map(c => c.id), ['before']);
+  assert.equal(fs.readFileSync(ir, 'utf8'), original, 'the server never rewrites the input');
 });
 
 test('serve: arguments are validated up front', () => {

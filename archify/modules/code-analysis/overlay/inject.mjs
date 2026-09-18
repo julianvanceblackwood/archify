@@ -21,6 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fail } from '../extract/shared/diagnostics.mjs';
+import { sourceChanges } from './source-changes.mjs';
 
 export function buildOverlay({ ir, graph, html, map, facts = null, findings = [], sourceRoot = null }) {
   if (!html.includes('data-node-id=') || !html.includes('class="toolbar"')) {
@@ -80,7 +81,7 @@ export function buildOverlay({ ir, graph, html, map, facts = null, findings = []
     components,
     edges,
     unmapped,
-    snippets: sourceRoot ? collectSnippets(findings, sourceRoot, components) : {},
+    snippets: sourceRoot ? collectSnippets(findings, sourceRoot, components, facts) : {},
   };
 
   const injection = `\n<!-- bauify overlay: authored diagram untouched; analysis layer below -->\n<script type="application/json" id="bauify-analysis">${JSON.stringify(payload).replace(/<\//g, '<\\/')}</script>\n<style id="bauify-style">${CSS}</style>\n<script id="bauify-script">${JS}</script>\n`;
@@ -234,10 +235,11 @@ function aggregate(edges, side, mapping) {
 }
 
 // Full text of every file a finding points at (evidence imports, the
-// partial-init proof), read from the analyzed tree at overlay time, so the
+// partial-init proof), captured by the extractor, so the
 // page can show the cited line with the whole file around it to scroll
 // through. Include listed component files as well as cited evidence files.
-function collectSnippets(findings, sourceRoot, components) {
+function collectSnippets(findings, sourceRoot, components, facts) {
+  const captured = new Map((facts?.files || []).filter(f => typeof f.sourceText === 'string').map(f => [f.path, f.sourceText]));
   const wanted = new Set(components.flatMap((c) => (c.fileList || []).map((f) => f.path)));
   for (const f of findings) {
     const ev = f.evidence || {};
@@ -249,18 +251,24 @@ function collectSnippets(findings, sourceRoot, components) {
   }
   const out = {};
   for (const file of [...wanted].sort()) {
-    let text;
-    try {
-      const root = fs.realpathSync(sourceRoot);
-      const target = fs.realpathSync(path.resolve(root, file));
-      const relative = path.relative(root, target);
-      if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) continue;
-      text = fs.readFileSync(target, 'utf8');
-    } catch { continue; }
+    let text = captured.get(file);
+    // New working-tree facts must never fall back to mutable source files.
+    if (text === undefined && facts?.repository?.sourceKind === 'working-tree') continue;
+    if (text === undefined) {
+      try {
+        const root = fs.realpathSync(sourceRoot);
+        const target = fs.realpathSync(path.resolve(root, file));
+        const relative = path.relative(root, target);
+        if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) continue;
+        text = fs.readFileSync(target, 'utf8');
+      } catch { continue; }
+    }
     const lines = text.split(/\r?\n/);
     if (lines.length && lines[lines.length - 1] === '') lines.pop();
     out[file] = { total: lines.length, lines };
   }
+  const changes = sourceChanges(sourceRoot, facts?.repository, new Map([...wanted].filter(file => captured.has(file)).map(file => [file, captured.get(file)])));
+  for (const [file, change] of changes) if (out[file]) out[file].changes = change;
   return out;
 }
 
@@ -361,6 +369,13 @@ html[data-bauify="on"] .guided-views, html[data-bauify="on"] [class*="story"], h
 #bauify-code .grip .k { margin-top: 0; }
 #bauify-code .grip .k::before { content: '⋮⋮ '; letter-spacing: -2px; }
 #bauify-code pre .ln { display: block; white-space: pre; padding: 0 10px; }
+#bauify-code pre .ln.diff-added { border-left: 3px solid #34d399; padding-left: 7px; }
+#bauify-code pre .ln.diff-modified { border-left: 3px solid #fbbf24; padding-left: 7px; }
+#bauify-code pre .diff-deleted { display: block; color: #fb7185; padding: 0 10px; font-style: normal; font-size: 11px; }
+#bauify-code .diff-legend { margin: 8px 0; font-size: 11px; color: var(--text-muted, #94a3b8); }
+#bauify-code .diff-legend .added { color: #34d399; }
+#bauify-code .diff-legend .modified { color: #fbbf24; }
+#bauify-code .diff-legend .deleted { color: #fb7185; }
 #bauify-code pre .ln i { display: inline-block; width: 3.5em; text-align: right; margin-right: 10px; color: var(--text-muted, #94a3b8); font-style: normal; user-select: none; }
 #bauify-code pre .ln.hit { background: color-mix(in srgb, #FBBF24 18%, transparent); box-shadow: inset 3px 0 0 #FBBF24; }
 #bauify-code pre .ln.hit.blue { background: color-mix(in srgb, #60A5FA 18%, transparent); box-shadow: inset 3px 0 0 #60A5FA; }
@@ -481,7 +496,7 @@ const JS = `
         h += '</table></details>';
       }
     }
-    h += '<div class="k">Repository</div><div class="ev">' + esc(data.repository.url || 'no origin') + (data.repository.revision ? ' @ ' + data.repository.revision.slice(0, 7) : '') +
+    h += '<div class="k">Repository</div><div class="ev">' + esc(data.repository.url || 'no origin') + (data.repository.sourceKind === 'working-tree' ? ' · Working tree' + (data.repository.baseRevision ? ' (base ' + esc(data.repository.baseRevision.slice(0, 7)) + ')' : '') : (data.repository.revision ? ' @ ' + esc(data.repository.revision.slice(0, 7)) : '')) +
       '<br>' + data.totals.modules + ' modules · ' + data.totals.edges + ' module edges · ' + data.unmapped.length + ' not on this diagram</div>';
     panel.innerHTML = h;
     panel.hidden = false;
@@ -534,10 +549,24 @@ const JS = `
     if (!snip) {
       h += '<div class="why" style="margin-top:10px">Source lines are not embedded in this page. Restart Code Analysis to include this file and its context.</div>';
     } else {
+      var changes = snip.changes;
+      var added = new Set(changes ? changes.added : []), modified = new Set(changes ? changes.modified : []);
+      var deleted = new Map((changes ? changes.deleted : []).map(function (item) { return [item.after, item.count]; }));
+      if (changes && changes.status !== 'unavailable') {
+        h += '<div class="diff-legend">Captured changes vs base commit ' + esc((data.repository && data.repository.baseRevision || '').slice(0, 7)) + ' (staged + unstaged)';
+        if (changes.status === 'unchanged') h += ' · No changes';
+        else h += ' · <span class="added">+ Added</span> · <span class="modified">~ Modified</span> · <span class="deleted">− Deleted</span>';
+        if (changes.status === 'added') h += ' · New file';
+        h += '</div>';
+      } else if (changes) h += '<div class="diff-legend">Change markers unavailable: no readable base commit.</div>';
+      var deletion = function (after) { return deleted.has(after) ? '<span class="diff-deleted" title="Deleted from the base commit">− ' + deleted.get(after) + ' deleted line(s)</span>' : ''; };
       h += '<pre>';
+      h += deletion(0);
       snip.lines.forEach(function (text, i) {
         var n = i + 1;
-        h += '<span class="ln' + (n === line ? ' hit ' + (tone || '') : '') + '"><i>' + n + '</i>' + esc(text) + '</span>';
+        var kind = added.has(n) ? 'added' : modified.has(n) ? 'modified' : '';
+        h += '<span class="ln' + (n === line ? ' hit ' + (tone || '') : '') + (kind ? ' diff-' + kind : '') + '"' + (kind ? ' title="' + (kind === 'added' ? 'Added' : 'Modified') + ' since base commit"' : '') + '><i>' + n + '</i>' + esc(text) + '</span>';
+        h += deletion(n);
       });
       h += '</pre>';
     }
@@ -583,7 +612,7 @@ const JS = `
   }
   // Source links: GitHub-style blob/tree URLs from the origin + revision the facts were taken at.
   function repoBase() {
-    var r = data.repository || {}; if (!r.url || !r.revision) return null;
+    var r = data.repository || {}; if (r.sourceKind === 'working-tree' || !r.url || !r.revision) return null;
     var u = String(r.url).replace(/^git@([^:]+):/, 'https://$1/').replace(/^([a-z][a-z0-9+.-]*:\\/\\/)[^/@\\s]+@/i, '$1').replace(/\\.git$/, '');
     if (!/^https?:\\/\\//.test(u)) return null;
     var root = r.root && r.root !== '.' ? r.root.replace(/\\/$/, '') + '/' : '';

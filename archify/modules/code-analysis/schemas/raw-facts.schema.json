@@ -14,6 +14,9 @@
       "properties": {
         "root": { "type": "string", "minLength": 1, "description": "Analyzed directory, relative to the Git repository root (\".\" when equal)." },
         "revision": { "type": ["string", "null"], "pattern": "^[a-f0-9]{40}$" },
+        "baseRevision": { "type": ["string", "null"], "pattern": "^[a-f0-9]{40}$", "description": "Contextual HEAD only, not the revision of the analyzed working-tree contents." },
+        "sourceKind": { "enum": ["working-tree"] },
+        "snapshotId": { "type": "string", "pattern": "^[a-f0-9]{64}$", "description": "Digest identifying the extracted facts and captured source text." },
         "url": { "type": ["string", "null"], "description": "Git origin URL as configured; null when there is no Git repository or no origin." },
         "language": { "enum": ["ts", "py"] },
         "adapter": { "type": "string" }
@@ -27,6 +30,7 @@
         "required": ["path", "loc", "role"],
         "properties": {
           "path": { "$ref": "#/$defs/repoPath" },
+          "sourceText": { "type": "string", "description": "Exact text parsed by the extractor, retained for consistent source navigation." },
           "loc": { "type": "integer", "minimum": 0 },
           "role": { "enum": ["source", "test", "generated"] }
         }

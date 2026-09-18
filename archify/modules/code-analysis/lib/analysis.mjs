@@ -5,6 +5,7 @@
 // directory so a result can be inspected or diffed; none of them is a
 // command of its own.
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { selectAdapter } from '../extract/index.mjs';
@@ -46,6 +47,7 @@ export function extractFacts(root, { language = null, config = null } = {}) {
   const cfg = config && typeof config === 'object' ? config : loadConfig(config);
   const adapter = selectAdapter(root, cfg, language);
   const facts = adapter.extract(root, cfg);
+  facts.repository.snapshotId = createHash('sha256').update(stableJson(facts)).digest('hex');
   const errors = schemaErrors('raw-facts', facts);
   if (errors.length) fail('extract/schema-invalid', 'Extractor output violates raw-facts.schema.json.', {
     subject: { adapter: adapter.id }, evidence: { errors: errors.slice(0, 20) }, supportedFixes: ['this is an analyzer bug; report it with the evidence'],
@@ -82,7 +84,7 @@ export function validateFacts(graph, facts) {
   if (!facts) return;
   const errors = schemaErrors('raw-facts', facts);
   if (errors.length) fail('input/facts-incompatible', 'Raw facts violate the schema or reference invariants.', { evidence: { errors: errors.slice(0, 20) }, supportedFixes: ['regenerate raw-facts and module-graph together'] });
-  for (const key of ['root', 'revision', 'language']) {
+  for (const key of ['root', 'revision', 'language', 'sourceKind', 'baseRevision', 'snapshotId']) {
     if (graph.repository[key] !== undefined && graph.repository[key] !== facts.repository?.[key]) errors.push({ path: `/repository/${key}`, message: 'must match module-graph input' });
   }
   if (graph.fileModules && Array.isArray(facts.files)) {
@@ -131,7 +133,7 @@ export function overlayHtml({ html, ir, graph, facts = null, findings = [], map 
 // The whole analysis for one delivered page, as the button runs it:
 // extract → graphs → evaluate → overlay, each stage written to `out`.
 // `html` is the page Archify delivered for `ir`; it is read, never modified.
-export function analyzeRepository({ root, ir, html, out, language = null, config = null, map = null }) {
+export function analyzeRepository({ root, ir, html, out, language = null, config = null, map = null, irSnapshot = null }) {
   const absRoot = path.resolve(root);
   const irPath = path.resolve(ir);
   const htmlPath = path.resolve(html);
@@ -146,7 +148,7 @@ export function analyzeRepository({ root, ir, html, out, language = null, config
   fs.writeFileSync(path.join(dir, 'module-graph.json'), stableJson(graph));
   const findings = evaluateGraph(graph, cfg, facts);
   fs.writeFileSync(path.join(dir, 'findings.json'), stableJson(findings));
-  const irDoc = readJsonInput(irPath, 'analysis --ir');
+  const irDoc = irSnapshot ?? readJsonInput(irPath, 'analysis --ir');
   const mapDoc = map ? readJsonInput(map, 'analysis --map') : null;
   const overlay = overlayHtml({ html: fs.readFileSync(htmlPath, 'utf8'), ir: irDoc, graph, facts, findings: findings.diagnostics, map: mapDoc, sourceRoot: absRoot });
   const outHtml = path.join(dir, 'repo.analysis.html');

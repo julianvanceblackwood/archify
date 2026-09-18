@@ -59,7 +59,7 @@ export function extract(root, config) {
   const fileRecords = [];
   const symbols = [];
   for (const record of output.files) {
-    fileRecords.push({ path: record.path, loc: record.loc, role: classifyRole(record.path, config.roles) });
+    fileRecords.push({ path: record.path, loc: record.loc, role: classifyRole(record.path, config.roles), sourceText: record.sourceText });
     for (const b of record.symbols || []) symbols.push({ file: record.path, name: b.name, kind: b.kind, line: b.line });
     if (record.error) { parseErrors.push({ path: record.path, message: record.error }); continue; }
     const implicitStatements = new Set();
@@ -90,7 +90,7 @@ export function extract(root, config) {
   const repo = describeRepository(absRoot);
   const facts = {
     schema_version: 1,
-    repository: { root: repo.root, revision: repo.revision, url: repo.url, language: 'py', adapter: `python@${output.python}` },
+    repository: { ...repo, language: 'py', adapter: `python@${output.python}` },
     files: fileRecords,
     imports,
     symbols: symbols.sort((a, b) => compareText(a.file, b.file) || a.line - b.line || compareText(a.name, b.name)),

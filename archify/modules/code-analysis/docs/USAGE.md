@@ -16,6 +16,12 @@ Use the project's architecture JSON prepared with Archify as `architecture.json`
 
 Keep the terminal running. After changing source code, stop the server with `Ctrl+C`, restart it, open the new URL, and click **Code Analysis** again.
 
+Analysis reads the working tree, including uncommitted and untracked source files. Results are labeled **Working tree**; any base commit is context only. Source panels use the text captured during extraction, and working-tree results do not provide commit-based source links. The raw facts retain that source text and a snapshot digest so findings, graphs, and source panels refer to the same extraction. Non-Git directories are supported.
+
+The source panel marks captured changes against the base commit: green gutters for added lines, amber for modified lines, and red deletion markers between lines. This includes staged and unstaged changes; files absent from the base are labeled **New file**. Markers stay tied to the captured source, so restart analysis to see later edits. Without a readable Git base, the panel reports that markers are unavailable rather than treating every line as new.
+
+If the architecture JSON changes or becomes unavailable after startup, the analysis request is rejected and the page asks you to regenerate the diagram. Restart with the updated JSON and open the new URL. The server never rewrites your input JSON or silently combines a new architecture with the previous diagram.
+
 Python and JS/TS are supported. For mixed-language projects, add `--language py` or `--language ts`; each run analyzes one language. Add `--map overlay-map.json` when you need an explicit mapping between diagram components and code modules.
 
 Output defaults to a system temporary directory. Add `--out out/my-project` to choose a persistent output directory. Use the printed URL: double-clicking a static HTML file cannot start local code analysis.

@@ -12,7 +12,8 @@ test('extract: synthetic fixture yields the expected files, imports, and unresol
   assert.equal(result.status, 0, result.stderr);
   const facts = JSON.parse(fs.readFileSync(result.json.out, 'utf8'));
   const expected = JSON.parse(fs.readFileSync(path.join(FIXTURE, 'expected.json'), 'utf8'));
-  assert.deepEqual(facts.files, expected.files);
+  assert.deepEqual(facts.files.map(({ sourceText, ...file }) => file), expected.files);
+  for (const file of facts.files) assert.equal(file.sourceText, fs.readFileSync(path.join(FIXTURE, file.path), 'utf8'));
   assert.deepEqual(facts.imports, expected.imports);
   assert.deepEqual(facts.unresolved, expected.unresolved);
   assert.equal(facts.schema_version, 1);
