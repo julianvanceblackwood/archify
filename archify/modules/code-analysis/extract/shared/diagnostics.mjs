@@ -1,5 +1,5 @@
 // Mirrors archify/renderers/shared/diagnostics.mjs: every failure is one
-// structured diagnostic (code / severity / subject / evidence / supportedFixes)
+// structured diagnostic (code / severity / message / subject / evidence / supportedFixes)
 // so the CLI never has to print a Node stack.
 export class DiagnosticError extends Error {
   constructor(message, diagnostics) {

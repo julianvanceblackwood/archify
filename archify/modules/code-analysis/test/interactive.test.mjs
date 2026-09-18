@@ -60,7 +60,7 @@ test('serve: delivers, waits for an authorized click, reuses the completed analy
   assert.equal((await fetch(view.url + '/analyze', { method: 'POST', headers })).status, 409, 'changed IR also invalidates cached analysis responses');
 });
 
-test('serve: editing or removing the IR requires redelivery before the first analysis', async t => {
+test('serve: editing or removing the IR requires redelivery before the first analysis', { skip: !ARCHIFY_AVAILABLE && 'needs an Archify checkout' }, async t => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-ir-change-'));
   t.after(() => fs.rmSync(out, { recursive: true, force: true }));
   const ir = path.join(out, 'input.json');

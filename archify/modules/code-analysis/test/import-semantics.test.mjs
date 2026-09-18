@@ -244,7 +244,7 @@ test('raw facts reject unresolved implicit package initialization edges', (t) =>
 
 test('review regressions: loop targets and statement-scoped initializer deduplication', (t) => {
   const { facts } = analyze(t, {
-    'entry.py': 'import pkg.a, pkg.b\nimport pkg.a; import pkg.b\nfor items[importlib.import_module(name).key] in values:\n    pass\n',
+    'entry.py': 'import pkg.a, pkg.b\nimport pkg.a; import pkg.b; import importlib\nfor items[importlib.import_module(name).key] in values:\n    pass\n',
     'pkg/__init__.py': '', 'pkg/a.py': '', 'pkg/b.py': '',
   });
   assert.equal(facts.imports.filter((e) => e.implicit && e.line === 1).length, 1);

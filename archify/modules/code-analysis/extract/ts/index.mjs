@@ -3,7 +3,7 @@
 // exported symbols and calls stay empty until M2.
 import path from 'node:path';
 import ts from 'typescript';
-import { classifyRole, lineCount, listFiles, toPosix } from '../shared/files.mjs';
+import { classifyRole, lineCount, listFiles, snapshotFiles, toPosix } from '../shared/files.mjs';
 import { describeRepository } from '../shared/git.mjs';
 import { fail } from '../shared/diagnostics.mjs';
 
@@ -26,12 +26,20 @@ const COMPILER_OPTIONS = {
 
 export function extract(root, config) {
   const absRoot = path.resolve(root);
-  const files = listFiles(absRoot, config).filter((f) => SOURCE_EXT.test(f));
+  const snapshot = snapshotFiles(absRoot, config, f => SOURCE_EXT.test(f));
+  const files = [...snapshot.keys()];
   const options = compilerOptions(absRoot);
   const fileSet = new Set(files);
-  const program = ts.createProgram(files.map((rel) => path.join(absRoot, rel)), {
+  const programOptions = {
     ...options, noResolve: true, noLib: true, types: [],
-  });
+  };
+  const host = ts.createCompilerHost(programOptions);
+  host.readFile = file => snapshot.get(toPosix(path.relative(absRoot, file)))?.toString('utf8');
+  host.getSourceFile = (file, version) => {
+    const text = host.readFile(file);
+    return text === undefined ? undefined : ts.createSourceFile(file, text, version, true);
+  };
+  const program = ts.createProgram(files.map((rel) => path.join(absRoot, rel)), programOptions, host);
   const checker = program.getTypeChecker();
   const imports = [];
   const unresolved = { external: 0, outside: 0, unknown: 0, opaque: 0 };

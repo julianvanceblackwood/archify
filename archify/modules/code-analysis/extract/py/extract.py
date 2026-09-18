@@ -1,6 +1,6 @@
 """Python import extractor for Bauify.
 
-Reads a JSON document on stdin: {"root": "<abs dir>", "files": ["rel/path.py", ...]}
+Reads a JSON document on stdin: {"files": ["rel/path.py", ...], "sources": {"rel/path.py": "<base64 bytes>"}}
 Writes a JSON document on stdout:
   {"files": [{"path", "loc", "imports": [...], "symbols": [...], "error"?}], "python": "3.x.y"}
 Each symbol is a module-scope binding: {"name", "kind": "function"|"class"|"variable"|"import", "line"}
@@ -16,9 +16,13 @@ Resolution against the file set happens in Node so both adapters share one polic
 Standard library only; no third-party imports.
 """
 import ast
+import base64
+import io
 import json
 import platform
 import sys
+import tokenize
+from loader_bindings import standard_loader_calls
 
 
 def line_count(text):
@@ -44,6 +48,7 @@ def collect(tree):
     # Recognize typing aliases only when they have one unambiguous binding.
     # Reassignment or shadowing anywhere makes this conservative: retain the
     # possible runtime edge instead of incorrectly erasing it as type-only.
+    loader_calls = standard_loader_calls(tree)
     bindings = {}
     for node in ast.walk(tree):
         names = []
@@ -196,11 +201,7 @@ def collect(tree):
                       names=sorted(alias.name for alias in node.names))
 
         def visit_Call(self, node):
-            func = node.func
-            is_loader = (isinstance(func, ast.Attribute) and func.attr == "import_module"
-                         and isinstance(func.value, ast.Name) and func.value.id == "importlib") \
-                or (isinstance(func, ast.Name) and func.id == "__import__")
-            if is_loader:
+            if id(node) in loader_calls:
                 target = literal_module(node)
                 self.emit(node, kind="dynamic", level=0, module=target or "<computed>",
                           names=[], **({"opaque": True} if target is None else {}))
@@ -259,23 +260,19 @@ def module_bindings(tree):
 
 def main():
     request = json.load(sys.stdin)
-    root = request["root"]
     out = []
     for rel in request["files"]:
-        path = root + "/" + rel
-        with open(path, "rb") as handle:
-            raw = handle.read()
+        raw = base64.b64decode(request["sources"][rel], validate=True)
+        record = {"path": rel, "loc": 0, "imports": [], "symbols": [], "sourceText": ""}
         try:
-            text = raw.decode("utf-8")
-        except UnicodeDecodeError:
-            text = raw.decode("latin-1")
-        record = {"path": rel, "loc": line_count(text), "imports": [], "symbols": [], "sourceText": text}
-        try:
+            encoding, _ = tokenize.detect_encoding(io.BytesIO(raw).readline)
+            text = raw.decode(encoding)
+            record.update(loc=line_count(text), sourceText=text)
             tree = ast.parse(text, filename=rel)
             record["imports"] = collect(tree)
             record["symbols"] = module_bindings(tree)
-        except SyntaxError as error:
-            record["error"] = "%s (line %s)" % (error.msg, error.lineno)
+        except (SyntaxError, UnicodeError, LookupError) as error:
+            record["error"] = "%s (line %s)" % (getattr(error, "msg", str(error)), getattr(error, "lineno", None))
         out.append(record)
     json.dump({"files": out, "python": platform.python_version()}, sys.stdout)
 

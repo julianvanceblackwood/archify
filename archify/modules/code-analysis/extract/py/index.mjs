@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fail } from '../shared/diagnostics.mjs';
-import { classifyRole, listFiles } from '../shared/files.mjs';
+import { classifyRole, listFiles, snapshotFiles } from '../shared/files.mjs';
 import { describeRepository } from '../shared/git.mjs';
 
 export const id = 'py';
@@ -49,9 +49,10 @@ export function runPython(request, candidates = CANDIDATES, spawn = spawnSync) {
 
 export function extract(root, config) {
   const absRoot = path.resolve(root);
-  const files = listFiles(absRoot, config).filter((f) => PY_EXT.test(f));
+  const snapshot = snapshotFiles(absRoot, config, f => PY_EXT.test(f));
+  const files = [...snapshot.keys()];
   const fileSet = new Set(files);
-  const { command, output } = runPython({ root: absRoot.split(path.sep).join('/'), files });
+  const { command, output } = runPython({ files, sources: Object.fromEntries([...snapshot].map(([rel, bytes]) => [rel, bytes.toString('base64')])) });
 
   const imports = [];
   const unresolved = { external: 0, outside: 0, unknown: 0, opaque: 0 };
@@ -135,6 +136,12 @@ function resolveDeclaredImport(found, fromFile, fileSet) {
 
   let base = null; // null = absolute import
   if (level > 0) {
+    const dirs = fromFile.split('/').slice(0, -1);
+    // src/ is a search root, not a package, unless it has an initializer.
+    const rootPackage = fileSet.has('__init__.py');
+    const depth = dirs.length + (rootPackage ? 1 : 0)
+      - (!rootPackage && dirs[0] === 'src' && !fileSet.has('src/__init__.py') ? 1 : 0);
+    if (level > depth) return [{ specifier, names, reason: 'outside' }];
     base = parentDir(path.posix.dirname(fromFile), level - 1);
     if (base === undefined) return [{ specifier, names, reason: 'outside' }];
   }

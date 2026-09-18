@@ -1,3 +1,4 @@
+import { cyclicComponents } from './scc.mjs';
 // File-level dependency cycles, with conservative load-time risk estimates.
 // Type-only edges are structural facts, not runtime imports. Deferred and
 // conditional execution is not modeled as safe: callers may run at import
@@ -20,9 +21,9 @@ export function run({ graph, facts }) {
   const skip = new Set(facts.files.filter((f) => excluded.has(f.role)).map((f) => f.path));
   const edges = facts.imports.filter((i) => i.resolved && !i.typeOnly && !skip.has(i.from) && !skip.has(i.to)).map((e) => ({ ...e, ...(e.names ? { names: [...e.names].sort() } : {}) })).sort(compareImport);
   const files = [...new Set(edges.flatMap((e) => [e.from, e.to]))].sort();
-  const all = tarjan(files, edges);
+  const all = cyclicComponents(files, edges, true);
   const eagerEdges = edges.filter((e) => !e.lazy && !e.conditional && !(facts.repository.language === 'ts' && e.kind === 'dynamic'));
-  const eager = tarjan(files, eagerEdges);
+  const eager = cyclicComponents(files, eagerEdges, true);
   const eagerKeys = new Set(eager.map((s) => s.join('\n')));
   const bindings = indexBindings(facts.symbols || []);
 
@@ -148,28 +149,6 @@ function reaches(start, target, out, set, beforeLine) {
 }
 
 /** Return cyclic strongly connected components, including singleton self-imports. */
-function tarjan(nodes, edges) {
-  const out = new Map(nodes.map((n) => [n, []]));
-  for (const e of edges) out.get(e.from).push(e.to);
-  for (const list of out.values()) list.sort();
-  let index = 0;
-  const idx = new Map(); const low = new Map(); const onStack = new Set(); const stack = [];
-  const sccs = [];
-  const strong = (v) => {
-    idx.set(v, index); low.set(v, index); index += 1; stack.push(v); onStack.add(v);
-    for (const w of out.get(v)) {
-      if (!idx.has(w)) { strong(w); low.set(v, Math.min(low.get(v), low.get(w))); }
-      else if (onStack.has(w)) low.set(v, Math.min(low.get(v), idx.get(w)));
-    }
-    if (low.get(v) === idx.get(v)) {
-      const scc = []; let w;
-      do { w = stack.pop(); onStack.delete(w); scc.push(w); } while (w !== v);
-      if (scc.length > 1 || out.get(v).includes(v)) sccs.push(scc.sort());
-    }
-  };
-  for (const n of nodes) if (!idx.has(n)) strong(n);
-  return sccs.sort((a, b) => (a[0] < b[0] ? -1 : 1));
-}
 
 function shortestCycle(start, edges, set) {
   const out = new Map();

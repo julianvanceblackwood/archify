@@ -102,11 +102,10 @@
       "specifier": "..sibling",
       "kind": "static",
       "line": 3,
-      "resolved": true,
+      "resolved": false,
       "names": [
         "x"
-      ],
-      "to": "sibling.py"
+      ]
     },
     {
       "from": "app/util/text.py",
@@ -246,7 +245,7 @@
   ],
   "unresolved": {
     "external": 3,
-    "outside": 1,
+    "outside": 2,
     "unknown": 2,
     "opaque": 1
   },

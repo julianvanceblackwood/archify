@@ -36,7 +36,7 @@ export function extract(root, config) { … }
 
 ### What it is
 
-**JSON Schema** is a standard for describing, in JSON, what a JSON document should look like. Every stage of Bauify has a schema for its output: `schemas/raw-facts.schema.json`, `schemas/module-graph.schema.json`, `schemas/findings.schema.json`.
+**JSON Schema** is a standard for describing, in JSON, what a JSON document should look like. Each JSON-producing stage of Bauify has a schema for its output: `schemas/raw-facts.schema.json`, `schemas/module-graph.schema.json`, `schemas/findings.schema.json`.
 
 **ajv** is the most widely used JSON Schema validator for Node. The code is in `extract/shared/schema.mjs`:
 
@@ -297,7 +297,7 @@ The second panel's diagrams are plain SVG strings built in the page: the cycle r
 
 ### The click
 
-The button POSTs to `/analyze`. The request must come from the served page (the `Origin` header) and carry a token minted for this process; anything else is refused, so a page in another tab cannot start an analysis or pick paths. On the first accepted request the server calls `analyzeRepository` from `lib/analysis.mjs` in-process: extract → graphs → evaluate → overlay, each stage written to `<out>/analysis/` and validated against its schema. The response is the analysis page. Concurrent clicks share the one run; later clicks get the finished page back without running again.
+The button POSTs to `/analyze`. The request must come from the served page (the `Origin` header) and carry a token minted for this process; anything else is refused, so a page in another tab cannot start an analysis or pick paths. On the first accepted request the server calls `analyzeRepository` from `lib/analysis.mjs` in-process: extract → graphs → evaluate → overlay, with JSON stage outputs written to `<out>/analysis/` and validated against their schemas; the overlay produces HTML. The response is the analysis page. Concurrent clicks share the one run; later clicks get the finished page back without running again.
 
 ### Handing over to the layer
 
@@ -400,7 +400,7 @@ Most tests call the library directly (`extractFacts`, `buildGraph`, `evaluateGra
 | PEP 420 | a directory without `__init__.py` is still a Python package |
 | opaque | a dynamic import whose argument is not a literal; static analysis cannot see the target |
 | evidence mode | an IR that carries a commit sha and source paths for Archify to verify with git |
-| structured diagnostic | the five-field failure object: code / severity / subject / evidence / supportedFixes |
+| structured diagnostic | the six-field failure object: code / severity / message / subject / evidence / supportedFixes |
 | overlay | Bauify's analysis layer injected into a copy of an Archify-delivered HTML |
 
 ---
