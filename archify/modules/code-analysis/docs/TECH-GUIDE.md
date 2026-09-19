@@ -234,7 +234,7 @@ Test files import almost everything; keeping them would push every module's fan-
 
 ### Strongly connected components
 
-A cycle in a directed graph is a set of nodes that can all reach each other. **Tarjan's algorithm** finds every such set (a strongly connected component, SCC) in one depth-first pass, keeping a stack and, for each node, the lowest index reachable from it. Both `coupling/cycle` (over modules) and `coupling/import-cycle` (over files) use it; an SCC of size one is not a cycle. A second BFS then picks the **shortest** cycle inside the SCC so the message can quote one concrete loop rather than the whole component.
+A cycle in a directed graph is a set of nodes that can all reach each other. **Tarjan's algorithm** finds every such set (a strongly connected component, SCC) in one depth-first pass, keeping a stack and, for each node, the lowest index reachable from it. A singleton SCC is a cycle only when its node has a self-edge. Both rules use the same implementation, but `coupling/import-cycle` includes singleton file self-imports while `coupling/cycle` reports only multi-module SCCs. A second BFS then picks the **shortest** cycle inside the SCC so the message can quote one concrete loop rather than the whole component.
 
 ### Why the tiers
 

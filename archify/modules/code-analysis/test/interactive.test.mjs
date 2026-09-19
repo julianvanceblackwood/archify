@@ -95,3 +95,13 @@ test('serve: arguments are validated up front', () => {
   assert.throws(() => parseArgs(['repo', '--ir', 'x.json', '--out', 'o', '--bogus', '1']), /Invalid option/);
   assert.deepEqual(parseArgs(['repo', '--ir', 'x.json', '--out', 'o', '--language', 'py']).options, { '--ir': 'x.json', '--out': 'o', '--language': 'py' });
 });
+
+test('serve: reads the required IR before creating output', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-invalid-ir-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const ir = path.join(root, 'invalid.json');
+  const out = path.join(root, 'view');
+  fs.writeFileSync(ir, '{');
+  await assert.rejects(startAnalysisView([root, '--ir', ir, '--out', out, '--language', 'ts']), SyntaxError);
+  assert.equal(fs.existsSync(out), false);
+});

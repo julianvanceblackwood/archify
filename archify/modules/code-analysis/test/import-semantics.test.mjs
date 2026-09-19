@@ -5,13 +5,12 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import ts from 'typescript';
-import { extract as extractPy } from '../extract/py/index.mjs';
 import { extract as extractTs } from '../extract/ts/index.mjs';
 import { buildModuleGraph } from '../graphs/module.mjs';
 import { evaluate } from '../evaluate/index.mjs';
 import { buildOverlay } from '../overlay/inject.mjs';
 import { schemaErrors } from '../extract/shared/schema.mjs';
-import { evaluateGraph } from '../lib/analysis.mjs';
+import { evaluateGraph, extractFacts } from '../lib/analysis.mjs';
 import { DiagnosticError } from '../extract/shared/diagnostics.mjs';
 
 const config = JSON.parse(fs.readFileSync(new URL('../config/defaults.json', import.meta.url)));
@@ -23,7 +22,7 @@ function analyze(t, files, language = 'py', options = {}) {
     const file = path.join(root, name);
     fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, content);
   }
-  const facts = (language === 'py' ? extractPy : extractTs)(root, config);
+  const { facts } = extractFacts(root, { language, config });
   const graph = buildModuleGraph(facts, options);
   const findings = evaluate(graph, {}, facts);
   for (const [name, doc] of [['raw-facts', facts], ['module-graph', graph], ['findings', findings]]) assert.deepEqual(schemaErrors(name, doc), []);

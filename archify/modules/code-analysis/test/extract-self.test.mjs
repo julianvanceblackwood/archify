@@ -9,22 +9,29 @@ import { ARCHIFY_AVAILABLE, ARCHIFY_PACKAGE, runExtract } from './helpers.mjs';
 import { schemaErrors } from '../extract/shared/schema.mjs';
 
 const ARCHIFY = ARCHIFY_PACKAGE;
-const SELF_CONFIG = path.join(os.tmpdir(), 'archify-code-analysis-self-config.json');
-const selfConfig = JSON.parse(fs.readFileSync(new URL('../config/defaults.json', import.meta.url)));
-// Local test workspaces and analysis outputs are not part of the self fixture.
-selfConfig.exclude.push('modules/code-analysis/test/fixtures/**', '.validator-check-*/**', 'out/**');
-fs.writeFileSync(SELF_CONFIG, JSON.stringify(selfConfig));
 const SKIP = ARCHIFY_AVAILABLE ? false : 'set BAUIFY_ARCHIFY_ROOT to a tt-a1i/archify checkout';
-const OUT_A = path.join(process.env.TMPDIR || os.tmpdir(), 'bauify-self-a.json');
-const OUT_B = path.join(process.env.TMPDIR || os.tmpdir(), 'bauify-self-b.json');
+
+function workspace(t) {
+  const root = fs.mkdtempSync(path.join(process.env.TMPDIR || os.tmpdir(), 'bauify-self-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const config = path.join(root, 'config.json');
+  const selfConfig = JSON.parse(fs.readFileSync(new URL('../config/defaults.json', import.meta.url)));
+  // Local test workspaces and analysis outputs are not part of the self fixture.
+  selfConfig.exclude.push('modules/code-analysis/test/fixtures/**', '.validator-check-*/**', 'out/**');
+  fs.writeFileSync(config, JSON.stringify(selfConfig));
+  return { config, output: (name) => path.join(root, name) };
+}
 
 function edges(facts, from) {
   return facts.imports.filter((i) => i.from === from && i.resolved).map((i) => i.to).sort();
 }
 
-test('extract: archify/ self-bootstrap passes schema and is byte-for-byte deterministic', { skip: SKIP }, () => {
-  assert.equal(runExtract([ARCHIFY, '--language', 'ts', '--config', SELF_CONFIG, '--out', OUT_A]).status, 0);
-  assert.equal(runExtract([ARCHIFY, '--language', 'ts', '--config', SELF_CONFIG, '--out', OUT_B]).status, 0);
+test('extract: archify/ self-bootstrap passes schema and is byte-for-byte deterministic', { skip: SKIP }, (t) => {
+  const { config, output } = workspace(t);
+  const OUT_A = output('facts-a.json');
+  const OUT_B = output('facts-b.json');
+  assert.equal(runExtract([ARCHIFY, '--language', 'ts', '--config', config, '--out', OUT_A]).status, 0);
+  assert.equal(runExtract([ARCHIFY, '--language', 'ts', '--config', config, '--out', OUT_B]).status, 0);
   assert.equal(fs.readFileSync(OUT_A, 'utf8'), fs.readFileSync(OUT_B, 'utf8'));
   const facts = JSON.parse(fs.readFileSync(OUT_A, 'utf8'));
   assert.deepEqual(schemaErrors('raw-facts', facts), []);
@@ -34,10 +41,11 @@ test('extract: archify/ self-bootstrap passes schema and is byte-for-byte determ
   assert.match(facts.repository.baseRevision, /^[a-f0-9]{40}$/);
 });
 
-test('extract: hand-verified import lists for two archify files', { skip: SKIP }, () => {
+test('extract: hand-verified import lists for two archify files', { skip: SKIP }, (t) => {
   // Independent of test ordering: this test produces its own extraction.
-  const OUT_C = path.join(process.env.TMPDIR || os.tmpdir(), 'bauify-self-c.json');
-  assert.equal(runExtract([ARCHIFY, '--language', 'ts', '--config', SELF_CONFIG, '--out', OUT_C]).status, 0);
+  const { config, output } = workspace(t);
+  const OUT_C = output('facts.json');
+  assert.equal(runExtract([ARCHIFY, '--language', 'ts', '--config', config, '--out', OUT_C]).status, 0);
   const facts = JSON.parse(fs.readFileSync(OUT_C, 'utf8'));
   // renderers/shared/validator.mjs — verified by hand against its two import lines.
   assert.deepEqual(edges(facts, 'renderers/shared/validator.mjs'), [

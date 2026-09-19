@@ -69,15 +69,15 @@ export function parseArgs(argv) {
 
 export async function startAnalysisView(argv) {
   const { repo, options } = parseArgs(argv);
+  const root = path.resolve(repo), ir = path.resolve(options['--ir']), out = path.resolve(options['--out']);
+  const irBytes = fs.readFileSync(ir);
+  const doc = JSON.parse(irBytes.toString('utf8'));
   await ensureDependencies();
   const { analyzeRepository } = await import('../lib/analysis.mjs');
-  const root = path.resolve(repo), ir = path.resolve(options['--ir']), out = path.resolve(options['--out']);
   fs.mkdirSync(out, { recursive: true });
 
   // 1. Archify delivers the diagram. Repository evidence is checked when the IR pins a repository.
   const delivered = path.join(out, 'architecture.html');
-  const irBytes = fs.readFileSync(ir);
-  const doc = JSON.parse(irBytes.toString('utf8'));
   let evidenceArgs = [];
   if (doc.meta?.repository) {
     const top = await execute('git', ['-C', root, 'rev-parse', '--show-toplevel']);

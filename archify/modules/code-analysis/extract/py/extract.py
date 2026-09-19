@@ -271,7 +271,7 @@ def main():
             tree = ast.parse(text, filename=rel)
             record["imports"] = collect(tree)
             record["symbols"] = module_bindings(tree)
-        except (SyntaxError, UnicodeError, LookupError) as error:
+        except (SyntaxError, ValueError, UnicodeError, LookupError) as error:
             record["error"] = "%s (line %s)" % (getattr(error, "msg", str(error)), getattr(error, "lineno", None))
         out.append(record)
     json.dump({"files": out, "python": platform.python_version()}, sys.stdout)

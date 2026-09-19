@@ -10,7 +10,7 @@
     "repository": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["root", "revision", "language", "adapter"],
+      "required": ["root", "revision", "sourceKind", "snapshotId", "language", "adapter"],
       "properties": {
         "root": { "type": "string", "minLength": 1, "description": "Analyzed directory, relative to the Git repository root (\".\" when equal)." },
         "revision": { "type": ["string", "null"], "pattern": "^[a-f0-9]{40}$" },
@@ -27,7 +27,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "loc", "role"],
+        "required": ["path", "sourceText", "loc", "role"],
         "properties": {
           "path": { "$ref": "#/$defs/repoPath" },
           "sourceText": { "type": "string", "description": "Exact text parsed by the extractor, retained for consistent source navigation." },

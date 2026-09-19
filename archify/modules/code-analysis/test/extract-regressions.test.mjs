@@ -91,18 +91,35 @@ test('an in-root directory whose name starts with ".." is not classified as outs
   assert.deepEqual(facts.unresolved, { external: 0, outside: 0, unknown: 0, opaque: 0 });
 });
 
+test('Python records a NUL byte as a per-file parse error', (t) => {
+  const root = fixture(t, { 'broken.py': 'value = 1\0\n', 'valid.py': 'value = 2\n' });
+  const out = path.join(root, 'facts.json');
+  const result = extract(root, ['--language', 'py', '--out', out, '--json']);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const facts = JSON.parse(fs.readFileSync(out, 'utf8'));
+  assert.deepEqual(facts.parse_errors.map((error) => error.path), ['broken.py']);
+  assert.deepEqual(facts.files.map((file) => file.path), ['broken.py', 'valid.py']);
+});
+
 test('raw-facts schema requires unresolved counters and enforces the resolved/to invariant', async () => {
   const { schemaErrors } = await import('../extract/shared/schema.mjs');
   const base = {
     schema_version: 1,
-    repository: { root: '.', revision: null, url: null, language: 'ts', adapter: 'typescript@test' },
-    files: [{ path: 'a.mjs', loc: 1, role: 'source' }, { path: 'b.mjs', loc: 1, role: 'source' }],
+    repository: { root: '.', revision: null, sourceKind: 'working-tree', snapshotId: '0'.repeat(64), url: null, language: 'ts', adapter: 'typescript@test' },
+    files: [{ path: 'a.mjs', sourceText: '', loc: 1, role: 'source' }, { path: 'b.mjs', sourceText: '', loc: 1, role: 'source' }],
     imports: [],
     symbols: [],
     calls: [],
     unresolved: { external: 0, outside: 0, unknown: 0, opaque: 0 },
   };
   assert.deepEqual(schemaErrors('raw-facts', base), []);
+
+  const { sourceKind, ...repositoryWithoutSourceKind } = base.repository;
+  assert.ok(schemaErrors('raw-facts', { ...base, repository: repositoryWithoutSourceKind }).length, 'missing sourceKind must fail');
+  const { snapshotId, ...repositoryWithoutSnapshotId } = base.repository;
+  assert.ok(schemaErrors('raw-facts', { ...base, repository: repositoryWithoutSnapshotId }).length, 'missing snapshotId must fail');
+  const { sourceText, ...fileWithoutSourceText } = base.files[0];
+  assert.ok(schemaErrors('raw-facts', { ...base, files: [fileWithoutSourceText, base.files[1]] }).length, 'missing sourceText must fail');
 
   const { unresolved, ...missingCounters } = base;
   assert.ok(schemaErrors('raw-facts', missingCounters).length, 'missing unresolved must fail');
