@@ -14,7 +14,7 @@ test('serve: delivers, waits for an authorized click, reuses the completed analy
   const fixture = path.join(BAUIFY_ROOT, 'test/fixtures/ts-basic');
   const ir = path.join(out, 'fixture.architecture.json');
   fs.writeFileSync(ir, JSON.stringify({
-    schema_version: 1, diagram_type: 'architecture', meta: { title: 'ts-basic', quality_profile: 'standard' },
+    schema_version: 1, diagram_type: 'architecture', meta: { title: 'ts-basic', output: 'architecture.html', quality_profile: 'standard' },
     components: [
       { id: 'app', type: 'backend', label: 'App', pos: [40, 40], size: [170, 64]},
       { id: 'lib', type: 'backend', label: 'Lib', pos: [300, 40], size: [170, 64] },
@@ -64,7 +64,7 @@ test('serve: editing or removing the IR requires redelivery before the first ana
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-ir-change-'));
   t.after(() => fs.rmSync(out, { recursive: true, force: true }));
   const ir = path.join(out, 'input.json');
-  const original = JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title: 'Snapshot' }, components: [{ id: 'before', type: 'backend', label: 'Before', pos: [40, 40], size: [170, 64] }], connections: [] });
+  const original = JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title: 'Snapshot', output: 'architecture.html' }, components: [{ id: 'before', type: 'backend', label: 'Before', pos: [40, 40], size: [170, 64] }], connections: [] });
   fs.writeFileSync(ir, original);
   const view = await startAnalysisView([path.join(BAUIFY_ROOT, 'test/fixtures/ts-basic'), '--ir', ir, '--out', path.join(out, 'view'), '--language', 'ts']);
   const sockets = new Set();

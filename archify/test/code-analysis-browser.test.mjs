@@ -22,7 +22,7 @@ test('Code Analysis refuses changed IR and preserves captured source in the curr
   git('add', '.'); git('commit', '-qm', 'Browser fixture');
   fs.writeFileSync(path.join(root, 'a.mjs'), "import './b.mjs';\n// Saved but not committed.\n");
   const ir = path.join(scratch, 'input.json');
-  const original = JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title: 'Analysis browser regression' }, components: [{ id: 'app', type: 'backend', label: 'App', pos: [40, 40], size: [170, 64] }], connections: [] });
+  const original = JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title: 'Analysis browser regression', output: 'architecture.html' }, components: [{ id: 'app', type: 'backend', label: 'App', pos: [40, 40], size: [170, 64] }], connections: [] });
   fs.writeFileSync(ir, original);
   const map = path.join(scratch, 'map.json');
   fs.writeFileSync(map, JSON.stringify({ app: ['a', 'b'] }));

@@ -27,7 +27,7 @@ const graph = {
   unresolved: { external: 0, outside: 0, unknown: 0, opaque: 0 },
 };
 const ir = {
-  schema_version: 1, diagram_type: 'architecture', meta: { title: 't' },
+  schema_version: 1, diagram_type: 'architecture', meta: { title: 't', output: 'architecture.html' },
   components: [
     { id: 'app', type: 'backend', label: 'App', sources: [{ path: 'src/index.mjs' }] },
     { id: 'lib', type: 'backend', label: 'Lib', sources: [{ path: 'src/lib/helper.mjs' }] },
@@ -113,7 +113,7 @@ test('analysis: the delivered page is read, never rewritten; the analysis page a
   // A tiny authored diagram for the py-basic fixture; no sources, so the mapping is explicit.
   const irPath = path.join(out, 'fixture.architecture.json');
   fs.writeFileSync(irPath, JSON.stringify({
-    schema_version: 1, diagram_type: 'architecture', meta: { title: 'py-basic', quality_profile: 'standard' },
+    schema_version: 1, diagram_type: 'architecture', meta: { title: 'py-basic', output: 'architecture.html', quality_profile: 'standard' },
     components: [
       { id: 'app', type: 'backend', label: 'App', pos: [40, 40], size: [170, 64] },
       { id: 'util', type: 'backend', label: 'Util', pos: [300, 40], size: [170, 64] },

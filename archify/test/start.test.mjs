@@ -23,7 +23,7 @@ test('concurrent starts isolate default artifacts for the same project', { timeo
   fs.writeFileSync(path.join(repo, 'main.py'), 'x = 1');
   async function launch(title) {
     const ir = path.join(scratch, title + '.json');
-    fs.writeFileSync(ir, JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title }, components: [{ id: 'app', type: 'backend', label: title, pos: [40,40], size: [170,64] }], connections: [] }));
+    fs.writeFileSync(ir, JSON.stringify({ schema_version: 1, diagram_type: 'architecture', meta: { title, output: 'architecture.html' }, components: [{ id: 'app', type: 'backend', label: title, pos: [40,40], size: [170,64] }], connections: [] }));
     const child = spawn(process.execPath, [cli, 'start', repo, '--ir', ir, '--language', 'py'], { stdio: ['ignore', 'pipe', 'pipe'] });
     t.after(() => new Promise(resolve => {
       if (child.exitCode !== null || child.signalCode !== null) return resolve();
