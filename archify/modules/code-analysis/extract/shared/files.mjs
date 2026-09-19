@@ -16,7 +16,25 @@ export function listFiles(root, config) {
 // Capture bytes through a checked descriptor, then give adapters immutable
 // input. They must never reopen the enumerated names to obtain source text.
 export function snapshotFiles(root, config, accept = () => true) {
-  return new Map(collectFiles(root, config).filter(entry => accept(entry.rel)).map(entry => {
+  return captureEntries(collectFiles(root, config).filter(entry => accept(entry.rel)));
+}
+
+// Resolution needs a frozen inventory even for files excluded from analysis.
+// Capture content only for selected sources and configuration/metadata inputs.
+export function snapshotTree(root, accept) {
+  const entries = collectFiles(root, { include: ['**/*'], exclude: [] });
+  const selected = entries.filter(entry => accept(entry.rel));
+  const contents = captureEntries(selected);
+  for (const entry of selected) validatePath(entry);
+  const byName = new Map(entries.map(entry => [entry.rel, entry]));
+  return {
+    contents, names: [...byName.keys()],
+    assertFileUnchanged(name) { if (byName.has(name)) validatePath(byName.get(name)); },
+  };
+}
+
+function captureEntries(entries) {
+  return new Map(entries.map(entry => {
     let fd;
     try {
       validatePath(entry);

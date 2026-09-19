@@ -253,7 +253,14 @@ Python uses an AST visitor to distinguish function bodies from enclosing
 default/decorator expressions, mark TYPE_CHECKING-only and conditional edges,
 and include the package initializers a submodule import loads. TypeScript
 marks explicit type-only edges and deferred import()/require() calls, and
-uses tsconfig options when resolving aliases and inline type specifiers.
+uses tsconfig options when resolving aliases and inline type specifiers. Source
+text, in-root JSON configuration/package metadata, and the resolution file
+inventory are captured before compiler setup. Configuration parsing and module
+resolution use that inventory, including negative lookups, rather than rereading
+the working tree. Installed configuration packages and unusual configuration
+extensions are memoized on first use and checked again before returning; a
+change rejects extraction with `extract/source-changed`. This consistency check
+does not claim an OS-atomic filesystem snapshot.
 The graph keeps structural dependencies, assigns collision-safe module IDs,
 and stores exact file ownership for the overlay. After schema shape checks,
 semantic validation verifies uniqueness and cross-record references.

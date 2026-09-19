@@ -3,7 +3,9 @@
 // exported symbols and calls stay empty until M2.
 import path from 'node:path';
 import ts from 'typescript';
-import { classifyRole, lineCount, listFiles, snapshotFiles, toPosix } from '../shared/files.mjs';
+import { classifyRole, lineCount, listFiles, snapshotTree, toPosix } from '../shared/files.mjs';
+import { matcher } from '../shared/glob.mjs';
+import { snapshotHost } from './snapshot-host.mjs';
 import { describeRepository } from '../shared/git.mjs';
 import { fail } from '../shared/diagnostics.mjs';
 
@@ -26,15 +28,24 @@ const COMPILER_OPTIONS = {
 
 export function extract(root, config) {
   const absRoot = path.resolve(root);
-  const snapshot = snapshotFiles(absRoot, config, f => SOURCE_EXT.test(f));
-  const files = [...snapshot.keys()];
-  const options = compilerOptions(absRoot);
+  const include = matcher(config.include), exclude = matcher(config.exclude);
+  const selected = file => SOURCE_EXT.test(file) && include(file) && !exclude(file)
+    && !file.split('/').slice(0, -1).some((_, i, parts) => exclude(`${parts.slice(0, i + 1).join('/')}/`));
+  const snapshot = snapshotTree(absRoot, file => selected(file) || file.endsWith('.json'));
+  const files = snapshot.names.filter(selected);
+  const inputs = snapshotHost(absRoot, snapshot);
+  const options = compilerOptions(absRoot, inputs);
   const fileSet = new Set(files);
   const programOptions = {
     ...options, noResolve: true, noLib: true, types: [],
   };
   const host = ts.createCompilerHost(programOptions);
-  host.readFile = file => snapshot.get(toPosix(path.relative(absRoot, file)))?.toString('utf8');
+  host.readFile = file => snapshot.contents.get(toPosix(path.relative(absRoot, file)))?.toString('utf8');
+  host.fileExists = inputs.fileExists;
+  host.directoryExists = inputs.directoryExists;
+  host.getDirectories = inputs.getDirectories;
+  host.getCurrentDirectory = inputs.getCurrentDirectory;
+  host.realpath = inputs.realpath;
   host.getSourceFile = (file, version) => {
     const text = host.readFile(file);
     return text === undefined ? undefined : ts.createSourceFile(file, text, version, true);
@@ -54,7 +65,7 @@ export function extract(root, config) {
       if (found.names.length) record.names = found.names;
       if (found.lazy) record.lazy = true;
       if (source.isDeclarationFile || found.typeOnly) record.typeOnly = true;
-      const target = found.opaque ? { reason: 'opaque' } : resolve(found.specifier, abs, absRoot, fileSet, options);
+      const target = found.opaque ? { reason: 'opaque' } : resolve(found.specifier, abs, absRoot, fileSet, options, inputs);
       if (target.to) { record.to = target.to; record.resolved = true; }
       else unresolved[target.reason] += 1;
       imports.push(record);
@@ -63,6 +74,7 @@ export function extract(root, config) {
 
   imports.sort((a, b) => compareText(a.from, b.from) || a.line - b.line || compareText(a.specifier, b.specifier));
 
+  inputs.assertUnchanged();
   const repo = describeRepository(absRoot);
   return {
     schema_version: 1,
@@ -84,12 +96,14 @@ function lineOf(source, node) {
 }
 
 /** Read options explicitly selected by the analyzed root; never discover ancestor configs. */
-function compilerOptions(root) {
+function compilerOptions(root, inputs) {
   const configPath = path.join(root, 'tsconfig.json');
-  if (!ts.sys.fileExists(configPath)) return COMPILER_OPTIONS;
-  const loaded = ts.readConfigFile(configPath, ts.sys.readFile);
+  if (!inputs.fileExists(configPath)) return COMPILER_OPTIONS;
+  const loaded = ts.readConfigFile(configPath, inputs.readFile);
+  inputs.assertUnchanged();
   if (loaded.error) fail('extract/tsconfig-invalid', 'Cannot read tsconfig.json.', { subject: { file: configPath } });
-  const parsed = ts.parseJsonConfigFileContent(loaded.config, ts.sys, path.dirname(configPath));
+  const parsed = ts.parseJsonConfigFileContent(loaded.config, inputs, path.dirname(configPath));
+  inputs.assertUnchanged();
   const errors = parsed.errors.filter((e) => e.code !== 18003); // no input files is irrelevant to a subtree analysis
   if (errors.length) fail('extract/tsconfig-invalid', 'Invalid TypeScript configuration.', { subject: { file: configPath }, evidence: { errors: errors.map((e) => ts.flattenDiagnosticMessageText(e.messageText, '\n')) } });
   return { ...COMPILER_OPTIONS, ...parsed.options, allowJs: true };
@@ -182,9 +196,9 @@ function exportedNames(clause) {
   return clause.elements.map((el) => (el.propertyName || el.name).text).sort();
 }
 
-function resolve(specifier, containingFile, absRoot, fileSet, options) {
+function resolve(specifier, containingFile, absRoot, fileSet, options, inputs) {
   const isPathLike = specifier.startsWith('.') || specifier.startsWith('/');
-  const result = ts.resolveModuleName(specifier, containingFile, options, ts.sys);
+  const result = ts.resolveModuleName(specifier, containingFile, options, inputs);
   const resolvedFile = result.resolvedModule?.resolvedFileName;
   if (!resolvedFile) return { reason: isPathLike ? 'unknown' : 'external' };
   if (result.resolvedModule.isExternalLibraryImport || resolvedFile.split(path.sep).join('/').includes('/node_modules/')) return { reason: 'external' };
