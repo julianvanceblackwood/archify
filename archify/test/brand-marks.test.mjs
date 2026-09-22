@@ -45,6 +45,22 @@ test('third-party notices cover every recorded individual mark license', () => {
   assert.match(notices, /does not grant rights\s+that Archify does not hold/);
 });
 
+test('fflate disclosure follows whether the packaged runtime includes fflate', () => {
+  const notices = fs.readFileSync(path.join(skillRoot, 'THIRD_PARTY_NOTICES.md'), 'utf8');
+  const preAtlasNotices = notices.replace(/\n## fflate[\s\S]*?(?=\n## No additional rights granted)/, '');
+
+  assert.deepEqual(validateThirdPartyNotices(preAtlasNotices, { fflate: false }), {
+    ok: true,
+    missing: [],
+  });
+  assert.deepEqual(validateThirdPartyNotices(preAtlasNotices).missing, [
+    'fflate section',
+    'fflate pinned version',
+    'fflate source',
+    'fflate license',
+  ]);
+});
+
 function writeFixture(type, name, brand, customize) {
   const [example, collection] = cases[type];
   const value = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', example), 'utf8'));

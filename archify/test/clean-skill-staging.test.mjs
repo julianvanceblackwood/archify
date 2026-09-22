@@ -119,6 +119,39 @@ test('clean staging requires shared path runtimes only when packaged code import
   }
 });
 
+test('clean staging keeps pre-Atlas snapshots reproducible but rejects a partial Atlas slice', () => {
+  const atlasFiles = [
+    'archify/schemas/atlas.schema.json',
+    ...['atlas-manifest', 'atlas-delivery', 'atlas-bundle', 'atlas-envelope', 'atlas-shell', 'atlas-navigation']
+      .map((name) => `archify/renderers/shared/${name}.mjs`),
+    'archify/references/architecture-atlas.md',
+    'archify/assets/vendor/fflate-gunzip-0.8.2.min.js',
+    'archify/assets/vendor/fflate-MIT.txt',
+  ];
+
+  for (const partial of [false, true]) {
+    const root = repositoryFixture();
+    const destination = path.join(root, 'staged-skill');
+    try {
+      git(root, ['add', '.']);
+      const removed = partial ? atlasFiles.slice(1) : atlasFiles;
+      git(root, ['rm', '--cached', '-f', '--', ...removed]);
+      if (partial) {
+        assert.throws(
+          () => stageCleanSkill({ repoRoot: root, destination }),
+          /required package input is not tracked by Git: archify\/renderers\/shared\/atlas-manifest[.]mjs/,
+        );
+        assert.equal(fs.existsSync(destination), false);
+      } else {
+        stageCleanSkill({ repoRoot: root, destination });
+        assert.equal(fs.existsSync(path.join(destination, 'schemas', 'atlas.schema.json')), false);
+      }
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
 test('clean staging rejects byte-identical but incomplete repository and packaged notices', () => {
   const root = repositoryFixture();
   const destination = path.join(root, 'staged-skill');
