@@ -7,6 +7,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { startPreview } from '../bin/preview.mjs';
 import { ChromeVisualBrowser, findChrome } from '../bin/visual-check.mjs';
+import { verifyRepositoryEvidence } from '../renderers/shared/repository-evidence.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..');
@@ -298,6 +299,58 @@ test('internal structure and source evidence safely round-trip special text', ()
   assert.equal(structure.nodes.users.items[1].summary, itemText);
   assert.doesNotMatch(html, /<img data-archify-injected>/);
   assert.doesNotMatch(html, /<svg onload=alert\(1\)>/);
+});
+
+test('repository root accepts a different spelling of the same physical Git top-level', (t) => {
+  const data = fixture();
+  const alias = `${data.root}-alias`;
+  fs.symlinkSync(data.root, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  t.after(() => fs.rmSync(alias, { recursive: true, force: true }));
+
+  // Windows APIs and Git can report the same directory with different case or
+  // long/short spellings. Preserve the authored alias for the first lookup so
+  // this test exercises physical identity instead of string equality.
+  const realpathSync = fs.realpathSync;
+  let preservedAlias = false;
+  t.mock.method(fs, 'realpathSync', (target, ...args) => {
+    if (!preservedAlias && path.resolve(String(target)) === path.resolve(alias)) {
+      preservedAlias = true;
+      return alias;
+    }
+    return Reflect.apply(realpathSync, fs, [target, ...args]);
+  });
+
+  const evidence = verifyRepositoryEvidence('architecture', data.diagram, alias);
+  assert.equal(preservedAlias, true);
+  assert.equal(evidence.verified, true);
+  assert.equal(evidence.repository.revision, data.revision);
+});
+
+test('repository root rejects a different physical directory inside the repository', () => {
+  const data = fixture();
+  assert.throws(
+    () => verifyRepositoryEvidence('architecture', data.diagram, path.join(data.root, 'src')),
+    (error) => error?.archifyDiagnostics?.some(({ code }) => code === 'repository-evidence/root-not-top-level'),
+  );
+});
+
+test('repository root fails closed when physical identity is indeterminate', (t) => {
+  const data = fixture();
+  const inaccessible = Object.assign(new Error('synthetic identity failure'), { code: 'EACCES' });
+  t.mock.method(fs, 'statSync', () => { throw inaccessible; });
+
+  assert.throws(
+    () => verifyRepositoryEvidence('architecture', data.diagram, data.root),
+    (error) => {
+      const diagnostic = error?.archifyDiagnostics?.find(
+        ({ code }) => code === 'repository-evidence/root-identity-indeterminate',
+      );
+      assert.ok(diagnostic);
+      assert.equal(diagnostic.evidence.relation.code, 'root-resolution-failed');
+      assert.equal(diagnostic.evidence.relation.systemCode, 'EACCES');
+      return true;
+    },
+  );
 });
 
 test('Gitee evidence generates provider-specific revision and line links', () => {
@@ -823,11 +876,11 @@ test('evidence fails closed without a root, on wrong origin, missing blobs, or i
   assert.equal(fs.readFileSync(output, 'utf8'), 'trusted previous artifact');
 });
 
-test('--repo-root stays bounded to architecture and schema limits evidence shape', () => {
+test('--repo-root reaches every typed renderer and schema limits evidence shape', () => {
   const data = fixture();
-  let result = run(['render', 'workflow', path.join(skillRoot, 'examples', 'agent-tool-call.workflow.json'), '--repo-root', data.root]);
-  assert.equal(result.status, 2);
-  assert.match(result.stderr, /architecture diagrams only/);
+  const workflowOutput = path.join(data.root, 'workflow.html');
+  let result = run(['render', 'workflow', path.join(skillRoot, 'examples', 'agent-tool-call.workflow.json'), workflowOutput, '--repo-root', data.root]);
+  assert.equal(result.status, 0, result.stderr);
 
   data.diagram.components[0].sources = [
     { path: 'src/router.js' },

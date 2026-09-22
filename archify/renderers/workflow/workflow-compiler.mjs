@@ -1,5 +1,13 @@
 import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../shared/utils.mjs';
-import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, svgAccessibleText, svgRootAttrs } from '../shared/cli.mjs';
+import {
+  animateAttr,
+  focusEdgeAttrs,
+  focusNodeAttrs,
+  focusNodeTitle,
+  svgAccessibleText,
+  svgRootAttrs,
+  validateCrossCollectionContracts,
+} from '../shared/cli.mjs';
 import {
   throwDiagnosticError,
   throwDiagnosticProblems,
@@ -13,8 +21,8 @@ import {
   resolveLegend,
   renderLegend as renderResolvedLegend,
 } from '../shared/legend.mjs';
-import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth } from '../shared/text-fit.mjs';
-import { brandLabelFitWidth, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../shared/brand-marks.mjs';
+import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth, nodeLabelLayout } from '../shared/text-fit.mjs';
+import { brandLabelFitWidth, brandMarkFor, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../shared/brand-marks.mjs';
 import { translateMessage as i18nText } from '../shared/i18n.mjs';
 import {
   createMappedWorkflowCandidate,
@@ -34,6 +42,7 @@ import {
   cleanBorderRunProblems,
   cleanRouteRhythmProblems,
   cleanLabelRouteClearanceProblems,
+  cleanLabelCanvasContainmentProblems,
   collectAmbiguousCorridors,
   collectLabelRouteClearance,
   collectBorderRuns,
@@ -43,8 +52,8 @@ import {
   suggestLabelPairFix,
   anchor,
   automaticPortSpread,
-  defaultFromSide,
-  defaultToSide,
+  legacyDefaultFromSide as defaultFromSide,
+  legacyDefaultToSide as defaultToSide,
   chosenSide,
   normalizeRoutePoints,
   routeHonorsEndpointSides,
@@ -54,7 +63,8 @@ import {
   componentFill,
   componentText,
   arrowClassMap,
-  variantAccent
+  variantAccent,
+  edgeLabelAccent
 } from '../shared/geometry.mjs';
 
 const LEGACY_COLUMN_CENTERS = Object.freeze([88, 220, 300, 430, 500, 625]);
@@ -101,6 +111,34 @@ function createLegacyLayout() {
     nodeH: 52,
     defaultViewBoxWidth: 720,
   };
+}
+
+function hasAbsoluteWorkflowPins(workflow) {
+  return asArray(workflow.edges).some((edge) => (
+    Array.isArray(edge.via)
+    || Array.isArray(edge.labelAt)
+    || edge.channelX !== undefined
+    || edge.channelY !== undefined
+  ));
+}
+
+function hasVerticalStack(workflow) {
+  const offsetsByLaneAndColumn = new Map();
+  for (const node of asArray(workflow.nodes)) {
+    if (!Number.isInteger(node.col)) continue;
+    const key = `${node.lane}\u0000${node.col}`;
+    const offsets = offsetsByLaneAndColumn.get(key) || new Set();
+    offsets.add(Number(node.yOffset) || 0);
+    if (offsets.size > 1) return true;
+    offsetsByLaneAndColumn.set(key, offsets);
+  }
+  return false;
+}
+
+function usesIndependentLaneMeasurement(workflow) {
+  return hasVerticalStack(workflow)
+    && !workflow.meta?.viewBox
+    && !hasAbsoluteWorkflowPins(workflow);
 }
 
 function authoredNodeWidth(node) {
@@ -472,27 +510,45 @@ function createReadableLayout(workflow, layoutFeedback = {}) {
       widthContributors.add(`lane ${widestLaneLabel.lane.id || widestLaneLabel.lane.label} label width`);
     }
   }
-  let maxVerticalExtent = 0;
-  const verticalExtentContributors = new Set();
-  for (const node of nodes) {
-    const yOffset = Number(node.yOffset) || 0;
-    const extent = authoredNodeHeight(node) / 2 + Math.abs(yOffset);
-    const contributor = `node ${node.id} height ${authoredNodeHeight(node)}px${yOffset ? ` with yOffset ${yOffset}px` : ''}`;
-    if (extent > maxVerticalExtent + 0.0001) {
-      maxVerticalExtent = extent;
-      verticalExtentContributors.clear();
-      verticalExtentContributors.add(contributor);
-    } else if (Math.abs(extent - maxVerticalExtent) <= 0.0001) {
-      verticalExtentContributors.add(contributor);
+  const verticalExtent = (laneId) => {
+    let maximum = 0;
+    const contributors = new Set();
+    for (const node of nodes) {
+      if (laneId !== undefined && node.lane !== laneId) continue;
+      const yOffset = Number(node.yOffset) || 0;
+      const extent = authoredNodeHeight(node) / 2 + Math.abs(yOffset);
+      const contributor = `node ${node.id} height ${authoredNodeHeight(node)}px${yOffset ? ` with yOffset ${yOffset}px` : ''}`;
+      if (extent > maximum + 0.0001) {
+        maximum = extent;
+        contributors.clear();
+        contributors.add(contributor);
+      } else if (Math.abs(extent - maximum) <= 0.0001) {
+        contributors.add(contributor);
+      }
     }
+    return { maximum, contributors };
+  };
+  const sharedVerticalExtent = verticalExtent();
+  const laneH = 30 + Math.max(74, Math.ceil(sharedVerticalExtent.maximum * 2 + 8));
+  const independentLaneMeasurement = usesIndependentLaneMeasurement(workflow);
+  const laneBaseHeights = asArray(workflow.lanes).map((lane) => {
+    if (!independentLaneMeasurement) return laneH;
+    const ownVerticalExtent = verticalExtent(lane.id);
+    const height = 30 + Math.max(74, Math.ceil(ownVerticalExtent.maximum * 2 + 8));
+    if (height > 104) {
+      for (const contributor of ownVerticalExtent.contributors) heightContributors.add(contributor);
+    }
+    return height;
+  });
+  if (!independentLaneMeasurement && laneH > 104) {
+    for (const contributor of sharedVerticalExtent.contributors) heightContributors.add(contributor);
   }
-  const baseContentH = Math.max(74, Math.ceil(maxVerticalExtent * 2 + 8));
-  const laneH = 30 + baseContentH;
   const groupsByLane = new Map();
   for (const group of asArray(workflow.groups)) {
     groupsByLane.set(group.lane, [...(groupsByLane.get(group.lane) || []), group]);
   }
-  const groupLaneReserves = asArray(workflow.lanes).map((lane) => {
+  const groupLaneReserves = asArray(workflow.lanes).map((lane, laneIndex) => {
+    const baseContentH = laneBaseHeights[laneIndex] - 30;
     let header = 0;
     let footer = 0;
     for (const group of groupsByLane.get(lane.id) || []) {
@@ -523,7 +579,9 @@ function createReadableLayout(workflow, layoutFeedback = {}) {
   });
   const groupHeaderHeights = groupLaneReserves.map(({ header }) => header);
   const groupFooterHeights = groupLaneReserves.map(({ footer }) => footer);
-  const laneHeights = groupLaneReserves.map(({ header, footer }) => laneH + header + footer);
+  const laneHeights = groupLaneReserves.map(({ header, footer }, index) => (
+    laneBaseHeights[index] + header + footer
+  ));
   const laneGap = Math.max(20, Math.ceil(layoutFeedback.laneGapMin || 0));
   for (const [index, reserve] of groupHeaderHeights.entries()) {
     if (!reserve) continue;
@@ -534,9 +592,6 @@ function createReadableLayout(workflow, layoutFeedback = {}) {
     if (!reserve) continue;
     const lane = asArray(workflow.lanes)[index];
     heightContributors.add(`lane ${lane.id || lane.label} group frame containment ${reserve}px`);
-  }
-  if (laneH > 104) {
-    for (const contributor of verticalExtentContributors) heightContributors.add(contributor);
   }
   if (laneGap > 20) {
     for (const contributor of asArray(layoutFeedback.laneGapContributors)) {
@@ -777,6 +832,7 @@ function compileWorkflowInternal({
   let inputDiagnostics = [];
   try {
     validateSchema('workflow', qualityResolvedWorkflow);
+    validateCrossCollectionContracts('workflow', qualityResolvedWorkflow);
   } catch (error) {
     inputDiagnostics = Array.isArray(error?.archifyDiagnostics)
       ? error.archifyDiagnostics.map((diagnostic) => ({
@@ -2451,7 +2507,7 @@ function validateWorkflow() {
   for (const rect of labelRects) {
     for (const node of nodes.values()) {
       if (rectsOverlap(rect, node, -2)) {
-        problems.push(`Label "${rect.label}" overlaps node "${node.id}" — adjust labelDx/labelDy/labelSegment or set labelAt.\n${suggestLabelObstacleFix(rect, rect.lx, rect.ly, node, 'node')}`);
+        problems.push(`Label "${rect.label}" overlaps node "${node.id}" — adjust labelDx/labelDy/labelSegment or set labelAt.\n${suggestLabelObstacleFix(rect, rect.lx, rect.ly, node, 'node', viewBox, nodes.values())}`);
       }
     }
   }
@@ -2480,6 +2536,15 @@ function validateWorkflow() {
     if (legendY() + 18 > viewBox[1]) {
       problems.push(`Legend exceeds viewBox height ${viewBox[1]} — set meta.viewBox[1] to at least ${legendY() + 18}.`);
     }
+    // v1 only; see collectLabelCanvasOverflow in shared/geometry.mjs.
+    problems.push(...cleanLabelCanvasContainmentProblems({
+      labels: labelRects,
+      viewBox,
+      diagramType: 'workflow',
+      relationCollection: 'edges',
+      profile: workflow.meta?.quality_profile,
+      profileIsAuthoritative: true,
+    }));
   }
 
   if (problems.length) {
@@ -3189,12 +3254,20 @@ function readableCandidateCost(
   const directLength = Math.abs(points.at(-1)[0] - points[0][0]) + Math.abs(points.at(-1)[1] - points[0][1]);
   const interiorPreferred28Deficit = segmentLengths.slice(1, -1)
     .reduce((total, length) => total + Math.max(0, 28 - length), 0);
-  const xs = points.map(([x]) => x);
-  const ys = points.map(([, y]) => y);
-  const canvasGrowthPx = Math.max(0, -Math.min(...xs))
-    + Math.max(0, Math.max(...xs) - minimumCanvasWidth)
-    + Math.max(0, -Math.min(...ys))
-    + Math.max(0, Math.max(...ys) - autoHeight);
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const [x, y] of points) {
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+  }
+  const canvasGrowthPx = Math.max(0, -minX)
+    + Math.max(0, maxX - minimumCanvasWidth)
+    + Math.max(0, -minY)
+    + Math.max(0, maxY - autoHeight);
   const from = nodes.get(edge.from);
   const to = nodes.get(edge.to);
   const naturalStart = anchor(from, naturalFromSide);
@@ -4097,12 +4170,7 @@ function finalizeReadableViewBox() {
   ];
   const outsideOrigin = bounds.left < 0 || bounds.top < 0;
   if (outsideOrigin) {
-    const hasAbsolutePins = workflow.edges.some((edge) => (
-      Array.isArray(edge.via)
-      || Array.isArray(edge.labelAt)
-      || edge.channelX !== undefined
-      || edge.channelY !== undefined
-    ));
+    const hasAbsolutePins = hasAbsoluteWorkflowPins(workflow);
     const message = `Workflow geometry extends above or left of the viewBox origin (${Math.round(bounds.left)}, ${Math.round(bounds.top)}).`;
     throwDiagnosticError(message, [{
       code: hasAbsolutePins ? 'workflow/explicit-pin-conflict' : 'workflow/solver-budget-exhausted',
@@ -4192,14 +4260,18 @@ function renderNode(node) {
   const accent = componentText[node.type] || 't-muted';
   const hasSub = node.sublabel != null && node.sublabel !== '';
   const labelFontSize = fittedNodeFontSize(node.label, brandLabelFitWidth(node, node.width), nodeTextFit.labelPreferred, nodeTextFit.labelMinimum);
-  const sublabelFontSize = hasSub
-    ? fittedNodeFontSize(node.sublabel, node.width, nodeTextFit.sublabelPreferred, nodeTextFit.sublabelMinimum)
-    : nodeTextFit.sublabelPreferred;
+  const sublabelFontSize = fittedNodeFontSize(node.sublabel, node.width, nodeTextFit.sublabelPreferred, nodeTextFit.sublabelMinimum);
+  const tagFontSize = fittedNodeFontSize(node.tag, node.width, nodeTextFit.tagPreferred, nodeTextFit.tagMinimum);
+  const textRows = [{ text: node.label, font: labelFontSize, y: 21 }];
+  if (hasSub) textRows.push({ text: node.sublabel, font: sublabelFontSize, y: 38 });
+  if (node.tag) textRows.push({ text: node.tag, font: tagFontSize, y: node.height - 12 });
+  const labelLayout = nodeLabelLayout({ width: node.width, height: node.height, rows: textRows,
+    brand: Boolean(brandMarkFor(node)) });
   const sub = hasSub
-    ? `\n          <text data-detail="context" x="${node.cx}" y="${node.y + 38}" class="t-muted" font-size="${sublabelFontSize}" text-anchor="middle">${esc(node.sublabel)}</text>`
+    ? `\n          <text data-detail="context" x="${node.cx}" y="${node.y + labelLayout.ys[1]}" class="t-muted" font-size="${sublabelFontSize}" text-anchor="middle">${esc(node.sublabel)}</text>`
     : '';
   const tag = node.tag
-    ? `\n        <text data-detail="fine" x="${node.cx}" y="${node.y + node.height - 12}" class="${accent}" font-size="${fittedNodeFontSize(node.tag, node.width, nodeTextFit.tagPreferred, nodeTextFit.tagMinimum)}" text-anchor="middle">${esc(node.tag)}</text>`
+    ? `\n        <text data-detail="fine" x="${node.cx}" y="${node.y + labelLayout.ys[hasSub ? 2 : 1]}" class="${accent}" font-size="${tagFontSize}" text-anchor="middle">${esc(node.tag)}</text>`
     : '';
   const brand = renderBrandMark(node, { x: node.x + node.width - 22, y: node.y + 6 });
   const passport = { kind: node.type, sublabel: node.sublabel, tag: node.tag, context: nodeContext(node), ...brandMetadataFor(node) };
@@ -4207,8 +4279,8 @@ function renderNode(node) {
           ${focusNodeTitle(node.label, passport)}
           <rect x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}" rx="6" class="c-mask"/>
           <rect x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}" rx="6" class="${fill}"${animateAttr(workflow.meta, 'node', nodeStep(node))} stroke-width="1.5"/>
-          ${renderSemanticSigil(node.type, { x: node.x + 6, y: node.y + 6 })}${brand ? `\n          ${brand}` : ''}
-          <text data-node-label=""${hasSub ? ' data-detail-anchor=""' : ''} x="${node.cx}" y="${node.y + 21}" class="t-primary" font-size="${labelFontSize}" font-weight="600" text-anchor="middle">${esc(node.label)}</text>${sub}${tag}
+          ${renderSemanticSigil(node.type, { icon: node.icon, x: node.x + 6, y: node.y + labelLayout.sigilY, size: labelLayout.sigilSize })}${brand ? `\n          ${brand}` : ''}
+          <text data-node-label=""${hasSub ? ' data-detail-anchor=""' : ''} x="${node.x + labelLayout.x}" y="${node.y + labelLayout.ys[0]}" class="t-primary" font-size="${labelFontSize}" font-weight="600" text-anchor="middle">${esc(node.label)}</text>${sub}${tag}
         </g>`;
 }
 
@@ -4226,7 +4298,7 @@ function renderEdgeLabel(edge, index) {
   const labelW = workflowLabelWidth(edge.label);
   return `        <g data-detail="context" ${focusEdgeAttrs(edge.from, edge.to, edge.label, index, edge.id)}>
           <rect x="${lx - labelW / 2}" y="${ly - 10}" width="${labelW}" height="14" rx="3" class="c-mask"/>
-          <text x="${lx}" y="${ly}" class="${variantAccent(edge.variant, { dashed: 't-database' })}" font-size="8" text-anchor="middle">${esc(edge.label)}</text>
+          <text x="${lx}" y="${ly}" class="${edgeLabelAccent(edge.variant)}" font-size="8" text-anchor="middle">${esc(edge.label)}</text>
         </g>`;
 }
 
@@ -4246,7 +4318,13 @@ function renderLegend() {
 }
 
 function renderSvg() {
-  return `      <svg viewBox="0 0 ${viewBox[0]} ${viewBox[1]}" ${svgRootAttrs(workflow.meta, 'workflow diagram')}>
+  const readerFit = workflow.schema_version === 2
+    && !workflow.meta?.viewBox
+    && hasVerticalStack(workflow)
+    && asArray(layout.laneHeights).some((height) => height > 104)
+    ? ' data-reader-fit="intrinsic-height"'
+    : '';
+  return `      <svg viewBox="0 0 ${viewBox[0]} ${viewBox[1]}"${readerFit} ${svgRootAttrs(workflow.meta, resolvedQualityProfile)}>
 ${svgAccessibleText(workflow.meta, 'workflow')}
 ${renderDefinitions()}
 

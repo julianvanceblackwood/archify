@@ -19,8 +19,10 @@ test('Cursor onboarding stays explicit, bilingual, and backed by the same Skill'
   const landing = fs.readFileSync(path.join(repoRoot, 'docs', 'index.html'), 'utf8');
 
   assert.equal(english, englishMirror, 'English README mirrors must stay synchronized');
-  assert.match(english, /Cursor, Claude Code, Codex CLI, and OpenCode/);
-  assert.match(chinese, /Cursor、Claude Code、Codex CLI 和 OpenCode/);
+  for (const agent of ['Cursor', 'Claude Code', 'Codex CLI', 'OpenCode']) {
+    assert.ok(english.includes(agent), `English README must name ${agent}`);
+    assert.ok(chinese.includes(agent), `Chinese README must name ${agent}`);
+  }
   for (const surface of [english, chinese, landing]) assert.ok(surface.includes(cursorCommand));
   for (const surface of [english, chinese, start, landing]) {
     assert.doesNotMatch(surface, /skills use[^\n<]*--agent cursor/);
@@ -28,10 +30,15 @@ test('Cursor onboarding stays explicit, bilingual, and backed by the same Skill'
     assert.doesNotMatch(surface, /all Cursor models|every Cursor model/i);
   }
 
-  assert.match(start, /data-agent="cursor">Cursor<\/button>/);
-  assert.match(start, /data-agent="codex">Codex<\/button>/);
-  assert.match(start, /data-agent="claude-code">Claude Code<\/button>/);
-  assert.match(start, /data-agent="opencode">OpenCode<\/button>/);
+  for (const [id, label] of [
+    ['cursor', 'Cursor'],
+    ['codex', 'Codex'],
+    ['claude-code', 'Claude Code'],
+    ['opencode', 'OpenCode'],
+    ['github-copilot', 'GitHub Copilot'],
+  ]) {
+    assert.match(start, new RegExp(`data-agent="${id}">${label}<\\/button>`));
+  }
   assert.match(start, /KNOWN_AGENTS\.has\(requestedAgent\)/);
   assert.match(start, /same Skill/);
   assert.match(start, /同一份 Skill/);

@@ -10,8 +10,8 @@ node archify/renderers/lifecycle/render-lifecycle.mjs input.lifecycle.json outpu
 The renderer validates input against `archify/schemas/lifecycle.schema.json`
 with the bundled standalone validator. No dependency installation is required.
 
-If `output.html` is omitted, the renderer uses `meta.output` from the JSON file
-or falls back to `lifecycle.html` in the current working directory.
+If `output.html` is omitted, the renderer uses the required `meta.output` value
+from the JSON file.
 
 ## Input
 
@@ -23,6 +23,7 @@ Lifecycle JSON files must set:
   "diagram_type": "lifecycle",
   "meta": {
     "title": "Agent Run Lifecycle",
+    "output": "agent-run-lifecycle.html",
     "viewBox": [980, 660]
   },
   "lanes": [],
@@ -89,8 +90,9 @@ corners; tune them with `cornerRadius` (default 10, `0` for sharp bends).
 - Use lower lanes only for interruptions, recovery, and terminal exits.
 - Keep transition labels out of the main SVG unless the label is essential;
   prefer node labels, tags, legend entries, and summary cards.
-- Avoid diagonal and crossing lines. Terminal exits should drop vertically from
-  their source event whenever possible.
+- Prefer axis-aligned lines and avoid crossings. Terminal exits should drop
+  vertically from their source event whenever possible. Explicit `straight`
+  routes remain supported; see the [authored routing contract](../../references/authoring-contract.md#executable-geometry-rules).
 - Use `success` for completion, `failure` for failure/terminal exits,
   `waiting` for pauses, and `decision` for quality gates.
 

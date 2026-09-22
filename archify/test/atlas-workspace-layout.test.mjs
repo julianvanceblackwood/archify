@@ -45,7 +45,11 @@ function readerFixture({ width = 1920, height = 1080, viewBox = [1260, 600],
   const structure = element('structure', 1200);
   structure.hidden = true;
   if (cards) shell.appendChild(cards);
-  const svg = { viewBox: { baseVal: { width: viewBox[0], height: viewBox[1] } } };
+  const svg = {
+    viewBox: { baseVal: { width: viewBox[0], height: viewBox[1] } },
+    getAttribute: () => null,
+    querySelectorAll: () => [],
+  };
   diagram.querySelector = () => svg;
   const elements = { '.container': shell, '.diagram-container': diagram, '.header': header, '.guided-views': guided, '.cards': cards };
   if (atlas) {

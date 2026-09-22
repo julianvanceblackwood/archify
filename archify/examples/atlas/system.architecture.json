@@ -3,6 +3,7 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "订单平台总览",
+    "output": "system.html",
     "quality_profile": "showcase",
     "views": [
       {

@@ -3,6 +3,7 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "订单模块",
+    "output": "orders.html",
     "quality_profile": "showcase",
     "views": [
       {

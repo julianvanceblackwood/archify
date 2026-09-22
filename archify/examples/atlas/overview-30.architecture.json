@@ -3,6 +3,7 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "30 节点架构图",
+    "output": "overview-30.html",
     "locale": "zh-CN",
     "quality_profile": "showcase"
   },

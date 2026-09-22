@@ -3,6 +3,7 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "支付模块",
+    "output": "payment.html",
     "quality_profile": "showcase",
     "views": [
       {

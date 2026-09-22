@@ -5,9 +5,11 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 out="${1:-$repo_root/archify.zip}"
-if [[ "$out" != /* ]]; then
-  out="$(pwd)/$out"
-fi
+
+# Reject unsafe raw output spellings before the canonical-toolchain gate so
+# every maintained Node lane exercises the same shared native path grammar.
+# This validation-only mode is read-only and does not create parent paths.
+node "$repo_root/scripts/write-deterministic-zip.mjs" --validate-output "$out"
 
 # Runtime consumers support every Node version declared by archify/package.json,
 # but canonical ZIP bytes depend on the Node/zlib toolchain. CI and releases use
@@ -28,8 +30,12 @@ stage="$(mktemp -d)"
 trap 'rm -rf "$stage"' EXIT
 node "$repo_root/scripts/stage-clean-skill.mjs" \
   --root "$repo_root" \
-  --dest "$stage/archify" >/dev/null
+  --dest "$stage/archify" \
+  --mode-manifest "$stage/modes.json" >/dev/null
 
-node "$repo_root/scripts/write-deterministic-zip.mjs" "$stage/archify" "$out"
+# Entry modes come from the recorded Git index modes, not from stat(), so the
+# archive bytes do not depend on the building platform's permission support.
+node "$repo_root/scripts/write-deterministic-zip.mjs" "$stage/archify" "$out" \
+  --mode-manifest "$stage/modes.json"
 
 echo "built $out"
