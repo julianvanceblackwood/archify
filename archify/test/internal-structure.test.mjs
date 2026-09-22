@@ -30,6 +30,7 @@ function diagram(internalStructure = structure()) {
     diagram_type: 'architecture',
     meta: {
       title: 'Internal structure contract',
+      output: 'internal-structure.html',
       repository: { url: 'https://github.com/example/internal-structure', revision: 'a'.repeat(40) },
     },
     components: [{ id: 'agent-loop', type: 'backend', label: 'Agent Loop', internal_structure: internalStructure }],

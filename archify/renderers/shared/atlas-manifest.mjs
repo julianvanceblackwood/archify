@@ -59,8 +59,8 @@ export function freezeAtlas(input) {
       }
       diagram.meta[field] = meta[field];
     }
-    // Authored single-diagram output hints never control an atlas delivery.
-    delete diagram.meta.output;
+    // Authored single-diagram output hints remain part of the validated member
+    // contract, but atlas delivery resolves only the manifest-level target.
     const nodes = new Map();
     for (const node of diagram.components) {
       if (nodes.has(node.id)) reject('duplicate-node', `Duplicate node ${node.id} in ${id}.`, { diagram: id, node: node.id }, { actual: node.id, occurrences: diagram.components.filter((item) => item.id === node.id).length }, [`give duplicate /components ids in member ${id} unique values and update connections and atlas endpoints that refer to them`]);

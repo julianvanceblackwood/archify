@@ -52,7 +52,7 @@ test('atlas freezes original bytes and independently hashed inherited members', 
   const payment = frozen.members.get('payment');
   assert.equal(payment.diagram.meta.locale, 'zh-CN');
   assert.equal(payment.diagram.meta.visual_preset, 'classic');
-  assert.equal(payment.diagram.meta.output, undefined);
+  assert.equal(payment.diagram.meta.output, 'ignored.html');
   assert.notDeepEqual(payment.receipts.source, payment.receipts.effectiveInput);
   fs.writeFileSync(payment.sourcePath, 'changed after freeze');
   assert.deepEqual(byteReceipt(payment.sourceBytes), payment.receipts.source);
