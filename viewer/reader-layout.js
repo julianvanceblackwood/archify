@@ -13,10 +13,11 @@
       var frame = 0;
       var settleFrame = 0;
       var lastWidth = 0;
-      // Widest reader the overflow settle has accepted for this viewport. Card
-      // copy rewraps as the reader narrows, so recomputing from fixed heights
-      // alone would widen again and oscillate; only a resize lifts the cap.
-      var settledCap = Infinity;
+      // Widest reader the overflow settle has accepted for this viewport (0 =
+      // uncapped). Card copy rewraps as the reader narrows, so recomputing
+      // from fixed heights alone would widen again and oscillate; only a
+      // resize lifts the cap.
+      var settledCap = 0;
       var WIDE_RATIO = 1.55;
       var MIN_DESKTOP_WIDTH = 1024;
       var MIN_READER_WIDTH = 960;
@@ -78,7 +79,7 @@
         html.removeAttribute('data-reader-layout');
         html.removeAttribute('data-reader-overflow');
         lastWidth = 0;
-        settledCap = Infinity;
+        settledCap = 0;
       }
       function chromeMetrics() {
         var bodyStyle = window.getComputedStyle(body);
@@ -149,7 +150,7 @@
           outerHeight(header) + outerHeight(guided) + outerHeight(cards);
         var availableSvgHeight = Math.max(1, window.innerHeight - fixedHeight);
         var desiredWidth = availableSvgHeight * ratio + chrome.diagramX;
-        var width = Math.max(minWidth, Math.min(maxWidth, desiredWidth, settledCap));
+        var width = Math.max(minWidth, Math.min(maxWidth, desiredWidth, settledCap || desiredWidth));
         applyWidth(width, minWidth);
         settleOverflow(minWidth);
         return {
@@ -192,7 +193,7 @@
       archifyLayoutOwners.reader = { schedule: schedule, pending: layoutPending, snapshot: stableSnapshot };
 
       window.addEventListener('resize', function () {
-        settledCap = Infinity;
+        settledCap = 0;
         schedule();
       }, { passive: true });
       window.addEventListener('load', schedule, { once: true });
