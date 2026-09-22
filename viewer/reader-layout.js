@@ -13,6 +13,10 @@
       var frame = 0;
       var settleFrame = 0;
       var lastWidth = 0;
+      // Widest reader the overflow settle has accepted for this viewport. Card
+      // copy rewraps as the reader narrows, so recomputing from fixed heights
+      // alone would widen again and oscillate; only a resize lifts the cap.
+      var settledCap = Infinity;
       var WIDE_RATIO = 1.55;
       var MIN_DESKTOP_WIDTH = 1024;
       var MIN_READER_WIDTH = 960;
@@ -74,6 +78,7 @@
         html.removeAttribute('data-reader-layout');
         html.removeAttribute('data-reader-overflow');
         lastWidth = 0;
+        settledCap = Infinity;
       }
       function chromeMetrics() {
         var bodyStyle = window.getComputedStyle(body);
@@ -106,6 +111,7 @@
           ) - window.innerHeight;
           if (overflow > 1 && lastWidth > Math.ceil(minWidth)) {
             applyWidth(Math.max(minWidth, lastWidth - overflow * ratio - 4), minWidth);
+            settledCap = lastWidth;
             html.setAttribute('data-reader-overflow', 'reduced');
           } else if (overflow > 1) {
             html.setAttribute('data-reader-overflow', 'authored');
@@ -143,7 +149,7 @@
           outerHeight(header) + outerHeight(guided) + outerHeight(cards);
         var availableSvgHeight = Math.max(1, window.innerHeight - fixedHeight);
         var desiredWidth = availableSvgHeight * ratio + chrome.diagramX;
-        var width = Math.max(minWidth, Math.min(maxWidth, desiredWidth));
+        var width = Math.max(minWidth, Math.min(maxWidth, desiredWidth, settledCap));
         applyWidth(width, minWidth);
         settleOverflow(minWidth);
         return {
@@ -185,7 +191,10 @@
       }
       archifyLayoutOwners.reader = { schedule: schedule, pending: layoutPending, snapshot: stableSnapshot };
 
-      window.addEventListener('resize', schedule, { passive: true });
+      window.addEventListener('resize', function () {
+        settledCap = Infinity;
+        schedule();
+      }, { passive: true });
       window.addEventListener('load', schedule, { once: true });
       if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule).catch(function () {});
       if (typeof ResizeObserver === 'function') {
