@@ -181,7 +181,7 @@ function requestPinned(url, accept, target, deadline) {
     const request = transport.request(url, {
       method: 'GET',
       signal: timeoutSignal(Math.max(1, Math.min(4500, deadline - Date.now()))),
-      headers: { accept, 'user-agent': USER_AGENT },
+      headers: { accept, 'accept-encoding': 'identity', 'user-agent': USER_AGENT },
       // Reuse the exact public address that passed validation. This closes the
       // DNS-rebinding gap between checking a hostname and opening its socket.
       lookup(_hostname, options, callback) {
@@ -223,6 +223,13 @@ async function checkedFetch(input, accept, deadline) {
     if (!response.ok) {
       response.body.resume();
       throw new Error(`brand link returned HTTP ${response.status}`);
+    }
+    // Raw HTTP responses are not decompressed. Check successful bodies before
+    // HTML discovery or image validation so byte limits and digests stay valid.
+    const contentEncoding = (response.headers.get('content-encoding') || '').trim().toLowerCase();
+    if (contentEncoding && contentEncoding !== 'identity') {
+      response.body.destroy();
+      throw new Error(`unsupported brand content encoding ${contentEncoding}`);
     }
     return { response, finalUrl: current };
   }
@@ -499,7 +506,7 @@ async function captureRemoteBrand(value, deadline = Date.now() + captureTimeoutM
         // Try the next declared favicon before using the generic link mark.
       }
     }
-    const usefulError = iconErrors.find((error) => /unsupported brand image type/i.test(error?.message))
+    const usefulError = iconErrors.find((error) => /unsupported brand (?:image type|content encoding)/i.test(error?.message))
       || iconErrors.at(-1);
     return fallback(usefulError?.message || 'no usable site icon was found');
   } catch (error) {

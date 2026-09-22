@@ -65,6 +65,13 @@ content digest. Later render and validate operations require that exact digest;
 blocked, unavailable, changed, oversized, or unsafe content fails closed instead
 of silently changing the artifact.
 
+Page, icon and redirect requests send `Accept-Encoding: identity`. Capture does
+not decompress response bodies: a successful response declaring another content
+coding is closed and rejected explicitly. This keeps the existing byte limits
+and pinned digest tied to the unencoded representation. A later usable icon may
+still succeed; otherwise an encoding error is retained instead of being hidden
+by an unrelated favicon 404.
+
 The final artifact never fetches a brand asset when opened. Preset vectors and
 digest-verified captured site icons remain embedded in SVG, PNG, WebP, JPEG,
 Share Card, and WebM exports.
