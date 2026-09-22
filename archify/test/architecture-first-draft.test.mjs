@@ -75,3 +75,16 @@ test('architecture: a self-loop with cramped explicit sides names the loop and t
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// The workflow draft from the same study stacked two separate groups of nodes
+// in one lane. Failing on the first pair cost the author a full round before
+// the second group was even reported.
+test('workflow: every overlapping node pair of a first draft is reported in one round', () => {
+  const { status, receipt } = validate('workflow', path.join(skillRoot, 'test/fixtures/workflow-first-draft/release-luna.workflow.json'));
+  assert.equal(status, 1);
+  const overlaps = receipt.diagnostics.filter((entry) => entry.code === 'workflow/node-overlap');
+  assert.equal(overlaps.length, 7, JSON.stringify(receipt.diagnostics, null, 2));
+  const pairs = overlaps.map((entry) => entry.evidence.nodes.map((node) => node.id).join('>'));
+  assert.ok(pairs.includes('test_join>staging_deploy'));
+  assert.ok(pairs.includes('metric_gate>rollback_stable'));
+});
