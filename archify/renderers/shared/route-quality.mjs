@@ -250,6 +250,7 @@ export function shortestOrthogonalGridRoute({
   avoidedSegments = [],
   minimumAvoidedOverlapPx = 8,
   routeSeparationPx = 8,
+  minimumSegmentPx = 8,
   metrics,
 }) {
   writeGridMetrics(metrics, {
@@ -311,8 +312,14 @@ export function shortestOrthogonalGridRoute({
       ys.add(segmentStart[1] + routeSeparationPx);
     }
   }
-  const orderedX = [...xs].sort((a, b) => a - b);
-  const orderedY = [...ys].sort((a, b) => a - b);
+  // Grid lines closer than a readable segment would let the search emit a
+  // micro jog between two obstacle edges; keep the endpoint stubs and coalesce
+  // the rest so every turn the route can take is at least one segment long.
+  const coalesce = (values, keep) => values.sort((a, b) => a - b).filter((value, index, sorted) => (
+    index === 0 || keep.has(value) || value - sorted[index - 1] >= minimumSegmentPx
+  ));
+  const orderedX = coalesce([...xs], new Set([startStub[0], endStub[0]]));
+  const orderedY = coalesce([...ys], new Set([startStub[1], endStub[1]]));
   const candidateNodeCount = orderedX.length * orderedY.length;
   writeGridMetrics(metrics, {
     coordinateCount: orderedX.length + orderedY.length,
