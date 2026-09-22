@@ -99,7 +99,7 @@
     @media(prefers-reduced-motion:reduce) {
       .fade-up { opacity:1!important; transform:none!important; transition:none!important; filter:none!important; }
       .fade-up.mask { -webkit-mask-image:none!important; mask-image:none!important; }
-      .ht-pkt { animation:none!important; }
+      .ht-pkt, .grid-bg, .footer-word { animation:none!important; }
       h1.fade-up em { background-size:100% 32%; transition:none; }
       .spot::before, .btn-primary::after, .cta-install::after, .action-primary::after, button.primary::after, .card-link.primary::after { display:none; }
     }
@@ -2126,8 +2126,11 @@ receipt 99 checks / 11 artifacts / deterministic hashes</pre>
       if (el._scrambling) return;
       el._scrambling = true;
       var text = el.dataset.scrambled || el.textContent;
+      var language = document.documentElement.lang;
       var t0 = performance.now();
       var frame = function (t) {
+        // Language handlers replace localized labels; untranslated words still need to finish.
+        if (document.documentElement.lang !== language && el.matches('[data-i18n], [data-en][data-zh]')) { el._scrambling = false; return; }
         var p = Math.min((t - t0) / 520, 1);
         var n = Math.floor(p * text.length);
         el.textContent = text.slice(0, n) + text.slice(n).replace(/[^\s]/g, function () { return GLYPHS[(Math.random() * GLYPHS.length) | 0]; });

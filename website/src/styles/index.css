@@ -471,4 +471,6 @@
     }
     @media(prefers-reduced-motion:reduce) {
       .types-shot, .type-chapter, .type-chapter::before, .chapter-num { transition:none!important; }
+      #types::after, #features::after, #palette::after, #quickstart::after,
+      .cinema-stage, #cinema::after { animation:none; }
     }

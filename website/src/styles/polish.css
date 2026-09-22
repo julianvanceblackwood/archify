@@ -83,7 +83,7 @@
     @media(prefers-reduced-motion:reduce) {
       .fade-up { opacity:1!important; transform:none!important; transition:none!important; filter:none!important; }
       .fade-up.mask { -webkit-mask-image:none!important; mask-image:none!important; }
-      .ht-pkt { animation:none!important; }
+      .ht-pkt, .grid-bg, .footer-word { animation:none!important; }
       h1.fade-up em { background-size:100% 32%; transition:none; }
       .spot::before, .btn-primary::after, .cta-install::after, .action-primary::after, button.primary::after, .card-link.primary::after { display:none; }
     }

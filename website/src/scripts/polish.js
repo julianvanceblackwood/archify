@@ -153,8 +153,11 @@
       if (el._scrambling) return;
       el._scrambling = true;
       var text = el.dataset.scrambled || el.textContent;
+      var language = document.documentElement.lang;
       var t0 = performance.now();
       var frame = function (t) {
+        // Language handlers replace localized labels; untranslated words still need to finish.
+        if (document.documentElement.lang !== language && el.matches('[data-i18n], [data-en][data-zh]')) { el._scrambling = false; return; }
         var p = Math.min((t - t0) / 520, 1);
         var n = Math.floor(p * text.length);
         el.textContent = text.slice(0, n) + text.slice(n).replace(/[^\s]/g, function () { return GLYPHS[(Math.random() * GLYPHS.length) | 0]; });

@@ -106,7 +106,7 @@
     @media(prefers-reduced-motion:reduce) {
       .fade-up { opacity:1!important; transform:none!important; transition:none!important; filter:none!important; }
       .fade-up.mask { -webkit-mask-image:none!important; mask-image:none!important; }
-      .ht-pkt { animation:none!important; }
+      .ht-pkt, .grid-bg, .footer-word { animation:none!important; }
       h1.fade-up em { background-size:100% 32%; transition:none; }
       .spot::before, .btn-primary::after, .cta-install::after, .action-primary::after, button.primary::after, .card-link.primary::after { display:none; }
     }
@@ -685,6 +685,8 @@
     }
     @media(prefers-reduced-motion:reduce) {
       .types-shot, .type-chapter, .type-chapter::before, .chapter-num { transition:none!important; }
+      #types::after, #features::after, #palette::after, #quickstart::after,
+      .cinema-stage, #cinema::after { animation:none; }
     }
 </style>
 <style>/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
@@ -1363,8 +1365,11 @@
       if (el._scrambling) return;
       el._scrambling = true;
       var text = el.dataset.scrambled || el.textContent;
+      var language = document.documentElement.lang;
       var t0 = performance.now();
       var frame = function (t) {
+        // Language handlers replace localized labels; untranslated words still need to finish.
+        if (document.documentElement.lang !== language && el.matches('[data-i18n], [data-en][data-zh]')) { el._scrambling = false; return; }
         var p = Math.min((t - t0) / 520, 1);
         var n = Math.floor(p * text.length);
         el.textContent = text.slice(0, n) + text.slice(n).replace(/[^\s]/g, function () { return GLYPHS[(Math.random() * GLYPHS.length) | 0]; });
@@ -1538,7 +1543,7 @@
       'label-qs':'Quick Start',
       'qs-h2':'Up and running<br>in three steps.',
       'qs-body':'One checked Skill for Cursor, Claude Code, Codex, and OpenCode — the switcher generates exact commands.',
-      'step1-h':'Install in one command','step1-p':'Run <code>npx skills add tt-a1i/archify -g</code>, or use the <a href="start.html?agent=cursor&amp;type=architecture">agent-aware quick start</a>. For Raven, extract archify.zip into <code>~/.raven/workspace/skills</code>.',
+      'step1-h':'Install in one command','step1-p':'Run <code>npx skills add tt-a1i/archify -g</code>, or use the <a href="start.html?agent=cursor&amp;type=architecture">agent-aware quick start</a>. Raven uses a manual ZIP install outside the switcher: extract archify.zip into ~/.raven/workspace/skills, which yields ~/.raven/workspace/skills/archify.',
       'step2-h':'Describe your system','step2-p':'Describe components, connections, and services — or let the agent inspect the repo first.',
       'step3-h':'Ask your agent to draw it','step3-p':'Tell your agent to use Archify — a self-contained HTML you can open anywhere and refine in chat.',
       'kbd-label':'Keyboard shortcuts','kbd-guide':'Diagram guide','kbd-theme':'Toggle theme','kbd-find':'Find node / route endpoint','kbd-route':'Trace, inspect, and play a route','kbd-radar':'Semantic radar','kbd-lens':'Compare semantic kinds','kbd-present':'Presentation stage','kbd-export':'Open export menu','kbd-focus':'Focus node','kbd-views':'Guided views','kbd-play':'Play story','kbd-zoom':'Reading depth / reset','kbd-nav':'Navigate menu','kbd-close':'Close menu',
@@ -1601,7 +1606,7 @@
       'label-qs':'快速开始',
       'qs-h2':'三步上手，<br>即刻运行。',
       'qs-body':'同一份 Skill 适用于 Cursor、Claude Code、Codex 与 OpenCode，切换器生成准确命令。',
-      'step1-h':'一条命令安装','step1-p':'运行 <code>npx skills add tt-a1i/archify -g</code>，或使用<a href="start.html?agent=cursor&amp;type=architecture">可切换 Agent 的快速开始页</a>。Raven 请手动将 archify.zip 解压到 <code>~/.raven/workspace/skills</code>。',
+      'step1-h':'一条命令安装','step1-p':'运行 <code>npx skills add tt-a1i/archify -g</code>，或使用<a href="start.html?agent=cursor&amp;type=architecture">可切换 Agent 的快速开始页</a>。Raven 不使用切换器，采用 ZIP 手动安装：将 archify.zip 解压到 ~/.raven/workspace/skills，解压后会得到 ~/.raven/workspace/skills/archify。',
       'step2-h':'描述你的系统','step2-p':'描述组件、连接与服务——或先让 agent 检查仓库。',
       'step3-h':'让 agent 绘制','step3-p':'让 agent 使用 Archify——生成单文件 HTML，任意浏览器打开，可继续对话迭代。',
       'kbd-label':'键盘快捷键','kbd-guide':'图表指南','kbd-theme':'切换主题','kbd-find':'查找节点 / 路径端点','kbd-route':'探查、检查并播放路径','kbd-radar':'语义雷达','kbd-lens':'对比语义类型','kbd-present':'演示舞台','kbd-export':'打开导出菜单','kbd-focus':'聚焦节点','kbd-views':'引导视图','kbd-play':'播放故事','kbd-zoom':'阅读层级 / 复位','kbd-nav':'菜单导航','kbd-close':'关闭菜单',

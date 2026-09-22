@@ -103,7 +103,7 @@
     @media(prefers-reduced-motion:reduce) {
       .fade-up { opacity:1!important; transform:none!important; transition:none!important; filter:none!important; }
       .fade-up.mask { -webkit-mask-image:none!important; mask-image:none!important; }
-      .ht-pkt { animation:none!important; }
+      .ht-pkt, .grid-bg, .footer-word { animation:none!important; }
       h1.fade-up em { background-size:100% 32%; transition:none; }
       .spot::before, .btn-primary::after, .cta-install::after, .action-primary::after, button.primary::after, .card-link.primary::after { display:none; }
     }
@@ -420,7 +420,7 @@
     <section class="type-shell spot fade-up d1" aria-labelledby="type-label">
       <p class="type-label"><span data-en="Choose how to start" data-zh="选择如何开始">Choose how to start</span><strong data-en="Repository optional" data-zh="代码库可选">Repository optional</strong></p>
       <div class="input-paths" role="tablist" aria-label="Input source">
-        <button class="input-path spot" type="button" role="tab" data-input="description"><strong data-en="Just describe it" data-zh="直接描述">直接描述</strong><span data-en="Start in any chat. No files or repository needed." data-zh="在任意对话里开始，不需要文件或代码库。">Start in any chat. No files or repository needed.</span></button>
+        <button class="input-path spot" type="button" role="tab" data-input="description"><strong data-en="Just describe it" data-zh="直接描述">Just describe it</strong><span data-en="Start in any chat. No files or repository needed." data-zh="在任意对话里开始，不需要文件或代码库。">Start in any chat. No files or repository needed.</span></button>
         <button class="input-path spot" type="button" role="tab" data-input="repository"><strong data-en="Use a repository" data-zh="从代码库开始">Use a repository</strong><span data-en="Let the agent inspect code when source evidence matters." data-zh="需要源码证据时，再让 Agent 检查代码。">Let the agent inspect code when source evidence matters.</span></button>
       </div>
       <p class="type-label" id="type-label"><span data-en="Choose the question shape" data-zh="选择问题形态">Choose the question shape</span><strong data-en="5 typed renderers" data-zh="5 种类型化渲染器">5 typed renderers</strong></p>
@@ -640,8 +640,11 @@
       if (el._scrambling) return;
       el._scrambling = true;
       var text = el.dataset.scrambled || el.textContent;
+      var language = document.documentElement.lang;
       var t0 = performance.now();
       var frame = function (t) {
+        // Language handlers replace localized labels; untranslated words still need to finish.
+        if (document.documentElement.lang !== language && el.matches('[data-i18n], [data-en][data-zh]')) { el._scrambling = false; return; }
         var p = Math.min((t - t0) / 520, 1);
         var n = Math.floor(p * text.length);
         el.textContent = text.slice(0, n) + text.slice(n).replace(/[^\s]/g, function () { return GLYPHS[(Math.random() * GLYPHS.length) | 0]; });
