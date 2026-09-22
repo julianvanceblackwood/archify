@@ -54,3 +54,26 @@ test('lifecycle: planner routes render as one semantic edge with a crossover mas
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// A real first draft from the authoring experiments: thirteen unrouted
+// transitions, three of them fanning out of one state's bottom side. Before
+// the planner reserved label space, the parallel routes left "reviewer
+// requests changes" nowhere to go and the author had to hand-route.
+test('lifecycle: a fan-out first draft keeps every label beside its own transition', () => {
+  const approval = path.join(skillRoot, 'test/fixtures/lifecycle-planner/approval.lifecycle.json');
+  const { status, receipt } = validate(approval);
+  assert.equal(status, 0, JSON.stringify(receipt.diagnostics, null, 2));
+  assert.equal(receipt.composition.summary.errors, 0);
+
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-lifecycle-fanout-'));
+  try {
+    const output = path.join(tmp, 'approval.html');
+    execFileSync(process.execPath, [renderer, approval, output]);
+    const html = fs.readFileSync(output, 'utf8');
+    const publish = html.match(/data-edge-id="t-publish" data-composition-points="([^"]+)"/)?.[1];
+    assert.ok(publish, 'the publish transition renders');
+    assert.ok(publish.split(';').length <= 4, `publish keeps at most two turns: ${publish}`);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});

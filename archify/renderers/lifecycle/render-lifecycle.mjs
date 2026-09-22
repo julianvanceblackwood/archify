@@ -4,7 +4,7 @@ import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../share
 import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, loadDiagramWithBrandMarks, writeDiagram, svgAccessibleText, svgRootAttrs } from '../shared/cli.mjs';
 import { throwDiagnosticProblems } from '../shared/diagnostics.mjs';
 import { createRouter } from '../architecture/routing.mjs';
-import { placeAutomaticLabels } from '../architecture/labels.mjs';
+import { placeAutomaticLabels, reservedLabelRect } from '../architecture/labels.mjs';
 import { resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.mjs';
 import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth } from '../shared/text-fit.mjs';
 import { brandLabelFitWidth, brandMarkFor, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../shared/brand-marks.mjs';
@@ -388,7 +388,17 @@ function plannerRouted(transition) {
 }
 
 const plannedTransitions = asArray(lifecycle.transitions).filter(plannerRouted);
-const planner = createRouter(states, plannedTransitions);
+const planner = createRouter(states, plannedTransitions, {
+  labelRectFor: (transition, points, { routes, labels }) => (transition.label ? reservedLabelRect({
+    label: { relation: transition, label: transition.label, ...transitionLabelBoxAt(transition, labelPoint(transition, points)) },
+    points,
+    routes: routes.map((route, index) => ({ relationIndex: index, points: route })),
+    labels,
+    components: [...states.values()],
+    viewBox,
+    placementBottom: lifecycleAreaBottom(),
+  }) : null),
+});
 
 function transitionSides(transition) {
   if (plannerRouted(transition)) return planner.connectionSides(transition);
@@ -436,7 +446,13 @@ function pathFor(transition) {
 const resolvedLabelPoints = new Map();
 
 function transitionLabelBox(transition) {
-  const [lx, ly] = resolvedLabelPoints.get(transition) || labelPoint(transition, pathFor(transition).points);
+  return transitionLabelBoxAt(
+    transition,
+    resolvedLabelPoints.get(transition) || labelPoint(transition, pathFor(transition).points),
+  );
+}
+
+function transitionLabelBoxAt(transition, [lx, ly]) {
   const longestLine = Math.max(textUnits(transition.label), textUnits(transition.note || ''));
   const width = Math.max(32, longestLine * 4.9 + 12);
   const height = transition.note ? 27 : 16;
