@@ -224,6 +224,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       <span class="motion-control-dot" aria-hidden="true"></span>
       <span id="motion-label">{{i18n:viewer.motion.live}}</span>
     </button>
+    <button id="btn-diagram-notes" type="button" hidden aria-expanded="false" aria-controls="diagram-notes">{{i18n:viewer.notes.title}}</button>
     <button id="btn-present" type="button"
             title="{{i18n:viewer.present.enter.title}}"
             aria-label="{{i18n:viewer.present.enter}}"
@@ -528,6 +529,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
             <kbd aria-hidden="true">F</kbd>
           </button>
         </div>
+        <p class="diagram-guide-gestures">{{i18n:viewer.guide.canvas}}</p>
         <div class="diagram-guide-shortcuts" aria-label="{{i18n:viewer.guide.shortcuts}}">
           <span><kbd>E</kbd> {{i18n:viewer.guide.shortcut.export}}</span><span><kbd>T</kbd> {{i18n:viewer.guide.shortcut.theme}}</span><span><kbd>S</kbd> {{i18n:viewer.guide.shortcut.style}}</span><span><kbd>0</kbd> {{i18n:viewer.guide.shortcut.reset}}</span><span><kbd>+</kbd> {{i18n:viewer.guide.shortcut.zoomIn}}</span><span><kbd>-</kbd> {{i18n:viewer.guide.shortcut.zoomOut}}</span><span><kbd>Esc</kbd> {{i18n:viewer.guide.shortcut.close}}</span>
         </div>
@@ -652,12 +654,23 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <button id="btn-semantic-lens" type="button" aria-label="{{i18n:viewer.nav.lens}}" aria-haspopup="dialog" aria-expanded="false" aria-pressed="false" aria-controls="semantic-lens" title="{{i18n:viewer.nav.lens.title}}">{{i18n:viewer.nav.lens.short}}</button>
         <button id="btn-node-finder" type="button" aria-label="{{i18n:viewer.nav.find}}" aria-haspopup="dialog" aria-expanded="false" aria-controls="node-finder" title="{{i18n:viewer.nav.find.title}}" data-node-finder-trigger><span class="diagram-nav-icon find" aria-hidden="true"></span></button>
         <button id="btn-diagram-guide" type="button" aria-label="{{i18n:viewer.nav.guide}}" aria-haspopup="dialog" aria-expanded="false" aria-controls="diagram-guide" title="{{i18n:viewer.nav.guide.title}}"><span class="diagram-nav-icon guide" aria-hidden="true"></span></button>
+        <button data-view="fit-all" type="button" aria-label="{{i18n:viewer.nav.fitAll}}" title="{{i18n:viewer.nav.fitAll}}">{{i18n:viewer.nav.fitAll.short}}</button>
         <button data-view="out" type="button" aria-label="{{i18n:viewer.nav.zoomOut}}" title="{{i18n:viewer.nav.zoomOut.title}}"><span class="diagram-nav-icon minus" aria-hidden="true"></span></button>
         <button data-view="reset" type="button" aria-label="{{i18n:viewer.nav.reset}}" title="{{i18n:viewer.nav.reset.title}}"><span class="diagram-nav-detail" data-view-detail hidden>{{i18n:viewer.nav.read}}</span><span class="diagram-nav-percent" data-view-percent>100%</span></button>
         <button data-view="in" type="button" aria-label="{{i18n:viewer.nav.zoomIn}}" title="{{i18n:viewer.nav.zoomIn.title}}"><span class="diagram-nav-icon plus" aria-hidden="true"></span></button>
       </div>
     </div>
 
+    <aside class="diagram-notes" id="diagram-notes" aria-labelledby="diagram-notes-title">
+      <div class="diagram-notes-heading no-print">
+        <h2 id="diagram-notes-title">{{i18n:viewer.notes.title}}</h2>
+        <button id="diagram-notes-close" type="button" aria-label="{{i18n:viewer.notes.close}}">&#215;</button>
+      </div>
+      <div class="diagram-notes-content" id="diagram-notes-content" tabindex="-1" role="region" aria-labelledby="diagram-notes-title">
+        <div class="diagram-notes-copy no-print" hidden>
+          <p id="diagram-notes-full-title"></p>
+          <p id="diagram-notes-full-subtitle"></p>
+        </div>
     <!-- ARCHIFY:CARDS_SLOT_START -->
     <div class="cards">
       <div class="card">
@@ -700,6 +713,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       </div>
     </div>
     <!-- ARCHIFY:CARDS_SLOT_END -->
+      </div>
+    </aside>
 
   </div>
 
@@ -1359,6 +1374,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.defaultPrevented) return;
       var t = e.target;
+      if (t && t.closest && t.closest('.diagram-notes')) return;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       if (Archify.preset && Archify.preset.isOpen() && e.key !== 'Escape' && e.key !== 's' && e.key !== 'S') {
         Archify.preset.close(false);

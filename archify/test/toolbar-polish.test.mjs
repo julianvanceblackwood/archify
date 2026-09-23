@@ -49,8 +49,8 @@ test('diagram view dock stays compact on desktop and touch-safe on narrow screen
 
 test('diagram view reset separates semantic detail from zoom percentage', () => {
   assert.match(template, /data-view="reset"[\s\S]*?data-view-detail hidden>\{\{i18n:viewer\.nav\.read\}\}<[\s\S]*?data-view-percent>100%</);
-  assert.match(template, /var resolvedLevel = semantic \? viewerText\('viewer\.nav\.level\.auto'\) : levelLabel;/);
-  assert.match(template, /var showDetailLevel = semantic \|\| detail !== 'read';/);
+  assert.match(template, /var resolvedLevel = semantic \? viewerText\('viewer\.nav\.level\.auto'\) : '';/);
+  assert.match(template, /var showDetailLevel = semantic;/);
   assert.match(template, /resetDetailLabel\.hidden = !showDetailLevel/);
   assert.match(template, /resetPercentLabel\.textContent = percent/);
   assert.match(template, /resetBtn\.toggleAttribute\('data-detail-visible', showDetailLevel\)/);

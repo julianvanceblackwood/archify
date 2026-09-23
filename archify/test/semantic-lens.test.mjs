@@ -74,10 +74,10 @@ test('Semantic Lens is shareable and yields cleanly to stronger reader intent', 
   assert.match(html, /e\.key === 'Escape' && Archify\.semanticLens\.active\(\)/);
 });
 
-test('Semantic Lens preserves Reading Depth, mobile containment, print, embed, and export boundaries', () => {
+test('Semantic Lens preserves full text, mobile containment, print, embed, and export boundaries', () => {
   const html = render('dataflow', CASES.dataflow);
-  assert.match(html, /svg\[data-lens-active\] \[data-lens-match\] \[data-detail\]/);
-  assert.match(html, /svg\[data-lens-active\] \[data-lens-match\] \[data-detail-anchor\]/);
+  assert.doesNotMatch(html, /\[data-detail-level="(?:map|read)"\][^{]*\[data-detail/);
+  assert.match(canonicalSvg(html), /data-detail="context"/);
   assert.match(html, /html\[data-embed="true"\] \.semantic-lens/);
   assert.match(html, /data-wide-diagram="true"\] \.semantic-lens/);
   assert.match(html, /@media print \{[\s\S]+svg\[data-lens-active\] \[data-node-id\][\s\S]+opacity: 1 !important/);

@@ -690,6 +690,11 @@ html[data-preset="editorial"] .header-row::after {
   position: relative;
 }
 
+.diagram-container:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 3px;
+}
+
 .infinite-canvas-grid {
   position: absolute;
   z-index: 0;
@@ -886,7 +891,10 @@ svg {
 }
 .diagram-container.is-camera-transaction svg { transition: none; }
 .diagram-container.is-pannable { cursor: default; }
-.diagram-container.is-panning { cursor: grabbing; user-select: none; }
+.diagram-container.is-pan-ready,
+.diagram-container.is-pan-ready > svg * { cursor: grab; }
+.diagram-container.is-panning,
+.diagram-container.is-panning > svg * { cursor: grabbing; user-select: none; }
 .diagram-container.is-panning svg,
 .diagram-container.is-keyboard-panning svg,
 .diagram-container.is-wheel-moving svg { transition: none; will-change: transform; }
@@ -3012,7 +3020,7 @@ html[data-preset="editorial"] .card-dot { border-radius: 0; transform: rotate(45
     --external-fill:    rgba(148, 163, 184, 0.18);
     --external-stroke:  #64748b;
   }
-  body { background: #ffffff !important; padding: 0; }
+  body { background: #ffffff !important; min-height: 0; padding: 0; }
   .container { max-width: none; }
   .toolbar, .diagram-nav, .focus-chip, .guided-views, .archify-toast, .no-print { display: none !important; }
   .chapter-handoff-overlay { display: none !important; }
@@ -3020,7 +3028,18 @@ html[data-preset="editorial"] .card-dot { border-radius: 0; transform: rotate(45
   svg[data-chapter-preview] [data-node-id],
   svg[data-chapter-preview] [data-edge-from] { opacity: 1 !important; filter: none !important; }
   .diagram-container, .card { box-shadow: none; border-color: #e2e8f0; }
-  .diagram-container { --archify-nav-reserve: 0px !important; }
+  .diagram-container { --archify-nav-reserve: 0px !important; overflow: visible !important; height: auto !important; }
+  /* Keep the complete viewBox on one sheet; print has no camera viewport.
+     Leave room for the document heading and the diagram's padding. */
+  .diagram-container > svg {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    max-height: calc(100vh - 8rem);
+    transform: none !important;
+    clip-path: none !important;
+  }
+  .infinite-canvas-grid { display: none !important; }
   html[data-preset="signal-flow"] .diagram-container,
   html[data-preset="signal-flow"] .card { background: #ffffff; }
   .cards { grid-template-columns: 1fr 1fr; }
@@ -4021,58 +4040,8 @@ svg .brand-mark-fallback {
 svg[data-preset="blueprint"] .brand-mark-badge,
 svg[data-preset="blueprint"] .brand-mark-frame { rx: 1px; }
 
-/* Reading Depth is a viewer-only level-of-detail layer. MAP preserves the
-   authored structure and primary labels, READ restores relationship labels
-   and node context, and FULL restores tags and fine annotations. Semantic
-   intent can reveal the relevant detail without moving any geometry. */
-svg [data-detail] { transition: opacity 160ms ease; }
-svg [data-detail-anchor] {
-  transform-box: fill-box;
-  transform-origin: center;
-  transition: transform 160ms ease;
-}
-.diagram-container[data-detail-level="map"] svg [data-detail="context"],
-.diagram-container[data-detail-level="map"] svg [data-detail="fine"],
-.diagram-container[data-detail-level="read"] svg [data-detail="fine"] {
-  opacity: 0;
-  pointer-events: none;
-}
-.diagram-container[data-detail-level="map"] svg [data-detail-anchor] {
-  transform: translateY(8px);
-}
-
-/* Focus, lens, preview, route, and story states are stronger reader intent than
-   the global zoom level. Reveal only their exact semantic matches. */
-svg[data-focus-active] [data-focus-match][data-detail],
-svg[data-focus-active] [data-focus-match] [data-detail],
-svg[data-reach-active] [data-reach-match][data-detail],
-svg[data-reach-active] [data-reach-match] [data-detail],
-svg[data-lens-active] [data-lens-match][data-detail],
-svg[data-lens-active] [data-lens-match] [data-detail],
-svg[data-legend-preview-active] [data-legend-preview-match][data-detail],
-svg[data-legend-preview-active] [data-legend-preview-match] [data-detail],
-svg[data-intent-trace-active] [data-intent-trace-match][data-detail],
-svg[data-intent-trace-active] [data-intent-trace-match] [data-detail],
-svg[data-route-active] [data-route-match][data-detail],
-svg[data-route-active] [data-route-match] [data-detail],
-svg[data-story-active] [data-story-step][data-detail],
-svg[data-story-active] [data-story-step] [data-detail],
-svg[data-relationship-preview-active] [data-relationship-preview][data-detail],
-svg[data-relationship-preview-active] [data-relationship-preview] [data-detail],
-svg [data-node-id]:hover [data-detail],
-svg [data-node-id]:focus-visible [data-detail] {
-  opacity: 1;
-  pointer-events: auto;
-}
-svg[data-focus-active] [data-focus-match] [data-detail-anchor],
-svg[data-reach-active] [data-reach-match] [data-detail-anchor],
-svg[data-lens-active] [data-lens-match] [data-detail-anchor],
-svg[data-legend-preview-active] [data-legend-preview-match] [data-detail-anchor],
-svg[data-intent-trace-active] [data-intent-trace-match] [data-detail-anchor],
-svg[data-route-active] [data-route-match] [data-detail-anchor],
-svg[data-story-active] [data-story-step] [data-detail-anchor],
-svg [data-node-id]:hover [data-detail-anchor],
-svg [data-node-id]:focus-visible [data-detail-anchor] { transform: none; }
+/* Authored node context, tags and relationship labels remain visible at every
+   camera scale. Hover and semantic exploration highlight existing content. */
 
 /* Arrows */
 .a-default   { stroke: var(--arrow); fill: none; }
@@ -4866,4 +4835,142 @@ html[data-share-playback="true"] svg[data-animation="trace"] [data-animate] {
   .guided-view-chapter { transition: none !important; }
   .source-evidence-beacon,
   svg [data-node-id], svg [data-edge-from], svg [data-detail], svg [data-detail-anchor], svg [data-legend-hit], svg { transition: none !important; }
+}
+
+@media (max-width: 720px) {
+  .diagram-container[data-wide-diagram] [data-view="fit-all"] { display: none; }
+}
+
+/* The document fallback keeps the one authored cards tree in normal flow. */
+.diagram-notes, .diagram-notes-content { display: contents; }
+.diagram-notes-heading, .diagram-notes-copy { display: none; }
+.toolbar button[hidden] { display: none !important; }
+
+@media screen and (min-width: 1024px) and (min-height: 600px) {
+  html[data-fixed-canvas] { height: 100%; overflow: hidden; }
+  html[data-fixed-canvas] body {
+    height: 100dvh;
+    min-height: 0;
+    padding: 0.75rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+  html[data-fixed-canvas] .toolbar {
+    position: relative;
+    inset: auto;
+    flex: none;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+  html[data-fixed-canvas] .container {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 0.625rem;
+  }
+  html[data-fixed-canvas][data-notes-open] .container {
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+  }
+  html[data-fixed-canvas] .header {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+  }
+  html[data-fixed-canvas] .header-row { margin: 0; min-width: 0; }
+  html[data-fixed-canvas] .header-row .pulse-dot { flex-shrink: 0; }
+  html[data-fixed-canvas] h1, html[data-fixed-canvas] .subtitle {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  html[data-fixed-canvas] .guided-views {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-width: 0;
+    max-height: 25dvh;
+    overflow: auto;
+    overscroll-behavior: contain;
+    margin: 0;
+  }
+  html[data-fixed-canvas] .diagram-container {
+    grid-column: 1;
+    grid-row: 3;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    padding: 1rem;
+    padding-bottom: calc(1rem + var(--archify-nav-reserve));
+    overflow: hidden;
+  }
+  html[data-fixed-canvas] .diagram-container > svg {
+    width: var(--archify-canvas-width);
+    height: var(--archify-canvas-height);
+    min-width: 0;
+    max-width: none;
+    /* Camera owns interpolation; layout changes must not animate a second transform. */
+    transition: none;
+  }
+  html[data-fixed-canvas] .diagram-notes { display: none; }
+  html[data-fixed-canvas][data-notes-open] .diagram-notes {
+    display: flex;
+    flex-direction: column;
+    grid-column: 2;
+    grid-row: 3;
+    min-width: 0;
+    min-height: 0;
+    border: 1px solid var(--panel-border);
+    border-radius: 0.75rem;
+    background: var(--panel);
+    overflow: hidden;
+  }
+  html[data-fixed-canvas] .diagram-notes-heading {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .diagram-notes-heading h2 { font-size: 0.875rem; }
+  .diagram-notes-heading button {
+    font: inherit;
+    font-size: 1.25rem;
+    color: var(--text);
+    background: var(--toolbar-bg);
+    border: 1px solid var(--toolbar-border);
+    border-radius: 0.375rem;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    cursor: pointer;
+  }
+  html[data-fixed-canvas] .diagram-notes-content {
+    display: block;
+    min-height: 0;
+    min-width: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    overflow-wrap: anywhere;
+    padding: 0.875rem;
+  }
+  html[data-fixed-canvas] .diagram-notes-copy:not([hidden]) { display: block; margin-bottom: 1rem; }
+  .diagram-notes-copy p { white-space: pre-wrap; font-size: 0.875rem; }
+  html[data-fixed-canvas] .cards { grid-template-columns: minmax(0, 1fr); margin: 0; gap: 0.75rem; }
+  html[data-fixed-canvas] .card { min-width: 0; padding: 0.875rem; }
+  .diagram-notes-content:focus-visible, .diagram-notes-heading button:focus-visible {
+    outline: 2px solid var(--frontend-stroke);
+    outline-offset: -2px;
+  }
 }

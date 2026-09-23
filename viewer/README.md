@@ -1,6 +1,6 @@
 # Viewer source
 
-Edit `reader-layout.js` for Adaptive Reader Layout, `viewer-chrome-layout.js`
+Edit `reader-layout.js` for fixed desktop canvas, Diagram notes and adaptive fallback, `viewer-chrome-layout.js`
 for navigation clearance, `viewer-camera.js` for camera interactions and
 transactions, `semantic-radar.js` for the overview map, `motion-governor.js` for
 motion mode and ownership, `node-finder.js` for node search and endpoint picking,
@@ -662,6 +662,25 @@ The source split narrows maintenance scope while preserving runtime dependencies
   and `receipt`. Viewer Chrome Layout calls `schedule` after changing the
   navigation reserve and `whenStable` while probing layout. The browser
   visual checker also uses `window.Archify.readerLayout.whenStable`.
+- Ordinary screen viewports ≥1024×600 use `data-fixed-canvas`: a remaining-height
+  canvas and a single `diagram-notes` card tree. `data-notes-open` reserves sidebar
+  width; notes own their scroll and Escape/focus behavior. No cards are cloned.
+  Smaller viewports, embed, presentation and print release the fixed shell.
+- Reader measures the initial shell synchronously before Camera starts. On the
+  diagram container it publishes the authored viewBox width/height as CSS
+  variables; only fixed-canvas CSS uses them. One authored SVG unit is one CSS
+  pixel at 100%, independent of window or sidebar width. The canonical SVG is
+  untouched, and document/presentation/embed/print retain their own sizing.
+- Camera initially fits the complete fixed stage without enlarging beyond 100%.
+  It establishes navigation clearance first; initial Focus/Guided Views hash
+  cleanup preserves this framing, while valid explicit targets still take over.
+  Fixed-stage transforms use Camera's existing animation frames, without a
+  second CSS transform transition.
+- Geometry refresh keeps a manual view's effective scale and the authored point
+  at the old stage center. A temporary Camera-owned reading snapshot bridges
+  document-mode round trips; explicit navigation invalidates it. Fit mode tracks
+  stage size, semantic mode retains its target, and reset/legacy fit still return
+  scale=1,x=0,y=0. No view history or persisted preference is introduced.
 - Reader owns the outer width (`html`'s `--archify-reader-width`) and temporary
   `data-reader-layout` / `data-reader-overflow` attributes. Ineligible measures
   clear them and reset the recorded width. CSS consumes the width on `.container`.
@@ -675,8 +694,9 @@ The source split narrows maintenance scope while preserving runtime dependencies
   the page lifetime. `schedule` coalesces requests; deferred overflow settling
   rechecks eligibility. Leaving adaptive layout clears its state without
   unmounting the module or clearing another module's state.
-- Width eligibility, overflow fallback and optional-observer behavior are
-  unchanged. Shared `waitForStableLayout` waits for fonts, pending work and
+- `active()` reports the legacy adaptive-width fallback only; fixed canvas
+  activity is identified by `data-fixed-canvas`. Width fallback and optional
+  observers remain available outside fixed canvas. Shared `waitForStableLayout` waits for fonts, pending work and
   consecutive stable dimensions; its default 240-frame sampling limit starts
   after font readiness. It is not a wall-clock timeout for stalled fonts or
   background pages. Keep this helper shared with Viewer Chrome Layout.

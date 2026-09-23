@@ -38,6 +38,16 @@
       }
       function protectedStageRect() {
         if (!svg) return null;
+        if (html.hasAttribute('data-fixed-canvas')) {
+          var bounds = container.getBoundingClientRect();
+          var style = window.getComputedStyle(container);
+          var left = bounds.left + container.clientLeft + (parseFloat(style.paddingLeft) || 0);
+          var top = bounds.top + container.clientTop + (parseFloat(style.paddingTop) || 0);
+          var right = bounds.left + container.clientLeft + container.clientWidth - (parseFloat(style.paddingRight) || 0);
+          var bottom = bounds.top + container.clientTop + container.clientHeight - (parseFloat(style.paddingBottom) || 0);
+          return { x: left, y: top, left: left, top: top, right: right, bottom: bottom,
+            width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+        }
         var rect = svg.getBoundingClientRect();
         var transform = '';
         try { transform = window.getComputedStyle(svg).transform || ''; } catch (_) {}
@@ -90,6 +100,11 @@
         );
       }
       function cameraAtBaseline() {
+        // The fixed stage is independent of SVG camera scale.
+        if (html.hasAttribute('data-fixed-canvas')) return true;
+        // Automatic framing still permits layout reprobes after leaving the
+        // fixed shell; only a user's zoom should retain a previous rail.
+        if (Archify.view && Archify.view.state().mode === 'fit') return true;
         var scale = Number(svg && svg.getAttribute('data-view-scale'));
         return !Number.isFinite(scale) || Math.abs(scale - 1) < 0.001;
       }

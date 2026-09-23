@@ -350,21 +350,9 @@
         if (!panel.hasAttribute('data-compact')) surface.focus();
         return !panel.hasAttribute('data-compact');
       }
-      function syncNow() {
-        syncFrame = 0;
+      // Camera frames update this small overlay without panel measurement or node scans.
+      function syncViewport() {
         if (panel.hidden || !Archify.view || typeof Archify.view.logicalViewport !== 'function') return;
-        if (!updateDocking()) {
-          reflectUnavailable();
-          return;
-        }
-        if (passportYielded && panel.hasAttribute('data-compact')) {
-          restorePassport();
-          if (!updateDocking()) {
-            reflectUnavailable();
-            return;
-          }
-        }
-        reflectVisible();
         var visible = Archify.view.logicalViewport();
         if (!visible) return;
         var markerWidth = visible.outside ? Math.max(2, viewBox.width * 0.025) : visible.width;
@@ -386,8 +374,26 @@
           ? viewerText('viewer.radar.viewport.full')
           : (mobileWide
             ? viewerText('viewer.radar.viewport.width', { percent: Math.round(visible.width / viewBox.width * 100) })
-            : viewerText('viewer.radar.viewport.scale', { percent: Math.round(visible.scale * 100) }));
-        status.textContent = viewerText('viewer.radar.status', { count: nodes.length, viewport: viewportCopy });
+            : viewerText('viewer.radar.viewport.scale', { percent: visible.scale < 0.01 ? '<1' : Math.round(visible.scale * 100) }));
+        var statusText = viewerText('viewer.radar.status', { count: nodes.length, viewport: viewportCopy });
+        if (status.textContent !== statusText) status.textContent = statusText;
+      }
+      function syncNow() {
+        syncFrame = 0;
+        if (panel.hidden || !Archify.view || typeof Archify.view.logicalViewport !== 'function') return;
+        if (!updateDocking()) {
+          reflectUnavailable();
+          return;
+        }
+        if (passportYielded && panel.hasAttribute('data-compact')) {
+          restorePassport();
+          if (!updateDocking()) {
+            reflectUnavailable();
+            return;
+          }
+        }
+        reflectVisible();
+        syncViewport();
         nodes.forEach(function (item) {
           var active = item.node.hasAttribute('data-focus-selected') ||
             item.node.getAttribute('data-story-beat-state') === 'active';
@@ -419,7 +425,9 @@
         } else {
           clearSpaceRetry();
           spaceRetryCount = 0;
-          viewportDrag = null;
+          endViewportDrag();
+          if (syncFrame) cancelAnimationFrame(syncFrame);
+          syncFrame = 0;
           panelDrag = null;
           container.classList.remove('is-panning');
           panel.hidden = true;
@@ -476,15 +484,17 @@
       function navigate(event) {
         var point = diagramPoint(event);
         if (!point || !Archify.view || typeof Archify.view.centerAt !== 'function') return;
-        Archify.view.centerAt(point.x, point.y, { minimumScale: 1.5, instant: true });
-        sync();
+        Archify.view.centerAt(point.x, point.y, { preserveScale: true, instant: true,
+          defer: true, manual: !viewportDrag });
       }
-      function endViewportDrag(event) {
-        if (!viewportDrag) return;
+      function endViewportDrag(event, cancelOnly) {
+        if (!viewportDrag || (event && event.pointerId !== viewportDrag.pointerId)) return;
+        var pointerId = viewportDrag.pointerId;
         viewportDrag = null;
+        if (!cancelOnly && Archify.view && Archify.view.settle) Archify.view.settle();
         panel.removeAttribute('data-dragging');
         container.classList.remove('is-panning');
-        try { surface.releasePointerCapture(event.pointerId); } catch (_) {}
+        try { surface.releasePointerCapture(pointerId); } catch (_) {}
       }
       function beginPanelDrag(event) {
         if (event.button !== 0 || event.target.closest('button, a, input, [role="button"]')) return;
@@ -552,11 +562,11 @@
       surface.addEventListener('pointerdown', function (event) {
         if (event.button !== 0 || event.target.closest('[data-radar-node-id]')) return;
         event.preventDefault();
+        navigate(event);
         viewportDrag = { pointerId: event.pointerId };
         panel.setAttribute('data-dragging', 'true');
         container.classList.add('is-panning');
         try { surface.setPointerCapture(event.pointerId); } catch (_) {}
-        navigate(event);
       });
       surface.addEventListener('pointermove', function (event) {
         if (!viewportDrag || viewportDrag.pointerId !== event.pointerId) return;
@@ -564,6 +574,7 @@
       });
       surface.addEventListener('pointerup', endViewportDrag);
       surface.addEventListener('pointercancel', endViewportDrag);
+      surface.addEventListener('lostpointercapture', endViewportDrag);
       surface.addEventListener('click', function (event) {
         var node = event.target.closest('[data-radar-node-id]');
         if (node) focusNode(node.getAttribute('data-radar-node-id'));
@@ -593,7 +604,7 @@
         else if (event.key === 'ArrowRight') x += stepX;
         else if (event.key === 'ArrowUp') y -= stepY;
         else y += stepY;
-        Archify.view.centerAt(x, y, { minimumScale: 1.5, instant: true });
+        Archify.view.centerAt(x, y, { preserveScale: true, instant: true });
         sync();
       });
       document.addEventListener('keydown', function (event) {
@@ -629,6 +640,8 @@
         close: close,
         toggle: toggle,
         sync: sync,
+        syncViewport: syncViewport,
+        cancelPan: function () { endViewportDrag(null, true); },
         focus: focusNode,
         isOpen: function () { return requestedOpen; },
         count: function () { return nodes.length; }

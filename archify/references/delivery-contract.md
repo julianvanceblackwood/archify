@@ -375,9 +375,20 @@ Never start it by default. Do not use it for CI, unattended agents, remote shari
 
 ## Perceptual delivery gate
 
-Automated validation and browser evidence cannot prove visual polish. After deterministic delivery, inspect the actual HTML in a capable browser or render the evidence screenshots with an image reader. Check both themes when changed, the default READ view, line crossings/corridors, label masks, node/card fit, focus/search/passport closure, and export cleanliness.
+Automated validation and browser evidence cannot prove visual polish. After deterministic delivery, inspect the actual HTML in a capable browser or render the evidence screenshots with an image reader. Check both themes when changed, the default view with all original labels visible, line crossings/corridors, label masks, node/card fit, focus/search/passport closure, and export cleanliness.
 
-For the default standalone desktop viewer, measure 1440×900, 1600×1000, and 1920×1080. When the artifact is intended for a large desktop display, also measure 2048×1320. A first-screen pass requires `document.documentElement.scrollWidth <= window.innerWidth` and `scrollHeight <= window.innerHeight` at every checked size. At the largest checked viewport, inspect the rendered composition for a conspicuous empty lower band: the main panel and necessary conclusion cards should use the available height as a balanced whole, not collapse into a shallow strip. If a desktop viewport overflows, repair the authored composition by removing only genuinely redundant content or compacting spacing before shrinking nodes, labels, or the main panel. Do not hide overflow, clip content, introduce an internal diagram scroller, or reduce node/label typography to make the measurement pass. Narrow/mobile containment may retain vertical page scrolling.
+### Viewer containment and readability
+
+For the default standalone desktop viewer at CSS sizes ≥1024×600, use the fixed viewport canvas. Measure 1440×900, 1600×1000 and 1920×1080, adding 2048×1320 for large-display compositions. Require the page and body to remain within the viewport (at most 1 CSS px rounding), a reachable toolbar/navigation, and an actual remaining-height canvas. Check complete diagram reachability through pan and Fit all, and the last original card through the independently scrollable Diagram notes sidebar. Preserve authored geometry, viewBox and typography; original node and relationship text remains drawn at every zoom, with hover reserved for highlighting and supplementary information. Review legibility at a normal reading scale separately from whole-diagram fit. Merely hiding overflow does not establish content reachability. Below either threshold retain document flow and necessary scrolling; print must include the complete diagram and cards regardless of camera or sidebar state.
+
+For fixed-canvas framing changes, add a 1366×768 laptop view and compare identical
+source JSON at identical theme/preset and viewport. The first view must contain
+all authored content without enlarging small diagrams beyond 100%. Verify the
+actual SVG-to-CSS transform and a representative node's screen size, not only the
+Camera state: manual sidebar/resize transitions preserve effective scale and the
+world point at the usable stage center. Explicit deep links take precedence over
+initial fitting. Review whole-diagram and 100% reading screenshots separately;
+large overviews may have small text but must never hide it automatically.
 
 A manual browser record is supplementary to the automated status. Reproducing the same coverage requires all four exact viewport measurements, both endpoint themes, and an artifact-bound record of the inspected SHA-256 and byte count. It never changes `browser_evidence`: when Chrome/Chromium is unavailable, that status remains `skipped` even when the manual browser record is complete and `visual_review: passed`; an automated `failed` result likewise remains `failed`. An unconstrained browser glance can support perceptual review only.
 
