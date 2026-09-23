@@ -222,3 +222,69 @@ test('Stable canvas framing preserves complete first view and manual reading geo
     }
   });
 });
+
+test('semantic chapter framing contains every target with desktop notes open or closed', {
+  skip: chrome ? false : 'Set ARCHIFY_CHROME to check semantic chapter containment.',
+}, async t => {
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-chapter-fit-'));
+  t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
+  const source = path.join(root, 'examples', examples.architecture);
+  const spec = JSON.parse(fs.readFileSync(source, 'utf8'));
+  const file = path.join(scratch, 'architecture.html');
+  execFileSync(process.execPath, [path.join(root, 'bin/archify.mjs'), 'render', 'architecture', source, file]);
+  const browser = desktopBrowser(chrome);
+  t.after(() => browser.close());
+  const session = await browser.sessionPromise;
+  const send = (method, params = {}) => browser.cdp.send(method, params, session);
+  async function run(expression) {
+    const result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+    assert.equal(result.exceptionDetails, undefined);
+    return result.result?.value;
+  }
+  async function stable() {
+    await run(`(async()=>{
+      await document.fonts.ready;
+      await Archify.readerLayout.whenStable();
+      await Archify.viewerChromeLayout.whenStable();
+      for(let i=0,previous='',same=0;i<180;i++){
+        await new Promise(requestAnimationFrame);
+        const value=JSON.stringify([Archify.view.state(),document.querySelector('.diagram-container').getBoundingClientRect().toJSON()]);
+        same=value===previous?same+1:0;previous=value;
+        if(same>=8&&!document.querySelector('[data-camera-transaction]'))return;
+      }
+      throw new Error('Chapter framing did not settle');
+    })()`);
+  }
+  const records = [];
+  for (const width of [1024, 1440, 2048]) {
+    await send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
+    const loaded = browser.cdp.waitFor('Page.loadEventFired', session);
+    await send('Page.navigate', { url: pathToFileURL(file).href + '?chapter-fit=' + width });
+    await loaded; await stable();
+    for (const notes of [false, true]) {
+      if (notes) { await run("document.getElementById('btn-diagram-notes').click()"); await stable(); }
+      for (const chapter of spec.meta.views) {
+        await run(`document.querySelector('[data-guided-view-id="${chapter.id}"]').click()`);
+        await stable();
+        const observed = await run(`(()=>{
+          const stage=Archify.viewerChromeLayout.stageRect();
+          return {state:Archify.view.state(),stage,nodes:${JSON.stringify(chapter.focus)}.map(id=>{
+            const r=document.querySelector('[data-node-id="'+id+'"]').getBoundingClientRect();
+            return {id,left:r.left,right:r.right,top:r.top,bottom:r.bottom};
+          })};
+        })()`);
+        records.push({ width, notes, chapter: chapter.id, ...observed });
+        assert.equal(observed.state.mode, 'semantic');
+        for (const node of observed.nodes) {
+          assert.ok(node.left >= observed.stage.left - 1 && node.right <= observed.stage.right + 1 &&
+            node.top >= observed.stage.top - 1 && node.bottom <= observed.stage.bottom + 1,
+          JSON.stringify({ width, notes, chapter: chapter.id, ...observed }));
+        }
+      }
+    }
+  }
+  if (process.env.ARCHIFY_FRAMING_EVIDENCE) {
+    fs.mkdirSync(process.env.ARCHIFY_FRAMING_EVIDENCE, { recursive: true });
+    fs.writeFileSync(path.join(process.env.ARCHIFY_FRAMING_EVIDENCE, 'chapter-containment.json'), JSON.stringify(records, null, 2) + '\n');
+  }
+});

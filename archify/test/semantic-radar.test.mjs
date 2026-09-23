@@ -78,8 +78,13 @@ async function loadArtifact(browser, artifactPath, { width = 1440, height = 900 
 }
 
 async function radarRects(browser, sessionId, setup) {
-  return evaluate(browser, sessionId, `(function () {
+  return evaluate(browser, sessionId, `(async function () {
     ${setup}
+    // Initial fit and panel opening can change the stage and the transformed
+    // legend blocker after two frames. Capture a stable placement, not a
+    // transient point that becomes invalid before native dragging begins.
+    await Archify.readerLayout.whenStable();
+    await Archify.viewerChromeLayout.whenStable();
     return new Promise(function (resolve) {
       requestAnimationFrame(function () {
         requestAnimationFrame(function () {
@@ -87,7 +92,12 @@ async function radarRects(browser, sessionId, setup) {
           var controls = document.querySelector('.diagram-nav').getBoundingClientRect();
           var passport = document.getElementById('focus-chip');
           var passportRect = passport && !passport.hidden ? passport.getBoundingClientRect() : null;
+          var legend = document.querySelector('[data-legend]');
+          var legendRect = legend && legend.getBoundingClientRect();
           resolve({
+            camera: Archify.view.state(),
+            legend: legendRect ? { left: legendRect.left, top: legendRect.top,
+              right: legendRect.right, bottom: legendRect.bottom } : null,
             radar: { left: radar.left, top: radar.top, right: radar.right, bottom: radar.bottom },
             controls: { left: controls.left, top: controls.top, right: controls.right, bottom: controls.bottom },
             passport: passportRect ? {

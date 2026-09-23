@@ -39,7 +39,7 @@ test('all typed renderers ship the same geometry-neutral semantic camera', () =>
     assert.match(html, /function semanticIds\(ids, includeNeighbors\)/, mode);
     assert.match(html, /if \(seeds\[from\] \|\| seeds\[to\]\) \{ wanted\[from\] = true; wanted\[to\] = true; \}/, mode);
     assert.match(html, /contentScale = Math\.min\(svgWidth \/ viewBox\.width, svgHeight \/ viewBox\.height\)/, mode);
-    assert.match(html, /targetScale = Math\.max\(1, Math\.min\(maxScale, targetScale\)\)/, mode);
+    assert.match(html, /targetScale = Math\.min\(maxScale, targetScale\)/, mode);
     assert.match(html, /visibleTop = Math\.max\(0, -containerRect\.top\)/, mode);
     assert.match(html, /visibleBottom - visibleTop >= 240/, mode);
     assert.match(html, /data-camera-mode/, mode);

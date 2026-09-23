@@ -12764,7 +12764,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           top = Math.max(top, visibleTop + padding);
           bottom = Math.min(bottom, visibleBottom - Math.max(padding, 72));
         }
-        if (document.documentElement.hasAttribute('data-fixed-canvas')) {
+        var fixedCanvas = document.documentElement.hasAttribute('data-fixed-canvas');
+        if (fixedCanvas) {
           var geometry = measureCanvas();
           if (geometry) {
             left = geometry.left + padding;
@@ -12788,10 +12789,16 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         if (right <= left || bottom <= top) return false;
         var maxScale = options.maxScale || (options.includeNeighbors ? 1.9 : 2.15);
         var targetScale = Math.min((right - left) / bounds.width, (bottom - top) / bounds.height) * 0.9;
-        targetScale = Math.max(1, Math.min(maxScale, targetScale));
-        if (targetScale < 1.08) targetScale = 1;
+        targetScale = Math.min(maxScale, targetScale);
+        // Fixed SVG units can exceed the visible stage. Keep sub-100% fits
+        // precise, including selections whose fit is smaller than one percent.
+        if (!fixedCanvas || targetScale >= 1) {
+          targetScale = Math.max(1, targetScale);
+          if (targetScale < 1.08) targetScale = 1;
+          targetScale = Math.round(targetScale * 100) / 100;
+        }
         var target = {
-          scale: Math.round(targetScale * 100) / 100,
+          scale: targetScale,
           x: 0,
           y: 0,
           mode: 'semantic'

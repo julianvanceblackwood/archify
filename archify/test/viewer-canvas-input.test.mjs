@@ -430,3 +430,34 @@ test('subpixel SVG measurement noise does not move an explicit reset camera', ()
   f.win.emit('resize'); f.frame(5);
   assert.deepEqual(f.state(), { scale: 1, x: 0, y: 0, mode: 'overview' });
 });
+
+test('fixed semantic framing contains wide selections even below one percent', () => {
+  for (const right of [1010, 240000]) {
+    const f = cameraFixture({ fixed: true, svgWidth: right + 70, svgHeight: 600,
+      width: 630, height: 700, padding: 16, border: 1 });
+    f.win.innerWidth = 1024;
+    f.doc.getElementById = () => null;
+    const boxes = [{ id: 'left', x: 40, y: 300, width: 120, height: 60 },
+      { id: 'right', x: right - 130, y: 300, width: 130, height: 60 }];
+    f.svg.querySelectorAll = selector => selector === '[data-node-id]'
+      ? boxes.map(box => ({ getAttribute: () => box.id, getBBox: () => box })) : [];
+    f.view.reveal(['left', 'right'], { instant: true });
+    const visible = f.view.worldViewport();
+    assert.equal(f.state().mode, 'semantic');
+    assert.ok(visible.scale > 0 && visible.scale < 1, JSON.stringify(visible));
+    assert.ok(visible.x <= 40 && visible.x + visible.width >= right, JSON.stringify(visible));
+    assert.ok(visible.y <= 300 && visible.y + visible.height >= 360, JSON.stringify(visible));
+  }
+});
+
+test('document semantic framing keeps the legacy 100 percent minimum', () => {
+  const f = cameraFixture({ svgWidth: 24000, svgHeight: 600, width: 1000, height: 700 });
+  f.doc.getElementById = () => null;
+  const boxes = [{ id: 'left', x: 0, y: 300, width: 120, height: 60 },
+    { id: 'right', x: 23800, y: 300, width: 130, height: 60 }];
+  f.svg.querySelectorAll = selector => selector === '[data-node-id]'
+    ? boxes.map(box => ({ getAttribute: () => box.id, getBBox: () => box })) : [];
+  f.view.reveal(['left', 'right'], { instant: true });
+  assert.equal(f.state().mode, 'semantic');
+  assert.equal(f.state().scale, 1);
+});
