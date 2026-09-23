@@ -84,8 +84,20 @@ test('Semantic Lens preserves selection, legend preview and panel contracts', {
   async function point(selector) {
     return run(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
   }
-  async function move(selector) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...(selector ? await point(selector) : { x: 0, y: 0 }) }); }
+  async function move(selector) {
+    if (selector?.startsWith('[data-legend-kind=')) {
+      const visible=await run(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(),s=Archify.viewerChromeLayout.stageRect();return r.top>=s.top&&r.bottom<=s.bottom&&r.left>=s.left&&r.right<=s.right;})()`);
+      // A preceding interaction may move the Legend offscreen; reveal it through the
+      // public Fit all action before sending a native pointer to its position.
+      if(!visible){
+        await run('Archify.view.fitAll()');
+        await run(`lensWait(()=>{const s=Archify.view.state(),m=new DOMMatrix(getComputedStyle(document.querySelector('.diagram-container > svg')).transform);return Math.abs(m.a-s.scale)<0.001&&Math.abs(m.e-s.x)<0.05&&Math.abs(m.f-s.y)<0.05;})`);
+      }
+    }
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...(selector ? await point(selector) : { x: 0, y: 0 }) });
+  }
   async function click(selector) {
+    await move(selector);
     const p = await point(selector);
     await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...p, button: 'left', clickCount: 1 });
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...p, button: 'left', clickCount: 1 });

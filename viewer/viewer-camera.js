@@ -6,13 +6,21 @@
       var resetDetailLabel = resetBtn.querySelector('[data-view-detail]');
       var resetPercentLabel = resetBtn.querySelector('[data-view-percent]');
       var inBtn = container.querySelector('[data-view="in"]');
+      var fitAllBtn = container.querySelector('[data-view="fit-all"]');
       var navigation = container.querySelector('.diagram-nav');
       var MIN_SCALE = 0.25;
       var MAX_SCALE = 4;
+      var minimumScale = MIN_SCALE;
+      var canvasGeometry = null;
+      var initialFraming = true;
+      // Only a temporary bridge while outside the fixed desktop layout.
+      var fixedReading = null;
       var CAMERA_LIMIT = 1000000;
       var grid = document.createElement('div');
       var state = { scale: 1, x: 0, y: 0, mode: 'overview' };
       var drag = null;
+      var spacePan = false;
+      var panClickPointer = null;
       var cameraTimer = null;
       var cameraFrame = null;
       var cameraGeneration = 0;
@@ -35,7 +43,7 @@
       var wheelPanInputEnded = false;
       var suppressContextMenuUntil = 0;
       var lastControlKey = '';
-      var interactionMetrics = { offsetLeft: 0, offsetTop: 0, width: 1, height: 1 };
+      var interactionMetrics = { offsetLeft: 0, offsetTop: 0 };
 
       var viewBox = svg.viewBox && svg.viewBox.baseVal;
 
@@ -43,10 +51,16 @@
       grid.setAttribute('aria-hidden', 'true');
       container.insertBefore(grid, svg);
 
+      function boundPosition(value) {
+        return Math.max(-CAMERA_LIMIT, Math.min(CAMERA_LIMIT, Number(value) || 0));
+      }
+      function directNavigationEnabled() {
+        return document.documentElement.getAttribute('data-embed') !== 'true' && !mobileScrollMode();
+      }
       function boundCamera() {
-        state.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, Number(state.scale) || 1));
-        state.x = Math.max(-CAMERA_LIMIT, Math.min(CAMERA_LIMIT, Number(state.x) || 0));
-        state.y = Math.max(-CAMERA_LIMIT, Math.min(CAMERA_LIMIT, Number(state.y) || 0));
+        state.scale = Number.isFinite(state.scale) && state.scale > 0 ? Math.min(MAX_SCALE, state.scale) : 1;
+        state.x = boundPosition(state.x);
+        state.y = boundPosition(state.y);
       }
       function mobileScrollMode() {
         return window.innerWidth <= 720 && container.hasAttribute('data-wide-diagram');
@@ -55,7 +69,8 @@
         return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       }
       function contentMetrics() {
-        if (!viewBox || viewBox.width <= 0 || viewBox.height <= 0) return null;
+        if (!viewBox || !Number.isFinite(viewBox.width) || !Number.isFinite(viewBox.height) ||
+            viewBox.width <= 0 || viewBox.height <= 0) return null;
         var width = svg.clientWidth || 1;
         var height = svg.clientHeight || 1;
         var scale = Math.min(width / viewBox.width, height / viewBox.height);
@@ -67,8 +82,89 @@
           offsetY: (height - viewBox.height * scale) / 2
         };
       }
-      function worldViewport() {
+      // Geometry is refreshed at interaction boundaries, never for every input frame.
+      function measureCanvas() {
         var metrics = contentMetrics();
+        if (!metrics) return null;
+        var rect = container.getBoundingClientRect();
+        var style = getComputedStyle(container);
+        var visual = window.visualViewport;
+        var screenLeft = visual ? visual.offsetLeft : 0;
+        var screenTop = visual ? visual.offsetTop : 0;
+        var screenRight = screenLeft + (visual ? visual.width : window.innerWidth);
+        var screenBottom = screenTop + (visual ? visual.height : window.innerHeight);
+        var innerLeft = rect.left + container.clientLeft;
+        var innerTop = rect.top + container.clientTop;
+        // SVGSVGElement has no offsetLeft/offsetTop. Remove the rendered camera
+        // translation from its screen box to recover the untransformed origin.
+        var rendered = sampleRenderedState();
+        var svgRect = svg.getBoundingClientRect();
+        var originX = svgRect.left - rendered.x;
+        var originY = svgRect.top - rendered.y;
+        var left = Math.max(innerLeft, screenLeft) + (parseFloat(style.paddingLeft) || 0) - originX;
+        var top = Math.max(innerTop, screenTop) + (parseFloat(style.paddingTop) || 0) - originY;
+        var right = Math.min(innerLeft + container.clientWidth, screenRight) - (parseFloat(style.paddingRight) || 0) - originX;
+        var bottom = Math.min(innerTop + container.clientHeight, screenBottom) - (parseFloat(style.paddingBottom) || 0) - originY;
+        var fixed = document.documentElement.hasAttribute('data-fixed-canvas');
+        var scale = Math.min(fixed ? 1 : MAX_SCALE, (right - left - 32) / (viewBox.width * metrics.scale),
+          (bottom - top - 32) / (viewBox.height * metrics.scale));
+        var fit = Number.isFinite(scale) && scale > 0 ? {
+          scale: scale,
+          x: (left + right) / 2 - (metrics.offsetX + viewBox.width * metrics.scale / 2) * scale,
+          y: (top + bottom) / 2 - (metrics.offsetY + viewBox.height * metrics.scale / 2) * scale,
+          mode: 'fit'
+        } : null;
+        return { fixed: fixed, metrics: metrics, originX: originX, originY: originY, left: left, top: top, right: right, bottom: bottom, fit: fit };
+      }
+      function readingAt(geometry) {
+        var metrics = geometry.metrics;
+        return {
+          x: viewBox.x + (((geometry.left + geometry.right) / 2 - state.x) / state.scale - metrics.offsetX) / metrics.scale,
+          y: viewBox.y + (((geometry.top + geometry.bottom) / 2 - state.y) / state.scale - metrics.offsetY) / metrics.scale,
+          scale: state.scale * metrics.scale,
+          mode: state.mode
+        };
+      }
+      function restoreReading(reading, geometry) {
+        var metrics = geometry.metrics;
+        state = {
+          scale: reading.scale / metrics.scale,
+          x: (geometry.left + geometry.right) / 2 - ((reading.x - viewBox.x) * metrics.scale + metrics.offsetX) * reading.scale / metrics.scale,
+          y: (geometry.top + geometry.bottom) / 2 - ((reading.y - viewBox.y) * metrics.scale + metrics.offsetY) * reading.scale / metrics.scale,
+          mode: reading.mode
+        };
+      }
+      function refreshGeometry() {
+        var previous = canvasGeometry;
+        var next = measureCanvas();
+        // Reconstructing an SVG origin from its transformed DOMRect introduces
+        // subpixel rounding. It is not a layout change or a new reading anchor.
+        var changed = previous && next && (previous.fixed !== next.fixed ||
+          Math.abs(previous.left - next.left) > 0.01 || Math.abs(previous.right - next.right) > 0.01 ||
+          Math.abs(previous.top - next.top) > 0.01 || Math.abs(previous.bottom - next.bottom) > 0.01 ||
+          previous.metrics.scale !== next.metrics.scale);
+        if (changed && previous.fixed && !next.fixed && state.mode !== 'semantic' && state.mode !== 'fit') {
+          fixedReading = readingAt(previous);
+        }
+        if (next && next.fixed && next.fit) {
+          if (initialFraming || (changed && state.mode === 'fit')) {
+            state = next.fit;
+            initialFraming = false;
+          } else if (changed && state.mode !== 'semantic') {
+            var reading = !previous.fixed && fixedReading ? fixedReading : readingAt(previous);
+            if (reading) {
+              stopCameraMotion('layout', false);
+              restoreReading(reading, next);
+            }
+          }
+          fixedReading = null;
+        }
+        canvasGeometry = next;
+        minimumScale = next && next.fit ? Math.min(MIN_SCALE, next.fit.scale) : MIN_SCALE;
+      }
+      function worldViewport() {
+        var geometry = canvasGeometry;
+        var metrics = geometry ? geometry.metrics : contentMetrics();
         if (!metrics) return null;
         var x;
         var y;
@@ -80,10 +176,11 @@
           width = Math.min(viewBox.width, Math.max(1, container.clientWidth / metrics.scale));
           height = viewBox.height;
         } else {
-          x = viewBox.x + ((-state.x / state.scale) - metrics.offsetX) / metrics.scale;
-          y = viewBox.y + ((-state.y / state.scale) - metrics.offsetY) / metrics.scale;
-          width = metrics.width / state.scale / metrics.scale;
-          height = metrics.height / state.scale / metrics.scale;
+          if (!geometry) return null;
+          x = viewBox.x + (((geometry.left - state.x) / state.scale) - metrics.offsetX) / metrics.scale;
+          y = viewBox.y + (((geometry.top - state.y) / state.scale) - metrics.offsetY) / metrics.scale;
+          width = Math.max(0, geometry.right - geometry.left) / state.scale / metrics.scale;
+          height = Math.max(0, geometry.bottom - geometry.top) / state.scale / metrics.scale;
         }
         return { x: x, y: y, width: width, height: height, scale: state.scale };
       }
@@ -105,32 +202,25 @@
           world: world
         };
       }
-      function detailLevel() {
-        if (state.mode === 'semantic') return 'full';
-        if (state.scale >= 1.75) return 'full';
-        if (state.scale >= 1) return 'read';
-        return 'map';
+      function renderPercent() {
+        var percent = state.scale < 0.01 ? '<1%' : Math.round(state.scale * 100) + '%';
+        if (resetPercentLabel && resetPercentLabel.textContent !== percent) resetPercentLabel.textContent = percent;
+        return percent;
       }
       function renderControls() {
         var semantic = state.mode === 'semantic' && state.scale > 1.01;
-        var detail = detailLevel();
-        var percent = Math.round(state.scale * 100) + '%';
+        var detail = 'full';
+        var percent = renderPercent();
         var controlKey = [state.mode, semantic, detail, percent].join('|');
         if (controlKey === lastControlKey) return;
         lastControlKey = controlKey;
-        var levelLabel = viewerText('viewer.nav.level.' + detail);
-        var detailHint = detail === 'map'
-          ? viewerText('viewer.nav.detail.map')
-          : detail === 'read'
-            ? viewerText('viewer.nav.detail.read')
-            : viewerText('viewer.nav.detail.full');
-        var resolvedLevel = semantic ? viewerText('viewer.nav.level.auto') : levelLabel;
-        var showDetailLevel = semantic || detail !== 'read';
+        var detailHint = viewerText('viewer.nav.detail.full');
+        var resolvedLevel = semantic ? viewerText('viewer.nav.level.auto') : '';
+        var showDetailLevel = semantic;
         if (resetDetailLabel) {
           resetDetailLabel.textContent = resolvedLevel;
           resetDetailLabel.hidden = !showDetailLevel;
         }
-        if (resetPercentLabel) resetPercentLabel.textContent = percent;
         resetBtn.toggleAttribute('data-detail-visible', showDetailLevel);
         resetBtn.title = viewerText('viewer.nav.camera.title', {
           semantic: semantic ? viewerText('viewer.nav.camera.semantic') : '',
@@ -142,19 +232,20 @@
         container.setAttribute('data-camera-mode', state.mode);
         container.setAttribute('data-camera-indicator', semantic ? 'true' : 'false');
       }
-      function clipToViewport(camera, metrics) {
+      function clipToViewport(camera) {
         camera = camera || state;
-        if (camera.scale <= 1.001) {
+        var fixed = document.documentElement.hasAttribute('data-fixed-canvas') && canvasGeometry;
+        if (!fixed && camera.scale <= 1.001) {
           if (svg.style.clipPath) svg.style.removeProperty('clip-path');
           return;
         }
-        var width = metrics ? metrics.width : (svg.clientWidth || 1);
-        var height = metrics ? metrics.height : (svg.clientHeight || 1);
+        var width = fixed ? canvasGeometry.metrics.width : (svg.clientWidth || 1);
+        var height = fixed ? canvasGeometry.metrics.height : (svg.clientHeight || 1);
         var scale = camera.scale;
-        var top = Math.max(0, Math.min(height, -camera.y / scale));
-        var left = Math.max(0, Math.min(width, -camera.x / scale));
-        var right = Math.max(0, Math.min(width, width - (width - camera.x) / scale));
-        var bottom = Math.max(0, Math.min(height, height - (height - camera.y) / scale));
+        var top = Math.max(0, Math.min(height, ((fixed ? canvasGeometry.top : 0) - camera.y) / scale));
+        var left = Math.max(0, Math.min(width, ((fixed ? canvasGeometry.left : 0) - camera.x) / scale));
+        var right = Math.max(0, Math.min(width, width - ((fixed ? canvasGeometry.right : width) - camera.x) / scale));
+        var bottom = Math.max(0, Math.min(height, height - ((fixed ? canvasGeometry.bottom : height) - camera.y) / scale));
         var nextClip = 'inset(' + [top, right, bottom, left].map(function (value) {
           return Math.round(value * 1000) / 1000 + 'px';
         }).join(' ') + ')';
@@ -178,28 +269,32 @@
       }
       function apply(options) {
         options = options || {};
+        if (options.interactive !== true) refreshGeometry();
         boundCamera();
         svg.style.transform = 'translate(' + state.x + 'px,' + state.y + 'px) scale(' + state.scale + ')';
         var offsetLeft = options.interactive === true ? interactionMetrics.offsetLeft : (svg.offsetLeft || 0);
         var offsetTop = options.interactive === true ? interactionMetrics.offsetTop : (svg.offsetTop || 0);
         syncGrid(offsetLeft, offsetTop, options.gridPositionOnly === true);
-        if (options.cameraOnly === true) return;
         if (options.interactive === true) {
           if (clipFrame) cancelAnimationFrame(clipFrame);
           clipFrame = 0;
-        } else {
-          syncViewportClip();
+          if (document.documentElement.hasAttribute('data-fixed-canvas')) clipToViewport(state);
+          else svg.style.removeProperty('clip-path');
+          renderPercent();
+          if (Archify.radar && typeof Archify.radar.syncViewport === 'function') Archify.radar.syncViewport();
+          return;
         }
+        syncViewportClip();
         renderControls();
-        outBtn.disabled = state.scale <= MIN_SCALE;
+        outBtn.disabled = state.scale <= minimumScale;
+        fitAllBtn.hidden = !directNavigationEnabled();
+        fitAllBtn.disabled = !canvasGeometry || !canvasGeometry.fit;
         inBtn.disabled = state.scale >= MAX_SCALE;
-        container.classList.toggle('is-pannable', !mobileScrollMode());
+        container.classList.toggle('is-pannable', directNavigationEnabled());
         svg.setAttribute('data-view-scale', String(state.scale));
-        if (options.interactive !== true) {
-          if (Archify.radar && typeof Archify.radar.sync === 'function') Archify.radar.sync();
-          if (Archify.viewerChromeLayout && typeof Archify.viewerChromeLayout.schedule === 'function') {
-            Archify.viewerChromeLayout.schedule();
-          }
+        if (Archify.radar && typeof Archify.radar.sync === 'function') Archify.radar.sync();
+        if (Archify.viewerChromeLayout && typeof Archify.viewerChromeLayout.schedule === 'function') {
+          Archify.viewerChromeLayout.schedule();
         }
       }
       function syncGrid(offsetLeft, offsetTop, positionOnly) {
@@ -216,16 +311,15 @@
         if (interactionFrame) return;
         interactionFrame = requestAnimationFrame(function () {
           interactionFrame = 0;
-          apply({ interactive: true, cameraOnly: true, gridPositionOnly: !interactionChangesScale });
+          apply({ interactive: true, gridPositionOnly: !interactionChangesScale });
           interactionChangesScale = false;
         });
       }
       function captureInteractionGeometry() {
+        refreshGeometry();
         interactionMetrics = {
           offsetLeft: svg.offsetLeft || 0,
-          offsetTop: svg.offsetTop || 0,
-          width: svg.clientWidth || 1,
-          height: svg.clientHeight || 1
+          offsetTop: svg.offsetTop || 0
         };
         return container.getBoundingClientRect();
       }
@@ -233,7 +327,7 @@
         if (!interactionFrame) return;
         cancelAnimationFrame(interactionFrame);
         interactionFrame = 0;
-        apply({ interactive: true, cameraOnly: true, gridPositionOnly: !interactionChangesScale });
+        apply({ interactive: true, gridPositionOnly: !interactionChangesScale });
         interactionChangesScale = false;
       }
       function settleInteraction() {
@@ -268,7 +362,7 @@
         state.x += horizontal * distance;
         state.y += vertical * distance;
         state.mode = 'manual';
-        apply({ interactive: true, cameraOnly: true, gridPositionOnly: true });
+        apply({ interactive: true, gridPositionOnly: true });
         keyboardFrame = requestAnimationFrame(stepKeyboardPan);
       }
       function startKeyboardPan() {
@@ -290,7 +384,7 @@
           state.x = wheelPanTarget.x;
           state.y = wheelPanTarget.y;
           state.mode = 'manual';
-          apply({ interactive: true, cameraOnly: true, gridPositionOnly: true });
+          apply({ interactive: true, gridPositionOnly: true });
           try { getComputedStyle(svg).transform; } catch (_) {}
         }
         settleInteraction();
@@ -315,7 +409,7 @@
           finishWheelGesture(true);
           return;
         }
-        apply({ interactive: true, cameraOnly: true, gridPositionOnly: true });
+        apply({ interactive: true, gridPositionOnly: true });
         wheelPanFrame = requestAnimationFrame(stepWheelPan);
       }
       function scheduleWheelPan() {
@@ -381,7 +475,35 @@
         };
         return transaction;
       }
+      // New camera commands own the viewport; no earlier input loop may write it later.
+      function cancelDirectInteraction() {
+        if (Archify.radar && typeof Archify.radar.cancelPan === 'function') Archify.radar.cancelPan();
+        if (interactionFrame) cancelAnimationFrame(interactionFrame);
+        interactionFrame = 0;
+        interactionChangesScale = false;
+        if (keyboardFrame) cancelAnimationFrame(keyboardFrame);
+        keyboardFrame = 0;
+        keyboardStartedAt = 0;
+        keyboardDirections = Object.create(null);
+        keyboardShift = false;
+        if (wheelTimer) clearTimeout(wheelTimer);
+        wheelTimer = null;
+        if (wheelPanFrame) cancelAnimationFrame(wheelPanFrame);
+        wheelPanFrame = 0;
+        wheelPanTimestamp = 0;
+        wheelGeometry = null;
+        wheelMode = '';
+        wheelPanTarget = null;
+        wheelPanInputEnded = false;
+        if (drag) {
+          if (drag.moved && drag.button === 0) panClickPointer = drag.pointerId;
+          try { container.releasePointerCapture(drag.pointerId); } catch (_) {}
+          drag = null;
+        }
+        container.classList.remove('is-panning', 'is-keyboard-panning', 'is-wheel-moving');
+      }
       function stopCameraMotion(reason, commitTarget) {
+        cancelDirectInteraction();
         if (cameraTransaction && !cameraTransaction.settled) {
           cameraTransaction.cancel(reason || 'cancelled', commitTarget === true);
           return;
@@ -395,6 +517,8 @@
         container.removeAttribute('data-camera-transaction');
       }
       function interruptCamera(reason) {
+        initialFraming = false;
+        fixedReading = null;
         if (Archify.guidedViews && Archify.guidedViews.cancelHandoff) {
           Archify.guidedViews.cancelHandoff(reason || 'manual');
         }
@@ -416,9 +540,10 @@
         options = options || {};
         if (options.manual !== false) interruptCamera();
         var previous = state.scale;
-        next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, Number(next) || previous));
-        if (options.discrete === true) next = Math.round(next * 4) / 4;
-        else next = Math.round(next * 1000) / 1000;
+        next = Math.max(Math.min(minimumScale, previous), Math.min(MAX_SCALE, Number(next) || previous));
+        if (options.discrete === true && previous >= MIN_SCALE && next >= MIN_SCALE) {
+          next = Math.max(minimumScale, Math.round(next * 4) / 4);
+        }
         if (next === previous) return;
         var contentX = (anchorX - state.x) / previous;
         var contentY = (anchorY - state.y) / previous;
@@ -428,15 +553,25 @@
         if (options.defer === true) scheduleInteractionApply(true);
         else apply();
       }
+      function zoomStep(direction) {
+        return state.scale <= MIN_SCALE && minimumScale < MIN_SCALE
+          ? state.scale * (direction > 0 ? 1.25 : 0.8)
+          : state.scale + direction * 0.25;
+      }
       function zoom(next, options) {
         options = options || {};
         options.discrete = true;
-        zoomAtLocal(next, (svg.clientWidth || 1) / 2, (svg.clientHeight || 1) / 2, options);
+        refreshGeometry();
+        var geometry = canvasGeometry;
+        var centerX = geometry && geometry.fixed ? (geometry.left + geometry.right) / 2 : (svg.clientWidth || 1) / 2;
+        var centerY = geometry && geometry.fixed ? (geometry.top + geometry.bottom) / 2 : (svg.clientHeight || 1) / 2;
+        zoomAtLocal(next, centerX, centerY, options);
       }
       function zoomAt(next, clientX, clientY, options) {
-        var rect = container.getBoundingClientRect();
-        var anchorX = Number(clientX) - rect.left - (svg.offsetLeft || 0);
-        var anchorY = Number(clientY) - rect.top - (svg.offsetTop || 0);
+        refreshGeometry();
+        if (!canvasGeometry) return false;
+        var anchorX = Number(clientX) - canvasGeometry.originX;
+        var anchorY = Number(clientY) - canvasGeometry.originY;
         if (!Number.isFinite(anchorX) || !Number.isFinite(anchorY)) return false;
         zoomAtLocal(next, anchorX, anchorY, options);
         return true;
@@ -454,7 +589,19 @@
         else apply();
         return true;
       }
+      function fitAll(options) {
+        if (!directNavigationEnabled()) return false;
+        var geometry = measureCanvas();
+        if (!geometry || !geometry.fit) return false;
+        if (options && options.automatic === true) stopCameraMotion('fit-all', false);
+        else interruptCamera('fit-all');
+        state = geometry.fit;
+        apply();
+        return true;
+      }
       function reset(options) {
+        initialFraming = false;
+        fixedReading = null;
         options = options || {};
         if (options.automatic !== true) interruptCamera();
         else stopCameraMotion('reset', false);
@@ -465,9 +612,12 @@
         options = options || {};
         logicalX = Number(logicalX);
         logicalY = Number(logicalY);
-        var metrics = contentMetrics();
+        var metrics = options.defer === true && canvasGeometry ? canvasGeometry.metrics : contentMetrics();
         if (!metrics || !Number.isFinite(logicalX) || !Number.isFinite(logicalY)) return false;
-        interruptCamera();
+        if (options.manual !== false) {
+          interruptCamera('center');
+          if (options.defer === true) captureInteractionGeometry();
+        }
         if (mobileScrollMode()) {
           state.scale = 1;
           state.x = 0;
@@ -481,16 +631,18 @@
           catch (_) { container.scrollLeft = mobileTarget; }
           return true;
         }
-        var minimumScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, Number(options.minimumScale) || 1));
+        var requestedMinimum = Math.max(minimumScale, Math.min(MAX_SCALE, Number(options.minimumScale) || 1));
         var requestedScale = Number(options.scale);
-        state.scale = Math.max(minimumScale, Math.min(MAX_SCALE, Number.isFinite(requestedScale) ? requestedScale : state.scale));
+        state.scale = options.preserveScale === true ? state.scale
+          : Math.max(requestedMinimum, Math.min(MAX_SCALE, Number.isFinite(requestedScale) ? requestedScale : state.scale));
         var contentX = metrics.offsetX + (logicalX - viewBox.x) * metrics.scale;
         var contentY = metrics.offsetY + (logicalY - viewBox.y) * metrics.scale;
-        state.x = metrics.width / 2 - contentX * state.scale;
-        state.y = metrics.height / 2 - contentY * state.scale;
+        state.x = (canvasGeometry ? (canvasGeometry.left + canvasGeometry.right) / 2 : metrics.width / 2) - contentX * state.scale;
+        state.y = (canvasGeometry ? (canvasGeometry.top + canvasGeometry.bottom) / 2 : metrics.height / 2) - contentY * state.scale;
         state.mode = 'manual';
-        apply();
-        if (Archify.focus && Archify.focus.reposition) Archify.focus.reposition();
+        if (options.defer === true) scheduleInteractionApply(false);
+        else apply();
+        if (options.defer !== true && Archify.focus && Archify.focus.reposition) Archify.focus.reposition();
         return true;
       }
       function semanticIds(ids, includeNeighbors) {
@@ -545,6 +697,15 @@
         if (visibleBottom - visibleTop >= 240) {
           top = Math.max(top, visibleTop + padding);
           bottom = Math.min(bottom, visibleBottom - Math.max(padding, 72));
+        }
+        if (document.documentElement.hasAttribute('data-fixed-canvas')) {
+          var geometry = measureCanvas();
+          if (geometry) {
+            left = geometry.left + padding;
+            right = geometry.right - padding;
+            top = geometry.top + padding;
+            bottom = geometry.bottom - padding;
+          }
         }
         var chip = document.getElementById('focus-chip');
         if (chip && !chip.hidden) {
@@ -616,6 +777,8 @@
         return transaction;
       }
       function reveal(ids, options) {
+        initialFraming = false;
+        fixedReading = null;
         options = options || {};
         if (window.innerWidth > 720) return frameDesktop(ids, options);
         stopCameraMotion('replaced', false);
@@ -669,7 +832,7 @@
         var margin = window.innerWidth <= 720 ? 8 : 16;
         var viewportEdge = window.innerHeight - margin;
         var wasDocked = navigation.hasAttribute('data-viewport-docked');
-        var docked = !mobileScrollMode() && rect.top < viewportEdge &&
+        var docked = !document.documentElement.hasAttribute('data-fixed-canvas') && !mobileScrollMode() && rect.top < viewportEdge &&
           (rect.bottom > viewportEdge || (wasDocked && rect.bottom > 0));
         var changed = wasDocked !== docked;
         navigation.toggleAttribute('data-viewport-docked', docked);
@@ -695,10 +858,12 @@
         }
       }
       function onPointerEnd(event) {
-        if (!drag) return;
+        if (!drag || (event.pointerId != null && event.pointerId !== drag.pointerId)) return;
+        var pointerId = drag.pointerId;
         var moved = drag.moved;
+        if (moved && drag.button === 0) panClickPointer = pointerId;
         drag = null;
-        try { container.releasePointerCapture(event.pointerId); } catch (_) {}
+        try { container.releasePointerCapture(pointerId); } catch (_) {}
         if (moved) settleInteraction();
         container.classList.remove('is-panning');
         if (moved) {
@@ -706,6 +871,16 @@
           container.setAttribute('data-just-panned', 'true');
           setTimeout(function () { container.removeAttribute('data-just-panned'); }, 80);
         }
+      }
+      function releasePanKey() {
+        spacePan = false;
+        container.classList.remove('is-pan-ready');
+        if (drag && drag.space) onPointerEnd({ pointerId: drag.pointerId });
+      }
+      function leaveCanvas() {
+        releasePanKey();
+        if (drag) onPointerEnd({ pointerId: drag.pointerId });
+        stopKeyboardPan();
       }
       function cameraControlTarget(target) {
         return target.closest('.diagram-nav, .focus-chip, .node-finder, .diagram-guide, .overview-map, .route-probe, .semantic-lens');
@@ -718,25 +893,34 @@
         return rect.bottom > 0 && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth;
       }
 
-      inBtn.addEventListener('click', function () { zoom(state.scale + 0.25); });
-      outBtn.addEventListener('click', function () { zoom(state.scale - 0.25); });
+      inBtn.addEventListener('click', function () { zoom(zoomStep(1)); });
+      outBtn.addEventListener('click', function () { zoom(zoomStep(-1)); });
       resetBtn.addEventListener('click', reset);
-      if (!container.hasAttribute('tabindex')) container.setAttribute('tabindex', '-1');
+      fitAllBtn.addEventListener('click', fitAll);
+      if (document.documentElement.getAttribute('data-embed') !== 'true') {
+        container.setAttribute('tabindex', '0');
+        container.setAttribute('role', 'region');
+        var heading = document.querySelector('h1');
+        container.setAttribute('aria-label', heading ? heading.textContent : document.title);
+      }
       container.addEventListener('pointerdown', function (event) {
+        panClickPointer = null;
         var directPointerPan = (event.pointerType === 'touch' || event.pointerType === 'pen') && event.button === 0;
-        if (mobileScrollMode() || (event.button !== 2 && !directPointerPan) || cameraControlTarget(event.target)) return;
+        var mousePan = event.button === 2 || event.button === 1 || (event.button === 0 && spacePan);
+        if (!directNavigationEnabled() || (!mousePan && !directPointerPan) ||
+            cameraControlTarget(event.target) || keyboardInputTarget(event.target) || event.target.closest('button, a')) return;
         event.preventDefault();
         try { container.focus({ preventScroll: true }); } catch (_) { container.focus(); }
         if (container.classList.contains('is-wheel-moving')) finishWheelGesture(true);
         stopKeyboardPan();
         interruptCamera();
         captureInteractionGeometry();
-        drag = { startX: event.clientX, startY: event.clientY, x: state.x, y: state.y, moved: false };
+        drag = { pointerId: event.pointerId, button: event.button, space: event.button === 0 && spacePan, startX: event.clientX, startY: event.clientY, x: state.x, y: state.y, moved: false };
         container.classList.add('is-panning');
         try { container.setPointerCapture(event.pointerId); } catch (_) {}
       });
       container.addEventListener('pointermove', function (event) {
-        if (!drag) return;
+        if (!drag || drag.pointerId !== event.pointerId) return;
         var dx = event.clientX - drag.startX;
         var dy = event.clientY - drag.startY;
         if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
@@ -746,11 +930,19 @@
       });
       container.addEventListener('pointerup', onPointerEnd);
       container.addEventListener('pointercancel', onPointerEnd);
+      container.addEventListener('lostpointercapture', onPointerEnd);
+      container.addEventListener('click', function (event) {
+        if (panClickPointer !== null && event.detail !== 0 && !cameraControlTarget(event.target)) {
+          panClickPointer = null;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
+      }, true);
       container.addEventListener('contextmenu', function (event) {
         if (Date.now() < suppressContextMenuUntil && !cameraControlTarget(event.target)) event.preventDefault();
       });
       container.addEventListener('wheel', function (event) {
-        if (mobileScrollMode() || cameraControlTarget(event.target)) return;
+        if (!directNavigationEnabled() || cameraControlTarget(event.target)) return;
         event.preventDefault();
         try { container.focus({ preventScroll: true }); } catch (_) { container.focus(); }
         var nextWheelMode = event.ctrlKey || event.metaKey ? 'zoom' : 'pan';
@@ -761,8 +953,8 @@
           interruptCamera('wheel');
           var rect = captureInteractionGeometry();
           wheelGeometry = {
-            left: rect.left + interactionMetrics.offsetLeft,
-            top: rect.top + interactionMetrics.offsetTop
+            left: canvasGeometry ? canvasGeometry.originX : rect.left,
+            top: canvasGeometry ? canvasGeometry.originY : rect.top
           };
           wheelMode = nextWheelMode;
           if (wheelMode === 'pan') {
@@ -779,8 +971,8 @@
           wheelTimer = setTimeout(function () { finishWheelGesture(false); }, 120);
         } else {
           var deltaFactor = event.deltaMode === 1 ? 16 : (event.deltaMode === 2 ? container.clientHeight : 1);
-          wheelPanTarget.x -= event.deltaX * deltaFactor;
-          wheelPanTarget.y -= event.deltaY * deltaFactor;
+          wheelPanTarget.x = boundPosition(wheelPanTarget.x - event.deltaX * deltaFactor);
+          wheelPanTarget.y = boundPosition(wheelPanTarget.y - event.deltaY * deltaFactor);
           wheelPanInputEnded = false;
           scheduleWheelPan();
           wheelTimer = setTimeout(function () {
@@ -793,53 +985,75 @@
       }, { passive: false });
       window.addEventListener('keydown', function (event) {
         var activeTarget = document.activeElement;
-        if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || mobileScrollMode() ||
+        if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || !directNavigationEnabled() ||
             drag || keyboardInputTarget(event.target) || activeTarget !== container || !diagramInViewport()) return;
+        if (event.key === ' ') {
+          event.preventDefault();
+          spacePan = true;
+          container.classList.add('is-pan-ready');
+          return;
+        }
         if (!/^Arrow(Left|Right|Up|Down)$/.test(event.key)) return;
         event.preventDefault();
+        startKeyboardPan();
         keyboardDirections[event.key] = true;
         keyboardShift = event.shiftKey;
-        startKeyboardPan();
       });
       window.addEventListener('keyup', function (event) {
+        if (event.key === ' ') releasePanKey();
         if (event.key === 'Shift') keyboardShift = false;
         if (!/^Arrow(Left|Right|Up|Down)$/.test(event.key)) return;
         delete keyboardDirections[event.key];
         keyboardShift = event.shiftKey;
         if (!keyboardDirectionActive()) stopKeyboardPan();
       });
-      window.addEventListener('blur', stopKeyboardPan);
+      window.addEventListener('blur', leaveCanvas);
+      container.addEventListener('blur', leaveCanvas);
       container.addEventListener('scroll', onScroll, { passive: true });
-      window.addEventListener('scroll', syncNavigationDock, { passive: true });
+      window.addEventListener('scroll', function () {
+        refreshGeometry();
+        syncNavigationDock();
+        if (Archify.radar) Archify.radar.sync();
+      }, { passive: true });
       window.addEventListener('afterprint', function () {
         requestAnimationFrame(function () {
           requestAnimationFrame(resetNavigationDockLatch);
         });
       });
-      if (window.ResizeObserver) new ResizeObserver(syncNavigationDock).observe(container);
-      window.addEventListener('resize', function () {
+      function onGeometryChange() {
         if (resizeFrame) cancelAnimationFrame(resizeFrame);
         resizeFrame = requestAnimationFrame(function () {
           resizeFrame = 0;
-          if (state.mode === 'semantic') syncSemantic();
+          syncNavigationDock();
+          if (state.mode === 'fit') fitAll({ automatic: true });
+          else if (state.mode === 'semantic') syncSemantic();
           else apply();
         });
-      });
+      }
+      if (window.ResizeObserver) new ResizeObserver(onGeometryChange).observe(container);
+      window.addEventListener('resize', onGeometryChange);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', onGeometryChange);
+        window.visualViewport.addEventListener('scroll', onGeometryChange);
+      }
       window.addEventListener('hashchange', function () { requestAnimationFrame(syncSemantic); });
+      if (Archify.viewerChromeLayout && Archify.viewerChromeLayout.measure) Archify.viewerChromeLayout.measure();
       apply();
       pinControls();
       requestAnimationFrame(syncNavigationDock);
       requestAnimationFrame(syncSemantic);
 
       return {
-        zoomIn: function () { zoom(state.scale + 0.25); },
-        zoomOut: function () { zoom(state.scale - 0.25); },
+        zoomIn: function () { zoom(zoomStep(1)); },
+        zoomOut: function () { zoom(zoomStep(-1)); },
         zoomAt: zoomAt,
         panBy: panBy,
         fit: reset,
+        fitAll: fitAll,
         reset: reset,
         reveal: reveal,
         centerAt: centerAt,
+        settle: settleInteraction,
         logicalViewport: logicalViewport,
         worldViewport: worldViewport,
         sync: syncSemantic,

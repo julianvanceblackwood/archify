@@ -73,16 +73,15 @@ test('adaptive width preserves canonical SVG geometry and yields to specialized 
   assert.doesNotMatch(reader, /overflow\s*=\s*['"]hidden/);
 });
 
-test('reader remeasures real content and reduces width before allowing desktop page overflow', () => {
+test('document-flow fallback remeasures content while author guidance uses the fixed canvas contract', () => {
   assert.match(reader, /document\.fonts\.ready\.then\(schedule\)/);
   assert.match(reader, /new ResizeObserver\(schedule\)/);
   assert.match(reader, /new MutationObserver\(schedule\)/);
   assert.match(reader, /document\.documentElement\.scrollHeight/);
   assert.match(reader, /lastWidth - overflow \* ratio - 4/);
-  assert.match(skill, /1440×900, 1600×1000, and 1920×1080/);
-  assert.match(skill, /2048×1320/);
-  assert.match(skill, /Generate one responsive artifact for laptops and external displays/);
-  assert.match(skill, /preserve the authored SVG\/viewBox, proportions, semantic geometry/);
+  assert.match(skill, /fixed viewport canvas at CSS sizes ≥1024×600/);
+  assert.match(skill, /Preserve authored SVG\/viewBox, proportions, geometry and typography/);
+  assert.match(skill, /delivery-contract.md#viewer-containment-and-readability/);
 });
 
 test('reader exposes an explicit stable-dimensions contract for browser evidence', () => {

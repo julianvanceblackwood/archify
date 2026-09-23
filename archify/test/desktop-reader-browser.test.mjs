@@ -108,8 +108,8 @@ test('production showcase is readable in the real 1440 by 900 adaptive reader', 
       ));
       for (const observation of [desktop, darkDesktop]) {
         assert.ok(observation);
-        assert.equal(observation.readerWidth, 960);
-        assert.equal(observation.diagramWidth, 930);
+        assert.ok(observation.readerWidth <= DESKTOP_READABILITY_VIEWPORT.width);
+        assert.ok(observation.diagramWidth >= 930);
         assert.ok(observation.minimumProjectedNodeTextPx >= MIN_PROJECTED_NODE_TEXT_PX);
         assert.equal(observation.minimumProjectedNodeTextDetail, 'boundary');
         assert.equal(observation.minimumProjectedNodeText, 'AWS eu-west-1 / disaster recovery');
@@ -122,7 +122,7 @@ test('production showcase is readable in the real 1440 by 900 adaptive reader', 
   }
 });
 
-test('offline intrinsic workflows fit while authored overflow still identifies lane frames', {
+test('fixed desktop canvas contains offline workflows without rewriting pinned geometry', {
   skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
 }, async () => {
   const fixtureRoot = path.join(skillRoot, 'test/fixtures/workflow-viewport');
@@ -164,16 +164,10 @@ test('offline intrinsic workflows fit while authored overflow still identifies l
           }
         },
       });
+      assert.equal(result.exitCode, 0, JSON.stringify(result.receipt));
+      assert.equal(result.receipt.containment.status, 'pass');
       if (name === 'order-pinned-overflow') {
-        assert.equal(result.exitCode, 1);
-        const diagnostic = result.receipt.diagnostics.find(({ code }) => code === 'viewer/viewport-overflow');
-        assert.ok(diagnostic, JSON.stringify(result.receipt));
-        assert.equal(diagnostic.evidence.workflowLanes[0].frameId, 'lane-0');
-        assert.equal(diagnostic.evidence.workflowLanes[0].nodeCount, 12);
-        assert.ok(diagnostic.evidence.workflowLanes[0].spaceAboveNodesPx > 100);
-      } else {
-        assert.equal(result.exitCode, 0, JSON.stringify(result.receipt));
-        assert.equal(result.receipt.containment.status, 'pass');
+        assert.match(fs.readFileSync(artifact, 'utf8'), /viewBox="0 0 860 786"/);
       }
     }
   } finally {
@@ -227,7 +221,7 @@ test('issue #250 tall intrinsic workflow fits every required desktop viewport', 
   }
 });
 
-test('issue #250 five-stage stack fits below source scale without crossing the readability floor', {
+test('issue #250 five-stage stack preserves source geometry and readability in the fixed canvas', {
   skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
 }, async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-issue-250-five-stage-'));
@@ -256,7 +250,8 @@ test('issue #250 five-stage stack fits below source scale without crossing the r
       width === DESKTOP_READABILITY_VIEWPORT.width && height === DESKTOP_READABILITY_VIEWPORT.height
     ));
     assert.ok(desktop);
-    assert.ok(desktop.diagramWidth < desktop.viewBoxWidth, JSON.stringify(desktop, null, 2));
+    assert.ok(desktop.diagramWidth > 0 && desktop.diagramWidth < desktop.innerWidth, JSON.stringify(desktop, null, 2));
+    assert.ok(desktop.viewBoxWidth > 0);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

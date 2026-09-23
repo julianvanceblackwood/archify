@@ -39,6 +39,7 @@
       var relationshipHitTargets = [];
       var directPreviewTimer = null;
       var lensDrag = null;
+      var lensClickPointer = null;
       var manualLensPosition = null;
       var reachabilityMode = null;
       var activeReachability = null;
@@ -879,7 +880,12 @@
         else svg.appendChild(relationshipHitOverlay);
 
         relationshipHitOverlay.addEventListener('pointerdown', function (event) {
-          if (event.target.closest('[data-relationship-hit-key]')) event.stopPropagation();
+          // Relationship selection owns a plain primary click. Camera drag
+          // gestures must still reach the container when starting on an edge.
+          var pan = event.button === 1 || event.button === 2 ||
+            (event.button === 0 && (event.pointerType === 'touch' || event.pointerType === 'pen' ||
+              container.classList.contains('is-pan-ready')));
+          if (!pan && event.target.closest('[data-relationship-hit-key]')) event.stopPropagation();
         });
         relationshipHitOverlay.addEventListener('pointerover', function (event) {
           if (event.pointerType === 'touch') return;
@@ -1115,6 +1121,7 @@
         event.preventDefault();
         event.stopPropagation();
         var activeDrag = lensDrag;
+        if (activeDrag.moved) lensClickPointer = activeDrag.pointerId;
         lensDrag = null;
         chip.removeAttribute('data-panel-dragging');
         try { moveBtn.releasePointerCapture(event.pointerId); } catch (_) {}
@@ -1529,7 +1536,18 @@
         event.preventDefault();
         buttons[index].focus();
       });
+      // A drag cancelled by a breakpoint can release capture before mouseup.
+      // Consume its resulting click, but let a new pointer gesture or keyboard
+      // activation keep the normal outside-close behavior.
+      document.addEventListener('pointerdown', function () { lensClickPointer = null; }, true);
       document.addEventListener('click', function (event) {
+        if (lensClickPointer != null && event.detail > 0 &&
+            (event.pointerId == null || event.pointerId === lensClickPointer)) {
+          lensClickPointer = null;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return;
+        }
         var target = event.target;
         if (chip.hidden || !target || typeof target.closest !== 'function' || chip.contains(target)) return;
         if (container.getAttribute('data-just-panned') === 'true') return;
@@ -1555,7 +1573,8 @@
 
       installRelationshipHitTargets();
 
-      function syncFocusFromHash() {
+      function syncFocusFromHash(options) {
+        options = options || {};
         try {
           var params = new URLSearchParams(location.hash.replace(/^#/, ''));
           var relation = params.get('relation');
@@ -1563,7 +1582,7 @@
           var reach = params.get('reach');
           if (relation) {
             if (html.getAttribute('data-embed') === 'true' ||
-                !inspectRelationshipById(relation, { updateUrl: false, toggle: false })) clear({ updateUrl: false });
+                !inspectRelationshipById(relation, { updateUrl: false, toggle: false })) clear({ updateUrl: false, preserveView: options.preserveView === true });
           }
           else if (initial) {
             if (set(initial, { updateUrl: false, toggle: false }) &&
@@ -1571,12 +1590,12 @@
               applyReachability(reach, { updateUrl: false, toggle: false, reveal: false });
             }
           }
-          else if (!params.get('view')) clear({ updateUrl: false });
+          else if (!params.get('view')) clear({ updateUrl: false, preserveView: options.preserveView === true });
         } catch (_) {}
       }
 
       window.addEventListener('hashchange', syncFocusFromHash);
-      syncFocusFromHash();
+      syncFocusFromHash({ preserveView: true });
 
       return {
         set: set,

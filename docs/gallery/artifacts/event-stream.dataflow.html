@@ -858,6 +858,11 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       position: relative;
     }
 
+    .diagram-container:focus-visible {
+      outline: 2px solid var(--text);
+      outline-offset: 3px;
+    }
+
     .infinite-canvas-grid {
       position: absolute;
       z-index: 0;
@@ -1054,7 +1059,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     }
     .diagram-container.is-camera-transaction svg { transition: none; }
     .diagram-container.is-pannable { cursor: default; }
-    .diagram-container.is-panning { cursor: grabbing; user-select: none; }
+    .diagram-container.is-pan-ready,
+    .diagram-container.is-pan-ready > svg * { cursor: grab; }
+    .diagram-container.is-panning,
+    .diagram-container.is-panning > svg * { cursor: grabbing; user-select: none; }
     .diagram-container.is-panning svg,
     .diagram-container.is-keyboard-panning svg,
     .diagram-container.is-wheel-moving svg { transition: none; will-change: transform; }
@@ -3180,7 +3188,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         --external-fill:    rgba(148, 163, 184, 0.18);
         --external-stroke:  #64748b;
       }
-      body { background: #ffffff !important; padding: 0; }
+      body { background: #ffffff !important; min-height: 0; padding: 0; }
       .container { max-width: none; }
       .toolbar, .diagram-nav, .focus-chip, .guided-views, .archify-toast, .no-print { display: none !important; }
       .chapter-handoff-overlay { display: none !important; }
@@ -3188,7 +3196,18 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       svg[data-chapter-preview] [data-node-id],
       svg[data-chapter-preview] [data-edge-from] { opacity: 1 !important; filter: none !important; }
       .diagram-container, .card { box-shadow: none; border-color: #e2e8f0; }
-      .diagram-container { --archify-nav-reserve: 0px !important; }
+      .diagram-container { --archify-nav-reserve: 0px !important; overflow: visible !important; height: auto !important; }
+      /* Keep the complete viewBox on one sheet; print has no camera viewport.
+         Leave room for the document heading and the diagram's padding. */
+      .diagram-container > svg {
+        width: 100% !important;
+        min-width: 0 !important;
+        height: auto !important;
+        max-height: calc(100vh - 8rem);
+        transform: none !important;
+        clip-path: none !important;
+      }
+      .infinite-canvas-grid { display: none !important; }
       html[data-preset="signal-flow"] .diagram-container,
       html[data-preset="signal-flow"] .card { background: #ffffff; }
       .cards { grid-template-columns: 1fr 1fr; }
@@ -4189,58 +4208,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     svg[data-preset="blueprint"] .brand-mark-badge,
     svg[data-preset="blueprint"] .brand-mark-frame { rx: 1px; }
 
-    /* Reading Depth is a viewer-only level-of-detail layer. MAP preserves the
-       authored structure and primary labels, READ restores relationship labels
-       and node context, and FULL restores tags and fine annotations. Semantic
-       intent can reveal the relevant detail without moving any geometry. */
-    svg [data-detail] { transition: opacity 160ms ease; }
-    svg [data-detail-anchor] {
-      transform-box: fill-box;
-      transform-origin: center;
-      transition: transform 160ms ease;
-    }
-    .diagram-container[data-detail-level="map"] svg [data-detail="context"],
-    .diagram-container[data-detail-level="map"] svg [data-detail="fine"],
-    .diagram-container[data-detail-level="read"] svg [data-detail="fine"] {
-      opacity: 0;
-      pointer-events: none;
-    }
-    .diagram-container[data-detail-level="map"] svg [data-detail-anchor] {
-      transform: translateY(8px);
-    }
-
-    /* Focus, lens, preview, route, and story states are stronger reader intent than
-       the global zoom level. Reveal only their exact semantic matches. */
-    svg[data-focus-active] [data-focus-match][data-detail],
-    svg[data-focus-active] [data-focus-match] [data-detail],
-    svg[data-reach-active] [data-reach-match][data-detail],
-    svg[data-reach-active] [data-reach-match] [data-detail],
-    svg[data-lens-active] [data-lens-match][data-detail],
-    svg[data-lens-active] [data-lens-match] [data-detail],
-    svg[data-legend-preview-active] [data-legend-preview-match][data-detail],
-    svg[data-legend-preview-active] [data-legend-preview-match] [data-detail],
-    svg[data-intent-trace-active] [data-intent-trace-match][data-detail],
-    svg[data-intent-trace-active] [data-intent-trace-match] [data-detail],
-    svg[data-route-active] [data-route-match][data-detail],
-    svg[data-route-active] [data-route-match] [data-detail],
-    svg[data-story-active] [data-story-step][data-detail],
-    svg[data-story-active] [data-story-step] [data-detail],
-    svg[data-relationship-preview-active] [data-relationship-preview][data-detail],
-    svg[data-relationship-preview-active] [data-relationship-preview] [data-detail],
-    svg [data-node-id]:hover [data-detail],
-    svg [data-node-id]:focus-visible [data-detail] {
-      opacity: 1;
-      pointer-events: auto;
-    }
-    svg[data-focus-active] [data-focus-match] [data-detail-anchor],
-    svg[data-reach-active] [data-reach-match] [data-detail-anchor],
-    svg[data-lens-active] [data-lens-match] [data-detail-anchor],
-    svg[data-legend-preview-active] [data-legend-preview-match] [data-detail-anchor],
-    svg[data-intent-trace-active] [data-intent-trace-match] [data-detail-anchor],
-    svg[data-route-active] [data-route-match] [data-detail-anchor],
-    svg[data-story-active] [data-story-step] [data-detail-anchor],
-    svg [data-node-id]:hover [data-detail-anchor],
-    svg [data-node-id]:focus-visible [data-detail-anchor] { transform: none; }
+    /* Authored node context, tags and relationship labels remain visible at every
+       camera scale. Hover and semantic exploration highlight existing content. */
 
     /* Arrows */
     .a-default   { stroke: var(--arrow); fill: none; }
@@ -5035,6 +5004,144 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       .source-evidence-beacon,
       svg [data-node-id], svg [data-edge-from], svg [data-detail], svg [data-detail-anchor], svg [data-legend-hit], svg { transition: none !important; }
     }
+
+    @media (max-width: 720px) {
+      .diagram-container[data-wide-diagram] [data-view="fit-all"] { display: none; }
+    }
+
+    /* The document fallback keeps the one authored cards tree in normal flow. */
+    .diagram-notes, .diagram-notes-content { display: contents; }
+    .diagram-notes-heading, .diagram-notes-copy { display: none; }
+    .toolbar button[hidden] { display: none !important; }
+
+    @media screen and (min-width: 1024px) and (min-height: 600px) {
+      html[data-fixed-canvas] { height: 100%; overflow: hidden; }
+      html[data-fixed-canvas] body {
+        height: 100dvh;
+        min-height: 0;
+        padding: 0.75rem;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+      }
+      html[data-fixed-canvas] .toolbar {
+        position: relative;
+        inset: auto;
+        flex: none;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        min-width: 0;
+      }
+      html[data-fixed-canvas] .container {
+        flex: 1 1 auto;
+        min-height: 0;
+        min-width: 0;
+        max-width: none;
+        margin: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto minmax(0, 1fr);
+        gap: 0.625rem;
+      }
+      html[data-fixed-canvas][data-notes-open] .container {
+        grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+      }
+      html[data-fixed-canvas] .header {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+      }
+      html[data-fixed-canvas] .header-row { margin: 0; min-width: 0; }
+      html[data-fixed-canvas] .header-row .pulse-dot { flex-shrink: 0; }
+      html[data-fixed-canvas] h1, html[data-fixed-canvas] .subtitle {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      html[data-fixed-canvas] .guided-views {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        min-width: 0;
+        max-height: 25dvh;
+        overflow: auto;
+        overscroll-behavior: contain;
+        margin: 0;
+      }
+      html[data-fixed-canvas] .diagram-container {
+        grid-column: 1;
+        grid-row: 3;
+        min-width: 0;
+        min-height: 0;
+        width: 100%;
+        height: 100%;
+        padding: 1rem;
+        padding-bottom: calc(1rem + var(--archify-nav-reserve));
+        overflow: hidden;
+      }
+      html[data-fixed-canvas] .diagram-container > svg {
+        width: var(--archify-canvas-width);
+        height: var(--archify-canvas-height);
+        min-width: 0;
+        max-width: none;
+        /* Camera owns interpolation; layout changes must not animate a second transform. */
+        transition: none;
+      }
+      html[data-fixed-canvas] .diagram-notes { display: none; }
+      html[data-fixed-canvas][data-notes-open] .diagram-notes {
+        display: flex;
+        flex-direction: column;
+        grid-column: 2;
+        grid-row: 3;
+        min-width: 0;
+        min-height: 0;
+        border: 1px solid var(--panel-border);
+        border-radius: 0.75rem;
+        background: var(--panel);
+        overflow: hidden;
+      }
+      html[data-fixed-canvas] .diagram-notes-heading {
+        display: flex;
+        flex: none;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.625rem 0.875rem;
+        border-bottom: 1px solid var(--panel-border);
+      }
+      .diagram-notes-heading h2 { font-size: 0.875rem; }
+      .diagram-notes-heading button {
+        font: inherit;
+        font-size: 1.25rem;
+        color: var(--text);
+        background: var(--toolbar-bg);
+        border: 1px solid var(--toolbar-border);
+        border-radius: 0.375rem;
+        min-width: 2.5rem;
+        min-height: 2.5rem;
+        cursor: pointer;
+      }
+      html[data-fixed-canvas] .diagram-notes-content {
+        display: block;
+        min-height: 0;
+        min-width: 0;
+        overflow: auto;
+        overscroll-behavior: contain;
+        overflow-wrap: anywhere;
+        padding: 0.875rem;
+      }
+      html[data-fixed-canvas] .diagram-notes-copy:not([hidden]) { display: block; margin-bottom: 1rem; }
+      .diagram-notes-copy p { white-space: pre-wrap; font-size: 0.875rem; }
+      html[data-fixed-canvas] .cards { grid-template-columns: minmax(0, 1fr); margin: 0; gap: 0.75rem; }
+      html[data-fixed-canvas] .card { min-width: 0; padding: 0.875rem; }
+      .diagram-notes-content:focus-visible, .diagram-notes-heading button:focus-visible {
+        outline: 2px solid var(--frontend-stroke);
+        outline-offset: -2px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -5092,6 +5199,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       <span class="motion-control-dot" aria-hidden="true"></span>
       <span id="motion-label">Live</span>
     </button>
+    <button id="btn-diagram-notes" type="button" hidden aria-expanded="false" aria-controls="diagram-notes">Diagram notes</button>
     <button id="btn-present" type="button"
             title="Presentation stage (F)"
             aria-label="Enter presentation stage"
@@ -5150,7 +5258,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
     <script id="archify-guided-views-data" type="application/json">[{"id":"order-transit","label":"Order event transit","focus":["checkout","orders","validate","state","fulfillment"],"note":"Follow an order from producer through ordered processing to fulfillment."},{"id":"payment-transit","label":"Payment event transit","focus":["billing","payments","enrich","state","analytics"],"note":"Track payment facts into the shared materialized state and analytics."},{"id":"failure-and-replay","label":"Failure and replay","focus":["validate","enrich","dlq","replay","ops"],"note":"Isolate dead letters, operator review, and controlled replay ownership."}]</script>
 
-    <script id="archify-i18n-data" type="application/json">{"locale":"en","messages":{"viewer.kind.frontend":"Frontend","viewer.kind.backend":"Backend","viewer.kind.database":"Database","viewer.kind.cloud":"Cloud","viewer.kind.security":"Security","viewer.kind.messagebus":"Message bus","viewer.kind.external":"External","viewer.kind.neutral":"Neutral","viewer.kind.node":"Node","viewer.kind.start":"Start","viewer.kind.active":"Active","viewer.kind.waiting":"Waiting","viewer.kind.decision":"Decision","viewer.kind.success":"Success","viewer.kind.failure":"Failure","viewer.toolbar.actions":"Diagram actions","viewer.theme.toggle.title":"Toggle theme (T)","viewer.theme.toggle":"Toggle color theme","viewer.theme.dark":"Dark","viewer.theme.light":"Light","viewer.preset.choose.title":"Choose visual style (S cycles)","viewer.preset.choose":"Choose visual style","viewer.preset.style":"Style","viewer.preset.menu":"Visual style","viewer.preset.identity":"Visual identity","viewer.preset.cycles":"S cycles","viewer.preset.classic":"Classic","viewer.preset.classic.short":"Classic","viewer.preset.classic.hint":"Stable technical default","viewer.preset.flow":"Signal Flow","viewer.preset.flow.short":"Flow","viewer.preset.flow.hint":"Motion-forward presentation","viewer.preset.blueprint":"Blueprint","viewer.preset.blueprint.hint":"Engineering review","viewer.preset.editorial":"Editorial","viewer.preset.editorial.hint":"Publication and launch notes","viewer.preset.badge.signalFlow":"SIGNAL FLOW","viewer.preset.badge.blueprint":"BLUEPRINT / REV 01","viewer.preset.badge.editorial":"EDITORIAL / FIELD NOTE","viewer.preset.badge.editorialPlate":"ARCHIFY / PLATE 04","viewer.preset.current":"Visual style: {style}. Choose visual style","viewer.motion.live":"Live","viewer.motion.still":"Still","viewer.motion.pause":"Pause motion","viewer.motion.resume":"Resume motion","viewer.motion.reduced":"Motion paused by reduced-motion preference","viewer.motion.hidden":"Motion paused while this page is hidden","viewer.motion.yielding":"Pause motion; currently yielding to {owner}","viewer.motion.yielding.title":"Live preview enabled · yielding to {owner}","viewer.owner.story":"the guided story","viewer.owner.chapter":"the active chapter","viewer.owner.chapterPreview":"the chapter delta preview","viewer.owner.handoff":"the chapter handoff","viewer.owner.route":"Route Probe","viewer.owner.lens":"Semantic Lens","viewer.owner.relationship":"Relationship Preview","viewer.owner.intent":"Intent Trace","viewer.owner.focus":"semantic focus","viewer.owner.legend":"legend preview","viewer.owner.reader":"reader interaction","viewer.present.enter":"Enter presentation stage","viewer.present.enter.title":"Presentation stage (F)","viewer.present.exit":"Exit presentation stage","viewer.present.exit.title":"Exit presentation stage (F or Escape)","viewer.present.present":"Present","viewer.present.exit.label":"Exit","viewer.export.button":"Export","viewer.export.button.title":"Export diagram (E)","viewer.export.diagram":"Export diagram","viewer.export.menu":"Export","viewer.export.subtitle":"Portable, clean outputs","viewer.export.share":"Share","viewer.export.shareCard":"Share Card","viewer.export.routeShareCard":"Route Share Card","viewer.export.reachShareCard":"Reach Share Card","viewer.export.copyShareCard":"Copy Share Card","viewer.export.copyDiagram":"Copy diagram","viewer.export.clipboardPng":"PNG to clipboard","viewer.export.raster":"Raster images","viewer.export.image":"Image","viewer.export.lossless":"Lossless image","viewer.export.compact":"Compact image","viewer.export.modern":"Modern image","viewer.export.vectorMotion":"Vector and motion","viewer.export.vectorMotion.heading":"Vector \u0026 motion","viewer.export.editable":"Editable vector","viewer.export.motion6s":"6s motion","viewer.export.unsupported":"Not supported by this browser","viewer.export.clipboardUnsupported":"Clipboard image write not supported by this browser","viewer.export.clipboardUnsupported.period":"Clipboard image write not supported by this browser.","viewer.export.clipboardUnsupported.short":"Clipboard image write not supported in this browser.","viewer.export.motionUnavailable":"Motion capture unavailable in this browser","viewer.export.webmUnavailable":"WebM unavailable in this browser","viewer.export.failed":"Export failed: {message}","viewer.export.unknownVariant":"Unknown Share Card variant: {variant}","viewer.export.routeRequired":"Trace a route before exporting a Route Share Card","viewer.export.reachRequired":"Trace authored reach before exporting a Reach Share Card","viewer.export.unknown":"unknown","viewer.export.routeFailed":"Route Share Card export failed: {message}","viewer.export.reachFailed":"Reach Share Card export failed: {message}","viewer.export.copyFailed":"Copy failed: {message}","viewer.export.copiedPng":"Copied PNG to clipboard","viewer.export.copiedShare":"Copied Share Card","viewer.export.downloadedShare":"Downloaded Share Card","viewer.export.downloadedRoute":"Downloaded Route Share Card","viewer.export.downloadedReach":"Downloaded Reach Share Card","viewer.export.downloadedWebm":"Downloaded WebM","viewer.export.recording":"Recording 6 seconds of motion…","viewer.export.card.routeSummary.one":"Route: {source} → {target} · {count} directed hop","viewer.export.card.routeSummary.other":"Route: {source} → {target} · {count} directed hops","viewer.export.card.reachSummary":"Authored {direction} from {origin} · {nodes} · {links} · max {hops}","viewer.export.card.node.one":"{count} node","viewer.export.card.node.other":"{count} nodes","viewer.export.card.link.one":"{count} link","viewer.export.card.link.other":"{count} links","viewer.export.card.hop.one":"{count} hop","viewer.export.card.hop.other":"{count} hops","viewer.export.card.routeBadge":"ARCHIFY · ROUTE · {hops}","viewer.export.card.reachBadge":"ARCHIFY · {direction} REACH","viewer.export.card.defaultBadge":"ARCHIFY · {preset} · {theme}","viewer.export.direction.upstream":"Upstream","viewer.export.direction.downstream":"Downstream","viewer.export.error.canvasUnavailable":"Canvas unavailable for {label}","viewer.export.error.contextUnavailable":"2D canvas context unavailable for {label}","viewer.export.error.toBlobUnavailable":"canvas.toBlob unavailable for {label}","viewer.export.error.toBlobNull":"canvas.toBlob returned no data for {label}","viewer.export.error.variantsCombined":"Share Card variants cannot be combined","viewer.export.error.viewerState":"Share Card export could not remove temporary viewer state","viewer.export.error.routeState":"Route Card export could not preserve the resolved route safely","viewer.export.error.reachState":"Reach Card export could not preserve authored reach safely","viewer.export.error.webmRequirements":"WebM motion export requires a trace animation and browser MediaRecorder support","viewer.export.error.mediaRecorder":"MediaRecorder failed","viewer.export.error.emptyWebm":"MediaRecorder produced an empty WebM","viewer.export.error.webmBackground":"SVG background could not be loaded for WebM export","viewer.guided.region":"Guided diagram views","viewer.guided.previous":"Previous guided view","viewer.guided.previous.title":"Previous guided view ([)","viewer.guided.next":"Next guided view","viewer.guided.next.title":"Next guided view (])","viewer.guided.views":"Guided views","viewer.guided.explore":"Explore this system","viewer.guided.intro":"Step through curated paths without changing the source diagram.","viewer.guided.trail":"Story trail","viewer.guided.beat":"Beat","viewer.guided.nextBeat":"Next","viewer.guided.play":"Play guided story","viewer.guided.play.title":"Play guided story (P)","viewer.guided.pause":"Pause guided story","viewer.guided.pause.title":"Pause guided story (P)","viewer.guided.replay":"Replay guided story","viewer.guided.replay.title":"Replay guided story (P)","viewer.guided.playStory":"Play story","viewer.guided.pauseStory":"Pause","viewer.guided.replayStory":"Replay story","viewer.guided.motionUnavailable":"Story playback unavailable while motion is Still","viewer.guided.enableMotion":"Switch motion to Live to play the guided story","viewer.guided.selectBeatLink":"Select a Story Beat to copy its exact link","viewer.guided.copyMoment":"Copy moment","viewer.guided.momentCopied":"Moment link copied","viewer.guided.momentCopyFailed":"Could not copy story moment link","viewer.guided.copied":"Copied","viewer.guided.copyFailed":"Copy failed","viewer.guided.showAll":"Show all","viewer.guided.showAll.aria":"Show entire diagram","viewer.guided.chapters":"Story chapters","viewer.guided.storyTrail":"Story trail for {label}: {count} beats","viewer.guided.chapter.open":"Open chapter {index} of {total}: {label}, {count} stops","viewer.guided.chapter.current":"Current chapter {index} of {total}: {label}, {count} stops","viewer.guided.chapter.selectedNodes":"{count} selected nodes","viewer.guided.chapter.stops":"{count} stops","viewer.guided.chapter.stop.one":"{count} stop","viewer.guided.chapter.stop.other":"{count} stops","viewer.guided.chapter.current.title":"{label} — current chapter, {count} stops","viewer.guided.chapter.delta.expanded":"{stay} stay, {enter} enter, {leave} leave","viewer.guided.chapter.delta.aria":"Open chapter {index} of {total}: {label}. Chapter focus delta: {delta}","viewer.guided.chapter.delta.title":"{label} — {delta} chapter focus","viewer.guided.handoff":"{from} → {to} · via {label}","viewer.guided.share.chapter":"Chapter {index} / {total}","viewer.guided.share.initial":"Chapter 01 / 01","viewer.guided.share.default":"Guided chapter","viewer.guided.state.ready":"Ready","viewer.guided.state.playing":"Playing","viewer.guided.state.settled":"Settled","viewer.guided.state.paused":"Paused","viewer.guided.state.pinned":"Pinned","viewer.guided.state.still":"Still","viewer.guided.share.step":"Step {index} / {total} · {label}","viewer.guided.share.staticMoment":"{step} · Static moment","viewer.guided.share.complete":"{count} steps complete · {note}","viewer.guided.share.settled":"Path settled for reading.","viewer.guided.share.staticPath":"{count} steps · Static path","viewer.guided.share.ready":"{count} steps · Ready","viewer.guided.share.aria":"{state} chapter {index} of {total}: {label}. {beat}. {route}","viewer.guided.beat.start":"Beat {index} / {total} · {label} · starting point","viewer.guided.beat.forward":"Beat {index} / {total} · {from} → {to}","viewer.guided.beat.reverse":"Beat {index} / {total} · {from} → {to} · reverse authored link","viewer.guided.beat.multiple":"Beat {index} / {total} · {from} ⇄ {to} · {count} authored links","viewer.guided.beat.group":"Beat {index} / {total} · {from} · {to} · grouped · no direct link","viewer.guided.beat.aria.prefix":"Story beat {index} of {total}: {label}. ","viewer.guided.beat.aria.start":"Starting point.","viewer.guided.beat.aria.forward":"From {from} through one authored forward relationship.","viewer.guided.beat.aria.reverse":"From {from}; the authored relationship points from {to} to {from}.","viewer.guided.beat.aria.multiple":"From {from} through {count} authored relationships; shown without arbitrary motion.","viewer.guided.beat.aria.group":"Grouped from {from} with no direct authored relationship.","viewer.guided.caption.start":"Starting point","viewer.guided.caption.grouped":"Grouped transition · no direct authored link","viewer.guided.caption.more":" +{count} more","viewer.guided.caption.reverse":"Reverse authored relationship","viewer.guided.caption.relationships":"{count} authored relationships","viewer.guided.caption.relationship":"Authored relationship","viewer.guided.caption.direction":"authored direction: {from} → {to}","viewer.guided.caption.starting":"Authored starting point","viewer.guided.beatLink":"Copy link to current story moment: Beat {index} of {total}: {label}","viewer.guided.noStory":"This diagram has no authored guided story.","viewer.guide.eyebrow":"Diagram guide","viewer.guide.close":"Close diagram guide","viewer.guide.inspecting":"Inspecting compiled semantics","viewer.guide.actions":"Diagram exploration actions","viewer.guide.find":"Find any node","viewer.guide.find.hint":"Search labels, responsibilities, kinds, and stable IDs.","viewer.guide.route":"Trace a route","viewer.guide.route.aria":"Trace a directed route","viewer.guide.route.hint":"Ask how two semantic nodes connect in authored direction.","viewer.guide.map":"See the whole system","viewer.guide.map.hint":"Open Semantic Radar with a live viewport and stable nodes.","viewer.guide.lens":"Compare semantic kinds","viewer.guide.lens.hint":"Count roles, reveal their traffic, and compare direct authored links.","viewer.guide.story":"Play the guided story","viewer.guide.story.hint":"Walk the authored chapters and real relationships.","viewer.guide.present":"Enter Presentation Stage","viewer.guide.present.hint":"Give the live diagram the viewport without changing export.","viewer.guide.shortcuts":"Additional keyboard shortcuts","viewer.guide.shortcut.export":"Export","viewer.guide.shortcut.theme":"Theme","viewer.guide.shortcut.style":"Style","viewer.guide.shortcut.reset":"Reset","viewer.guide.shortcut.zoomIn":"Zoom in","viewer.guide.shortcut.zoomOut":"Zoom out","viewer.guide.shortcut.close":"Close","viewer.guide.facts":"{nodes} · {relationships} · {views}","viewer.guide.fact.node.one":"{count} semantic node","viewer.guide.fact.node.other":"{count} semantic nodes","viewer.guide.fact.relationship.one":"{count} relationship","viewer.guide.fact.relationship.other":"{count} relationships","viewer.guide.fact.view.one":"{count} guided view","viewer.guide.fact.view.other":"{count} guided views","viewer.guide.story.available.one":"Walk {count} authored chapter and its real relationships.","viewer.guide.story.available.other":"Walk {count} authored chapters and their real relationships.","viewer.guide.story.unavailable":"No authored guided story in this diagram.","viewer.guide.open":"Open diagram guide","viewer.guide.noStory":"This diagram has no authored guided story.","viewer.finder.title":"Find a node","viewer.finder.close":"Close node finder","viewer.finder.placeholder":"Search labels or IDs","viewer.finder.search":"Search diagram nodes","viewer.finder.results":"Diagram nodes","viewer.finder.empty":"No matching nodes","viewer.finder.result.focus":"Focus {label}","viewer.finder.result.routeStart":"Choose {label} as route start","viewer.finder.result.routeTarget":"Choose {label} as route destination, {links}","viewer.finder.status.empty":"No matching nodes","viewer.finder.status.count.one":"{count} matching node","viewer.finder.status.count.other":"{count} matching nodes","viewer.finder.noun.nodes":"nodes","viewer.finder.link.one":"{count} link","viewer.finder.link.other":"{count} links","viewer.finder.result.focus.one":"Focus {label}, {count} related connection","viewer.finder.result.focus.other":"Focus {label}, {count} related connections","viewer.finder.status.filtered":"{visible} of {available} {noun}","viewer.finder.status.all":"{available} {noun}","viewer.passport.eyebrow":"Semantic passport","viewer.passport.metadata":"Node metadata","viewer.passport.evidence":"Verified source evidence","viewer.passport.verified":"Verified source","viewer.passport.verificationScope":"Verified against local Git at the pinned revision. Remote access has not been checked.","viewer.passport.reach":"Authored reach","viewer.passport.reach.trace":"Trace authored reachability","viewer.passport.upstream":"Upstream","viewer.passport.downstream":"Downstream","viewer.passport.upstream.trace":"Trace upstream authored reachability","viewer.passport.downstream.trace":"Trace downstream authored reachability","viewer.passport.close":"Close semantic passport","viewer.passport.move":"Move semantic passport. Drag, use arrow keys, or press Home to reset.","viewer.passport.copy":"Copy link","viewer.passport.copy.focus":"Copy link to focused node","viewer.passport.relations":"Relations","viewer.passport.relations.show":"Show connected relationships","viewer.passport.relations.hide":"Hide connected relationships","viewer.passport.relations.list":"Connected relationships","viewer.passport.copyRelation":"Copy relation","viewer.passport.copyNode":"Copy node","viewer.passport.copyPinned":"Copy link to pinned relationship","viewer.passport.copySource":"Copy link to source node","viewer.passport.copy.focused.success":"Focused node link copied","viewer.passport.copy.pinned.success":"Pinned relationship link copied","viewer.passport.copy.focused.failed":"Could not copy focused node link","viewer.passport.copy.pinned.failed":"Could not copy pinned relationship link","viewer.passport.relationship.none":"No connected relationships","viewer.passport.relationship.count.one":"{count} relation","viewer.passport.relationship.count.other":"{count} relations","viewer.passport.relationship.show.one":"Show {count} connected relationship","viewer.passport.relationship.show.other":"Show {count} connected relationships","viewer.passport.relationship.summary":"{out} outgoing · {in} incoming{loops}","viewer.passport.relationship.loops":" · {count} loop","viewer.passport.relationship.explorer":"Direct relationship explorer","viewer.passport.relationship.help":"Use arrow keys to explore relationships. Press Enter or Space to pin details; Escape clears.","viewer.passport.relationship.loopsBack":"loops back","viewer.passport.relationship.connectsTo":"connects to","viewer.passport.relationship.connectsFrom":"connects from","viewer.passport.relationship.pinned":"Pinned relationship · {from} → {to} · {label}","viewer.passport.relationship.inspect":"Inspect relationship {index} of {total}: {from} to {to}, {label}. Press Enter for details.","viewer.passport.relationship.group.out":"Outgoing","viewer.passport.relationship.group.in":"Incoming","viewer.passport.relationship.group.loop":"Self loops","viewer.passport.relationship.row":"{group}: {relationship}, {neighbor}","viewer.passport.relationship.direction.out":"OUT →","viewer.passport.relationship.direction.in":"← IN","viewer.passport.relationship.direction.loop":"LOOP","viewer.passport.sourceCount.one":"{count} verified source reference","viewer.passport.sourceCount.other":"{count} verified source references","viewer.passport.sourceMarker":"SRC","viewer.passport.beacon.one":"{count} verified source; focus this node to inspect","viewer.passport.beacon.other":"{count} verified sources; focus this node to inspect","viewer.passport.repository.open":"Open verified repository revision {revision}","viewer.passport.source.open":"Open verified source {path} at revision {revision}","viewer.passport.source.openLink":"Open ↗","viewer.passport.reach.upstream.one":"Trace {count} upstream authored node","viewer.passport.reach.upstream.other":"Trace {count} upstream authored nodes","viewer.passport.reach.downstream.one":"Trace {count} downstream authored node","viewer.passport.reach.downstream.other":"Trace {count} downstream authored nodes","viewer.passport.reach.noUpstream":"No upstream authored nodes","viewer.passport.reach.noDownstream":"No downstream authored nodes","viewer.passport.reach.status":"{direction} · {nodes} nodes · {links} links · max {hops} hops","viewer.route.eyebrow":"Route probe","viewer.route.start":"Choose a start node","viewer.route.start.find":"Find start","viewer.route.start.find.aria":"Find a route start","viewer.route.copy":"Copy link","viewer.route.copy.aria":"Copy link to traced route","viewer.route.clear":"Clear","viewer.route.clear.aria":"Clear route probe","viewer.route.traced":"Traced route","viewer.route.pickTwo":"Pick two semantic nodes on the diagram","viewer.route.pickOne":"Pick a semantic node on the diagram","viewer.route.controls":"Route journey controls","viewer.route.previous":"Previous route position","viewer.route.play":"Play route journey","viewer.route.pause":"Pause route journey","viewer.route.replay":"Replay route journey","viewer.route.next":"Next route position","viewer.route.journey":"Journey","viewer.route.pause.label":"Pause","viewer.route.replay.label":"Replay","viewer.route.overview":"Overview","viewer.route.overview.aria":"Show complete route overview","viewer.route.instructions":"Choose the source, then the destination. Direction matters.","viewer.route.destination":"Choose a destination from {label}","viewer.route.destination.find":"Find target","viewer.route.destination.find.aria":"Find a reachable route destination","viewer.route.differentDestination":"Choose a different destination","viewer.route.distinct":"A route needs two distinct semantic nodes.","viewer.route.unreachable":"No directed route to {label}","viewer.route.unreachable.detail":"{target} is not reachable from {source}. Pick a highlighted destination.","viewer.route.start.instructions":"Select the source. The next step will reveal only directed destinations.","viewer.route.copy.success":"Traced route link copied","viewer.route.copy.failed":"Could not copy traced route link","viewer.route.position":"Route position {index} of {total}: {label}","viewer.route.step":"Step {index} of {total} · {phase} · {label}","viewer.route.motionRequired":"Automatic journey requires Live motion","viewer.route.trigger.clear":"Clear traced route","viewer.route.overview.status":"{nodes} · {hops} · shortest authored route","viewer.route.overview.node.one":"{count} node","viewer.route.overview.node.other":"{count} nodes","viewer.route.overview.hop.one":"{count} directed hop","viewer.route.overview.hop.other":"{count} directed hops","viewer.route.phase.playing":"Playing","viewer.route.phase.complete":"Complete","viewer.route.phase.inspecting":"Inspecting","viewer.route.destination.count.one":"{count} directed destination available. Pick a highlighted node.","viewer.route.destination.count.other":"{count} directed destinations available. Pick a highlighted node.","viewer.route.noOutgoing":"No outgoing route starts here. Clear and choose another source.","viewer.route.result.title":"{source} to {target}","viewer.route.finder.source.title":"Choose route start","viewer.route.finder.source.placeholder":"Search route sources","viewer.route.finder.source.empty":"No matching route sources","viewer.route.finder.source.results":"Nodes that can start a route","viewer.route.finder.source.noun":"route sources","viewer.route.finder.source.badge":"start","viewer.route.finder.target.title":"Destination from {label}","viewer.route.finder.target.placeholder":"Search reachable destinations","viewer.route.finder.target.empty":"No matching reachable destinations","viewer.route.finder.target.results":"Reachable route destinations","viewer.route.finder.target.noun":"reachable destinations","viewer.route.hop.one":"{count} hop","viewer.route.hop.other":"{count} hops","viewer.lens.eyebrow":"Semantic lens","viewer.lens.title":"Compare system roles","viewer.lens.close":"Close semantic lens","viewer.lens.instruction":"Choose up to two semantic kinds. One reveals its real traffic; two compare only direct authored relationships.","viewer.lens.kinds":"Semantic kinds","viewer.lens.choose":"Choose a kind to inspect its nodes and touching relationships.","viewer.lens.copy":"Copy link to semantic lens","viewer.lens.clear":"Clear semantic lens","viewer.lens.open":"Open semantic lens","viewer.lens.openActive":"Open active semantic lens","viewer.lens.legend":"Semantic legend","viewer.lens.legend.inspect.one":"Inspect {label}, {count} node","viewer.lens.legend.inspect.other":"Inspect {label}, {count} nodes","viewer.lens.kind.count.one":"{label}, {count} node","viewer.lens.kind.count.other":"{label}, {count} nodes","viewer.lens.compare.one":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationship","viewer.lens.compare.other":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationships","viewer.lens.single":"{nodes} · {relationships} · connected peers remain visible","viewer.lens.node.one":"{count} {label} node","viewer.lens.node.other":"{count} {label} nodes","viewer.lens.relationship.one":"{count} touching relationship","viewer.lens.relationship.other":"{count} touching relationships","viewer.radar.title":"Semantic radar","viewer.radar.building":"Building overview","viewer.radar.openFull":"Open full semantic radar","viewer.radar.open":"Open radar","viewer.radar.close":"Close semantic radar","viewer.radar.surface":"Diagram overview. Click a node to focus it, or use arrow keys to pan.","viewer.radar.click":"Click node","viewer.radar.drag":"Drag to pan","viewer.radar.space":"Semantic radar needs more MAP space.","viewer.radar.nodes":"Semantic diagram radar nodes","viewer.radar.focus":"Focus {label} from Semantic Radar","viewer.radar.status":"{count} nodes · {viewport}","viewer.radar.fullMap":"{count} nodes · full map","viewer.radar.compacted":"Radar compacted to avoid covering the Semantic Passport or MAP controls.","viewer.radar.cancelWaiting":"Cancel semantic radar waiting for more MAP space","viewer.radar.needsSpace":"Semantic radar needs more visible MAP space","viewer.radar.viewport.full":"full map","viewer.radar.viewport.width":"{percent}% width","viewer.radar.viewport.scale":"{percent}% viewport","viewer.nav.controls":"Diagram view controls","viewer.nav.route":"Trace a directed route","viewer.nav.route.title":"Trace route (R)","viewer.nav.route.short":"PATH","viewer.nav.radar":"Open semantic radar","viewer.nav.radar.title":"Semantic radar (M)","viewer.nav.radar.short":"MAP","viewer.nav.lens":"Open semantic lens","viewer.nav.lens.title":"Semantic lens (L)","viewer.nav.lens.short":"LENS","viewer.nav.find":"Find a node","viewer.nav.find.title":"Find a node (/)","viewer.nav.guide":"Open diagram guide","viewer.nav.guide.title":"Diagram guide (?)","viewer.nav.zoomOut":"Zoom out","viewer.nav.zoomOut.title":"Zoom out (-)","viewer.nav.reset":"Reset diagram view","viewer.nav.reset.title":"Reset view (0)","viewer.nav.read":"READ","viewer.nav.zoomIn":"Zoom in","viewer.nav.zoomIn.title":"Zoom in (+)","viewer.nav.camera":"{hint}. Reset diagram view","viewer.nav.camera.title":"{semantic}{hint} · reset view (0)","viewer.nav.camera.semantic":"Semantic camera active · ","viewer.nav.level.map":"MAP","viewer.nav.level.read":"READ","viewer.nav.level.full":"FULL","viewer.nav.level.auto":"AUTO","viewer.nav.detail.map":"Zoom in to reveal relationship labels and node context","viewer.nav.detail.read":"Zoom in again to reveal tags and annotations","viewer.nav.detail.full":"Full diagram detail","viewer.intent.summary":"{label}. {out} outgoing, {in} incoming{loops}. {total} connections. Press Enter for details.","viewer.intent.loops":", {count} self loop","viewer.common.copied":"Copied","viewer.common.copyFailed":"Copy failed","viewer.common.copyLink":"Copy link","viewer.common.clear":"Clear","viewer.common.close":"Close"}}</script>
+    <script id="archify-i18n-data" type="application/json">{"locale":"en","messages":{"viewer.kind.frontend":"Frontend","viewer.kind.backend":"Backend","viewer.kind.database":"Database","viewer.kind.cloud":"Cloud","viewer.kind.security":"Security","viewer.kind.messagebus":"Message bus","viewer.kind.external":"External","viewer.kind.neutral":"Neutral","viewer.kind.node":"Node","viewer.kind.start":"Start","viewer.kind.active":"Active","viewer.kind.waiting":"Waiting","viewer.kind.decision":"Decision","viewer.kind.success":"Success","viewer.kind.failure":"Failure","viewer.toolbar.actions":"Diagram actions","viewer.theme.toggle.title":"Toggle theme (T)","viewer.theme.toggle":"Toggle color theme","viewer.theme.dark":"Dark","viewer.theme.light":"Light","viewer.preset.choose.title":"Choose visual style (S cycles)","viewer.preset.choose":"Choose visual style","viewer.preset.style":"Style","viewer.preset.menu":"Visual style","viewer.preset.identity":"Visual identity","viewer.preset.cycles":"S cycles","viewer.preset.classic":"Classic","viewer.preset.classic.short":"Classic","viewer.preset.classic.hint":"Stable technical default","viewer.preset.flow":"Signal Flow","viewer.preset.flow.short":"Flow","viewer.preset.flow.hint":"Motion-forward presentation","viewer.preset.blueprint":"Blueprint","viewer.preset.blueprint.hint":"Engineering review","viewer.preset.editorial":"Editorial","viewer.preset.editorial.hint":"Publication and launch notes","viewer.preset.badge.signalFlow":"SIGNAL FLOW","viewer.preset.badge.blueprint":"BLUEPRINT / REV 01","viewer.preset.badge.editorial":"EDITORIAL / FIELD NOTE","viewer.preset.badge.editorialPlate":"ARCHIFY / PLATE 04","viewer.preset.current":"Visual style: {style}. Choose visual style","viewer.motion.live":"Live","viewer.motion.still":"Still","viewer.motion.pause":"Pause motion","viewer.motion.resume":"Resume motion","viewer.motion.reduced":"Motion paused by reduced-motion preference","viewer.motion.hidden":"Motion paused while this page is hidden","viewer.motion.yielding":"Pause motion; currently yielding to {owner}","viewer.motion.yielding.title":"Live preview enabled · yielding to {owner}","viewer.owner.story":"the guided story","viewer.owner.chapter":"the active chapter","viewer.owner.chapterPreview":"the chapter delta preview","viewer.owner.handoff":"the chapter handoff","viewer.owner.route":"Route Probe","viewer.owner.lens":"Semantic Lens","viewer.owner.relationship":"Relationship Preview","viewer.owner.intent":"Intent Trace","viewer.owner.focus":"semantic focus","viewer.owner.legend":"legend preview","viewer.owner.reader":"reader interaction","viewer.present.enter":"Enter presentation stage","viewer.present.enter.title":"Presentation stage (F)","viewer.present.exit":"Exit presentation stage","viewer.present.exit.title":"Exit presentation stage (F or Escape)","viewer.present.present":"Present","viewer.present.exit.label":"Exit","viewer.export.button":"Export","viewer.export.button.title":"Export diagram (E)","viewer.export.diagram":"Export diagram","viewer.export.menu":"Export","viewer.export.subtitle":"Portable, clean outputs","viewer.export.share":"Share","viewer.export.shareCard":"Share Card","viewer.export.routeShareCard":"Route Share Card","viewer.export.reachShareCard":"Reach Share Card","viewer.export.copyShareCard":"Copy Share Card","viewer.export.copyDiagram":"Copy diagram","viewer.export.clipboardPng":"PNG to clipboard","viewer.export.raster":"Raster images","viewer.export.image":"Image","viewer.export.lossless":"Lossless image","viewer.export.compact":"Compact image","viewer.export.modern":"Modern image","viewer.export.vectorMotion":"Vector and motion","viewer.export.vectorMotion.heading":"Vector \u0026 motion","viewer.export.editable":"Editable vector","viewer.export.motion6s":"6s motion","viewer.export.unsupported":"Not supported by this browser","viewer.export.clipboardUnsupported":"Clipboard image write not supported by this browser","viewer.export.clipboardUnsupported.period":"Clipboard image write not supported by this browser.","viewer.export.clipboardUnsupported.short":"Clipboard image write not supported in this browser.","viewer.export.motionUnavailable":"Motion capture unavailable in this browser","viewer.export.webmUnavailable":"WebM unavailable in this browser","viewer.export.failed":"Export failed: {message}","viewer.export.unknownVariant":"Unknown Share Card variant: {variant}","viewer.export.routeRequired":"Trace a route before exporting a Route Share Card","viewer.export.reachRequired":"Trace authored reach before exporting a Reach Share Card","viewer.export.unknown":"unknown","viewer.export.routeFailed":"Route Share Card export failed: {message}","viewer.export.reachFailed":"Reach Share Card export failed: {message}","viewer.export.copyFailed":"Copy failed: {message}","viewer.export.copiedPng":"Copied PNG to clipboard","viewer.export.copiedShare":"Copied Share Card","viewer.export.downloadedShare":"Downloaded Share Card","viewer.export.downloadedRoute":"Downloaded Route Share Card","viewer.export.downloadedReach":"Downloaded Reach Share Card","viewer.export.downloadedWebm":"Downloaded WebM","viewer.export.recording":"Recording 6 seconds of motion…","viewer.export.card.routeSummary.one":"Route: {source} → {target} · {count} directed hop","viewer.export.card.routeSummary.other":"Route: {source} → {target} · {count} directed hops","viewer.export.card.reachSummary":"Authored {direction} from {origin} · {nodes} · {links} · max {hops}","viewer.export.card.node.one":"{count} node","viewer.export.card.node.other":"{count} nodes","viewer.export.card.link.one":"{count} link","viewer.export.card.link.other":"{count} links","viewer.export.card.hop.one":"{count} hop","viewer.export.card.hop.other":"{count} hops","viewer.export.card.routeBadge":"ARCHIFY · ROUTE · {hops}","viewer.export.card.reachBadge":"ARCHIFY · {direction} REACH","viewer.export.card.defaultBadge":"ARCHIFY · {preset} · {theme}","viewer.export.direction.upstream":"Upstream","viewer.export.direction.downstream":"Downstream","viewer.export.error.canvasUnavailable":"Canvas unavailable for {label}","viewer.export.error.contextUnavailable":"2D canvas context unavailable for {label}","viewer.export.error.toBlobUnavailable":"canvas.toBlob unavailable for {label}","viewer.export.error.toBlobNull":"canvas.toBlob returned no data for {label}","viewer.export.error.variantsCombined":"Share Card variants cannot be combined","viewer.export.error.viewerState":"Share Card export could not remove temporary viewer state","viewer.export.error.routeState":"Route Card export could not preserve the resolved route safely","viewer.export.error.reachState":"Reach Card export could not preserve authored reach safely","viewer.export.error.webmRequirements":"WebM motion export requires a trace animation and browser MediaRecorder support","viewer.export.error.mediaRecorder":"MediaRecorder failed","viewer.export.error.emptyWebm":"MediaRecorder produced an empty WebM","viewer.export.error.webmBackground":"SVG background could not be loaded for WebM export","viewer.guided.region":"Guided diagram views","viewer.guided.previous":"Previous guided view","viewer.guided.previous.title":"Previous guided view ([)","viewer.guided.next":"Next guided view","viewer.guided.next.title":"Next guided view (])","viewer.guided.views":"Guided views","viewer.guided.explore":"Explore this system","viewer.guided.intro":"Step through curated paths without changing the source diagram.","viewer.guided.trail":"Story trail","viewer.guided.beat":"Beat","viewer.guided.nextBeat":"Next","viewer.guided.play":"Play guided story","viewer.guided.play.title":"Play guided story (P)","viewer.guided.pause":"Pause guided story","viewer.guided.pause.title":"Pause guided story (P)","viewer.guided.replay":"Replay guided story","viewer.guided.replay.title":"Replay guided story (P)","viewer.guided.playStory":"Play story","viewer.guided.pauseStory":"Pause","viewer.guided.replayStory":"Replay story","viewer.guided.motionUnavailable":"Story playback unavailable while motion is Still","viewer.guided.enableMotion":"Switch motion to Live to play the guided story","viewer.guided.selectBeatLink":"Select a Story Beat to copy its exact link","viewer.guided.copyMoment":"Copy moment","viewer.guided.momentCopied":"Moment link copied","viewer.guided.momentCopyFailed":"Could not copy story moment link","viewer.guided.copied":"Copied","viewer.guided.copyFailed":"Copy failed","viewer.guided.showAll":"Show all","viewer.guided.showAll.aria":"Show entire diagram","viewer.guided.chapters":"Story chapters","viewer.guided.storyTrail":"Story trail for {label}: {count} beats","viewer.guided.chapter.open":"Open chapter {index} of {total}: {label}, {count} stops","viewer.guided.chapter.current":"Current chapter {index} of {total}: {label}, {count} stops","viewer.guided.chapter.selectedNodes":"{count} selected nodes","viewer.guided.chapter.stops":"{count} stops","viewer.guided.chapter.stop.one":"{count} stop","viewer.guided.chapter.stop.other":"{count} stops","viewer.guided.chapter.current.title":"{label} — current chapter, {count} stops","viewer.guided.chapter.delta.expanded":"{stay} stay, {enter} enter, {leave} leave","viewer.guided.chapter.delta.aria":"Open chapter {index} of {total}: {label}. Chapter focus delta: {delta}","viewer.guided.chapter.delta.title":"{label} — {delta} chapter focus","viewer.guided.handoff":"{from} → {to} · via {label}","viewer.guided.share.chapter":"Chapter {index} / {total}","viewer.guided.share.initial":"Chapter 01 / 01","viewer.guided.share.default":"Guided chapter","viewer.guided.state.ready":"Ready","viewer.guided.state.playing":"Playing","viewer.guided.state.settled":"Settled","viewer.guided.state.paused":"Paused","viewer.guided.state.pinned":"Pinned","viewer.guided.state.still":"Still","viewer.guided.share.step":"Step {index} / {total} · {label}","viewer.guided.share.staticMoment":"{step} · Static moment","viewer.guided.share.complete":"{count} steps complete · {note}","viewer.guided.share.settled":"Path settled for reading.","viewer.guided.share.staticPath":"{count} steps · Static path","viewer.guided.share.ready":"{count} steps · Ready","viewer.guided.share.aria":"{state} chapter {index} of {total}: {label}. {beat}. {route}","viewer.guided.beat.start":"Beat {index} / {total} · {label} · starting point","viewer.guided.beat.forward":"Beat {index} / {total} · {from} → {to}","viewer.guided.beat.reverse":"Beat {index} / {total} · {from} → {to} · reverse authored link","viewer.guided.beat.multiple":"Beat {index} / {total} · {from} ⇄ {to} · {count} authored links","viewer.guided.beat.group":"Beat {index} / {total} · {from} · {to} · grouped · no direct link","viewer.guided.beat.aria.prefix":"Story beat {index} of {total}: {label}. ","viewer.guided.beat.aria.start":"Starting point.","viewer.guided.beat.aria.forward":"From {from} through one authored forward relationship.","viewer.guided.beat.aria.reverse":"From {from}; the authored relationship points from {to} to {from}.","viewer.guided.beat.aria.multiple":"From {from} through {count} authored relationships; shown without arbitrary motion.","viewer.guided.beat.aria.group":"Grouped from {from} with no direct authored relationship.","viewer.guided.caption.start":"Starting point","viewer.guided.caption.grouped":"Grouped transition · no direct authored link","viewer.guided.caption.more":" +{count} more","viewer.guided.caption.reverse":"Reverse authored relationship","viewer.guided.caption.relationships":"{count} authored relationships","viewer.guided.caption.relationship":"Authored relationship","viewer.guided.caption.direction":"authored direction: {from} → {to}","viewer.guided.caption.starting":"Authored starting point","viewer.guided.beatLink":"Copy link to current story moment: Beat {index} of {total}: {label}","viewer.guided.noStory":"This diagram has no authored guided story.","viewer.guide.eyebrow":"Diagram guide","viewer.guide.close":"Close diagram guide","viewer.guide.inspecting":"Inspecting compiled semantics","viewer.guide.actions":"Diagram exploration actions","viewer.guide.find":"Find any node","viewer.guide.find.hint":"Search labels, responsibilities, kinds, and stable IDs.","viewer.guide.route":"Trace a route","viewer.guide.route.aria":"Trace a directed route","viewer.guide.route.hint":"Ask how two semantic nodes connect in authored direction.","viewer.guide.map":"See the whole system","viewer.guide.map.hint":"Open Semantic Radar with a live viewport and stable nodes.","viewer.guide.lens":"Compare semantic kinds","viewer.guide.lens.hint":"Count roles, reveal their traffic, and compare direct authored links.","viewer.guide.story":"Play the guided story","viewer.guide.story.hint":"Walk the authored chapters and real relationships.","viewer.guide.present":"Enter Presentation Stage","viewer.guide.present.hint":"Give the live diagram the viewport without changing export.","viewer.guide.canvas":"Click or Tab into the canvas. Pan with right-drag, middle-drag, or Space + left-drag. Scroll or use arrow keys to pan; Ctrl/Cmd + scroll zooms at the pointer. Reset with 0.","viewer.guide.shortcuts":"Additional keyboard shortcuts","viewer.guide.shortcut.export":"Export","viewer.guide.shortcut.theme":"Theme","viewer.guide.shortcut.style":"Style","viewer.guide.shortcut.reset":"Reset","viewer.guide.shortcut.zoomIn":"Zoom in","viewer.guide.shortcut.zoomOut":"Zoom out","viewer.guide.shortcut.close":"Close","viewer.guide.facts":"{nodes} · {relationships} · {views}","viewer.guide.fact.node.one":"{count} semantic node","viewer.guide.fact.node.other":"{count} semantic nodes","viewer.guide.fact.relationship.one":"{count} relationship","viewer.guide.fact.relationship.other":"{count} relationships","viewer.guide.fact.view.one":"{count} guided view","viewer.guide.fact.view.other":"{count} guided views","viewer.guide.story.available.one":"Walk {count} authored chapter and its real relationships.","viewer.guide.story.available.other":"Walk {count} authored chapters and their real relationships.","viewer.guide.story.unavailable":"No authored guided story in this diagram.","viewer.guide.open":"Open diagram guide","viewer.guide.noStory":"This diagram has no authored guided story.","viewer.finder.title":"Find a node","viewer.finder.close":"Close node finder","viewer.finder.placeholder":"Search labels or IDs","viewer.finder.search":"Search diagram nodes","viewer.finder.results":"Diagram nodes","viewer.finder.empty":"No matching nodes","viewer.finder.result.focus":"Focus {label}","viewer.finder.result.routeStart":"Choose {label} as route start","viewer.finder.result.routeTarget":"Choose {label} as route destination, {links}","viewer.finder.status.empty":"No matching nodes","viewer.finder.status.count.one":"{count} matching node","viewer.finder.status.count.other":"{count} matching nodes","viewer.finder.noun.nodes":"nodes","viewer.finder.link.one":"{count} link","viewer.finder.link.other":"{count} links","viewer.finder.result.focus.one":"Focus {label}, {count} related connection","viewer.finder.result.focus.other":"Focus {label}, {count} related connections","viewer.finder.status.filtered":"{visible} of {available} {noun}","viewer.finder.status.all":"{available} {noun}","viewer.passport.eyebrow":"Semantic passport","viewer.passport.metadata":"Node metadata","viewer.passport.evidence":"Verified source evidence","viewer.passport.verified":"Verified source","viewer.passport.verificationScope":"Verified against local Git at the pinned revision. Remote access has not been checked.","viewer.passport.reach":"Authored reach","viewer.passport.reach.trace":"Trace authored reachability","viewer.passport.upstream":"Upstream","viewer.passport.downstream":"Downstream","viewer.passport.upstream.trace":"Trace upstream authored reachability","viewer.passport.downstream.trace":"Trace downstream authored reachability","viewer.passport.close":"Close semantic passport","viewer.passport.move":"Move semantic passport. Drag, use arrow keys, or press Home to reset.","viewer.passport.copy":"Copy link","viewer.passport.copy.focus":"Copy link to focused node","viewer.passport.relations":"Relations","viewer.passport.relations.show":"Show connected relationships","viewer.passport.relations.hide":"Hide connected relationships","viewer.passport.relations.list":"Connected relationships","viewer.passport.copyRelation":"Copy relation","viewer.passport.copyNode":"Copy node","viewer.passport.copyPinned":"Copy link to pinned relationship","viewer.passport.copySource":"Copy link to source node","viewer.passport.copy.focused.success":"Focused node link copied","viewer.passport.copy.pinned.success":"Pinned relationship link copied","viewer.passport.copy.focused.failed":"Could not copy focused node link","viewer.passport.copy.pinned.failed":"Could not copy pinned relationship link","viewer.passport.relationship.none":"No connected relationships","viewer.passport.relationship.count.one":"{count} relation","viewer.passport.relationship.count.other":"{count} relations","viewer.passport.relationship.show.one":"Show {count} connected relationship","viewer.passport.relationship.show.other":"Show {count} connected relationships","viewer.passport.relationship.summary":"{out} outgoing · {in} incoming{loops}","viewer.passport.relationship.loops":" · {count} loop","viewer.passport.relationship.explorer":"Direct relationship explorer","viewer.passport.relationship.help":"Use arrow keys to explore relationships. Press Enter or Space to pin details; Escape clears.","viewer.passport.relationship.loopsBack":"loops back","viewer.passport.relationship.connectsTo":"connects to","viewer.passport.relationship.connectsFrom":"connects from","viewer.passport.relationship.pinned":"Pinned relationship · {from} → {to} · {label}","viewer.passport.relationship.inspect":"Inspect relationship {index} of {total}: {from} to {to}, {label}. Press Enter for details.","viewer.passport.relationship.group.out":"Outgoing","viewer.passport.relationship.group.in":"Incoming","viewer.passport.relationship.group.loop":"Self loops","viewer.passport.relationship.row":"{group}: {relationship}, {neighbor}","viewer.passport.relationship.direction.out":"OUT →","viewer.passport.relationship.direction.in":"← IN","viewer.passport.relationship.direction.loop":"LOOP","viewer.passport.sourceCount.one":"{count} verified source reference","viewer.passport.sourceCount.other":"{count} verified source references","viewer.passport.sourceMarker":"SRC","viewer.passport.beacon.one":"{count} verified source; focus this node to inspect","viewer.passport.beacon.other":"{count} verified sources; focus this node to inspect","viewer.passport.repository.open":"Open verified repository revision {revision}","viewer.passport.source.open":"Open verified source {path} at revision {revision}","viewer.passport.source.openLink":"Open ↗","viewer.passport.reach.upstream.one":"Trace {count} upstream authored node","viewer.passport.reach.upstream.other":"Trace {count} upstream authored nodes","viewer.passport.reach.downstream.one":"Trace {count} downstream authored node","viewer.passport.reach.downstream.other":"Trace {count} downstream authored nodes","viewer.passport.reach.noUpstream":"No upstream authored nodes","viewer.passport.reach.noDownstream":"No downstream authored nodes","viewer.passport.reach.status":"{direction} · {nodes} nodes · {links} links · max {hops} hops","viewer.route.eyebrow":"Route probe","viewer.route.start":"Choose a start node","viewer.route.start.find":"Find start","viewer.route.start.find.aria":"Find a route start","viewer.route.copy":"Copy link","viewer.route.copy.aria":"Copy link to traced route","viewer.route.clear":"Clear","viewer.route.clear.aria":"Clear route probe","viewer.route.traced":"Traced route","viewer.route.pickTwo":"Pick two semantic nodes on the diagram","viewer.route.pickOne":"Pick a semantic node on the diagram","viewer.route.controls":"Route journey controls","viewer.route.previous":"Previous route position","viewer.route.play":"Play route journey","viewer.route.pause":"Pause route journey","viewer.route.replay":"Replay route journey","viewer.route.next":"Next route position","viewer.route.journey":"Journey","viewer.route.pause.label":"Pause","viewer.route.replay.label":"Replay","viewer.route.overview":"Overview","viewer.route.overview.aria":"Show complete route overview","viewer.route.instructions":"Choose the source, then the destination. Direction matters.","viewer.route.destination":"Choose a destination from {label}","viewer.route.destination.find":"Find target","viewer.route.destination.find.aria":"Find a reachable route destination","viewer.route.differentDestination":"Choose a different destination","viewer.route.distinct":"A route needs two distinct semantic nodes.","viewer.route.unreachable":"No directed route to {label}","viewer.route.unreachable.detail":"{target} is not reachable from {source}. Pick a highlighted destination.","viewer.route.start.instructions":"Select the source. The next step will reveal only directed destinations.","viewer.route.copy.success":"Traced route link copied","viewer.route.copy.failed":"Could not copy traced route link","viewer.route.position":"Route position {index} of {total}: {label}","viewer.route.step":"Step {index} of {total} · {phase} · {label}","viewer.route.motionRequired":"Automatic journey requires Live motion","viewer.route.trigger.clear":"Clear traced route","viewer.route.overview.status":"{nodes} · {hops} · shortest authored route","viewer.route.overview.node.one":"{count} node","viewer.route.overview.node.other":"{count} nodes","viewer.route.overview.hop.one":"{count} directed hop","viewer.route.overview.hop.other":"{count} directed hops","viewer.route.phase.playing":"Playing","viewer.route.phase.complete":"Complete","viewer.route.phase.inspecting":"Inspecting","viewer.route.destination.count.one":"{count} directed destination available. Pick a highlighted node.","viewer.route.destination.count.other":"{count} directed destinations available. Pick a highlighted node.","viewer.route.noOutgoing":"No outgoing route starts here. Clear and choose another source.","viewer.route.result.title":"{source} to {target}","viewer.route.finder.source.title":"Choose route start","viewer.route.finder.source.placeholder":"Search route sources","viewer.route.finder.source.empty":"No matching route sources","viewer.route.finder.source.results":"Nodes that can start a route","viewer.route.finder.source.noun":"route sources","viewer.route.finder.source.badge":"start","viewer.route.finder.target.title":"Destination from {label}","viewer.route.finder.target.placeholder":"Search reachable destinations","viewer.route.finder.target.empty":"No matching reachable destinations","viewer.route.finder.target.results":"Reachable route destinations","viewer.route.finder.target.noun":"reachable destinations","viewer.route.hop.one":"{count} hop","viewer.route.hop.other":"{count} hops","viewer.lens.eyebrow":"Semantic lens","viewer.lens.title":"Compare system roles","viewer.lens.close":"Close semantic lens","viewer.lens.instruction":"Choose up to two semantic kinds. One reveals its real traffic; two compare only direct authored relationships.","viewer.lens.kinds":"Semantic kinds","viewer.lens.choose":"Choose a kind to inspect its nodes and touching relationships.","viewer.lens.copy":"Copy link to semantic lens","viewer.lens.clear":"Clear semantic lens","viewer.lens.open":"Open semantic lens","viewer.lens.openActive":"Open active semantic lens","viewer.lens.legend":"Semantic legend","viewer.lens.legend.inspect.one":"Inspect {label}, {count} node","viewer.lens.legend.inspect.other":"Inspect {label}, {count} nodes","viewer.lens.kind.count.one":"{label}, {count} node","viewer.lens.kind.count.other":"{label}, {count} nodes","viewer.lens.compare.one":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationship","viewer.lens.compare.other":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationships","viewer.lens.single":"{nodes} · {relationships} · connected peers remain visible","viewer.lens.node.one":"{count} {label} node","viewer.lens.node.other":"{count} {label} nodes","viewer.lens.relationship.one":"{count} touching relationship","viewer.lens.relationship.other":"{count} touching relationships","viewer.radar.title":"Semantic radar","viewer.radar.building":"Building overview","viewer.radar.openFull":"Open full semantic radar","viewer.radar.open":"Open radar","viewer.radar.close":"Close semantic radar","viewer.radar.surface":"Diagram overview. Click a node to focus it, or use arrow keys to pan.","viewer.radar.click":"Click node","viewer.radar.drag":"Drag to pan","viewer.radar.space":"Semantic radar needs more MAP space.","viewer.radar.nodes":"Semantic diagram radar nodes","viewer.radar.focus":"Focus {label} from Semantic Radar","viewer.radar.status":"{count} nodes · {viewport}","viewer.radar.fullMap":"{count} nodes · full map","viewer.radar.compacted":"Radar compacted to avoid covering the Semantic Passport or MAP controls.","viewer.radar.cancelWaiting":"Cancel semantic radar waiting for more MAP space","viewer.radar.needsSpace":"Semantic radar needs more visible MAP space","viewer.radar.viewport.full":"full map","viewer.radar.viewport.width":"{percent}% width","viewer.radar.viewport.scale":"{percent}% viewport","viewer.nav.controls":"Diagram view controls","viewer.nav.route":"Trace a directed route","viewer.nav.route.title":"Trace route (R)","viewer.nav.route.short":"PATH","viewer.nav.radar":"Open semantic radar","viewer.nav.radar.title":"Semantic radar (M)","viewer.nav.radar.short":"MAP","viewer.nav.lens":"Open semantic lens","viewer.nav.lens.title":"Semantic lens (L)","viewer.nav.lens.short":"LENS","viewer.nav.find":"Find a node","viewer.nav.find.title":"Find a node (/)","viewer.nav.guide":"Open diagram guide","viewer.nav.guide.title":"Diagram guide (?)","viewer.nav.zoomOut":"Zoom out","viewer.nav.zoomOut.title":"Zoom out (-)","viewer.notes.title":"Diagram notes","viewer.notes.close":"Close diagram notes","viewer.nav.fitAll":"Fit entire diagram","viewer.nav.fitAll.short":"FIT","viewer.nav.reset":"Reset diagram view","viewer.nav.reset.title":"Reset view (0)","viewer.nav.read":"READ","viewer.nav.zoomIn":"Zoom in","viewer.nav.zoomIn.title":"Zoom in (+)","viewer.nav.camera":"{hint}. Reset to 100%","viewer.nav.camera.title":"{semantic}{hint} · reset to 100% (0)","viewer.nav.camera.semantic":"Semantic camera active · ","viewer.nav.level.auto":"AUTO","viewer.nav.detail.full":"Full diagram detail","viewer.intent.summary":"{label}. {out} outgoing, {in} incoming{loops}. {total} connections. Press Enter for details.","viewer.intent.loops":", {count} self loop","viewer.common.copied":"Copied","viewer.common.copyFailed":"Copy failed","viewer.common.copyLink":"Copy link","viewer.common.clear":"Clear","viewer.common.close":"Close"}}</script>
     <div class="guided-views no-print" id="guided-views" hidden aria-label="Guided diagram views">
       <button id="guided-view-prev" type="button" aria-label="Previous guided view" title="Previous guided view ([)">&#8592;</button>
       <div class="guided-view-copy">
@@ -5550,6 +5658,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
             <kbd aria-hidden="true">F</kbd>
           </button>
         </div>
+        <p class="diagram-guide-gestures">Click or Tab into the canvas. Pan with right-drag, middle-drag, or Space + left-drag. Scroll or use arrow keys to pan; Ctrl/Cmd + scroll zooms at the pointer. Reset with 0.</p>
         <div class="diagram-guide-shortcuts" aria-label="Additional keyboard shortcuts">
           <span><kbd>E</kbd> Export</span><span><kbd>T</kbd> Theme</span><span><kbd>S</kbd> Style</span><span><kbd>0</kbd> Reset</span><span><kbd>+</kbd> Zoom in</span><span><kbd>-</kbd> Zoom out</span><span><kbd>Esc</kbd> Close</span>
         </div>
@@ -5674,12 +5783,23 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <button id="btn-semantic-lens" type="button" aria-label="Open semantic lens" aria-haspopup="dialog" aria-expanded="false" aria-pressed="false" aria-controls="semantic-lens" title="Semantic lens (L)">LENS</button>
         <button id="btn-node-finder" type="button" aria-label="Find a node" aria-haspopup="dialog" aria-expanded="false" aria-controls="node-finder" title="Find a node (/)" data-node-finder-trigger><span class="diagram-nav-icon find" aria-hidden="true"></span></button>
         <button id="btn-diagram-guide" type="button" aria-label="Open diagram guide" aria-haspopup="dialog" aria-expanded="false" aria-controls="diagram-guide" title="Diagram guide (?)"><span class="diagram-nav-icon guide" aria-hidden="true"></span></button>
+        <button data-view="fit-all" type="button" aria-label="Fit entire diagram" title="Fit entire diagram">FIT</button>
         <button data-view="out" type="button" aria-label="Zoom out" title="Zoom out (-)"><span class="diagram-nav-icon minus" aria-hidden="true"></span></button>
         <button data-view="reset" type="button" aria-label="Reset diagram view" title="Reset view (0)"><span class="diagram-nav-detail" data-view-detail hidden>READ</span><span class="diagram-nav-percent" data-view-percent>100%</span></button>
         <button data-view="in" type="button" aria-label="Zoom in" title="Zoom in (+)"><span class="diagram-nav-icon plus" aria-hidden="true"></span></button>
       </div>
     </div>
 
+    <aside class="diagram-notes" id="diagram-notes" aria-labelledby="diagram-notes-title">
+      <div class="diagram-notes-heading no-print">
+        <h2 id="diagram-notes-title">Diagram notes</h2>
+        <button id="diagram-notes-close" type="button" aria-label="Close diagram notes">&#215;</button>
+      </div>
+      <div class="diagram-notes-content" id="diagram-notes-content" tabindex="-1" role="region" aria-labelledby="diagram-notes-title">
+        <div class="diagram-notes-copy no-print" hidden>
+          <p id="diagram-notes-full-title"></p>
+          <p id="diagram-notes-full-subtitle"></p>
+        </div>
     <!-- Info Cards -->
     <div class="cards">
       <div class="card">
@@ -5718,6 +5838,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </ul>
       </div>
     </div>
+      </div>
+    </aside>
 
   </div>
 
@@ -7794,6 +7916,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       var relationshipHitTargets = [];
       var directPreviewTimer = null;
       var lensDrag = null;
+      var lensClickPointer = null;
       var manualLensPosition = null;
       var reachabilityMode = null;
       var activeReachability = null;
@@ -8634,7 +8757,12 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         else svg.appendChild(relationshipHitOverlay);
 
         relationshipHitOverlay.addEventListener('pointerdown', function (event) {
-          if (event.target.closest('[data-relationship-hit-key]')) event.stopPropagation();
+          // Relationship selection owns a plain primary click. Camera drag
+          // gestures must still reach the container when starting on an edge.
+          var pan = event.button === 1 || event.button === 2 ||
+            (event.button === 0 && (event.pointerType === 'touch' || event.pointerType === 'pen' ||
+              container.classList.contains('is-pan-ready')));
+          if (!pan && event.target.closest('[data-relationship-hit-key]')) event.stopPropagation();
         });
         relationshipHitOverlay.addEventListener('pointerover', function (event) {
           if (event.pointerType === 'touch') return;
@@ -8870,6 +8998,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         event.preventDefault();
         event.stopPropagation();
         var activeDrag = lensDrag;
+        if (activeDrag.moved) lensClickPointer = activeDrag.pointerId;
         lensDrag = null;
         chip.removeAttribute('data-panel-dragging');
         try { moveBtn.releasePointerCapture(event.pointerId); } catch (_) {}
@@ -9284,7 +9413,18 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         event.preventDefault();
         buttons[index].focus();
       });
+      // A drag cancelled by a breakpoint can release capture before mouseup.
+      // Consume its resulting click, but let a new pointer gesture or keyboard
+      // activation keep the normal outside-close behavior.
+      document.addEventListener('pointerdown', function () { lensClickPointer = null; }, true);
       document.addEventListener('click', function (event) {
+        if (lensClickPointer != null && event.detail > 0 &&
+            (event.pointerId == null || event.pointerId === lensClickPointer)) {
+          lensClickPointer = null;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return;
+        }
         var target = event.target;
         if (chip.hidden || !target || typeof target.closest !== 'function' || chip.contains(target)) return;
         if (container.getAttribute('data-just-panned') === 'true') return;
@@ -9310,7 +9450,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
       installRelationshipHitTargets();
 
-      function syncFocusFromHash() {
+      function syncFocusFromHash(options) {
+        options = options || {};
         try {
           var params = new URLSearchParams(location.hash.replace(/^#/, ''));
           var relation = params.get('relation');
@@ -9318,7 +9459,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           var reach = params.get('reach');
           if (relation) {
             if (html.getAttribute('data-embed') === 'true' ||
-                !inspectRelationshipById(relation, { updateUrl: false, toggle: false })) clear({ updateUrl: false });
+                !inspectRelationshipById(relation, { updateUrl: false, toggle: false })) clear({ updateUrl: false, preserveView: options.preserveView === true });
           }
           else if (initial) {
             if (set(initial, { updateUrl: false, toggle: false }) &&
@@ -9326,12 +9467,12 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
               applyReachability(reach, { updateUrl: false, toggle: false, reveal: false });
             }
           }
-          else if (!params.get('view')) clear({ updateUrl: false });
+          else if (!params.get('view')) clear({ updateUrl: false, preserveView: options.preserveView === true });
         } catch (_) {}
       }
 
       window.addEventListener('hashchange', syncFocusFromHash);
-      syncFocusFromHash();
+      syncFocusFromHash({ preserveView: true });
 
       return {
         set: set,
@@ -9360,6 +9501,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         active: function () { return activeIds.length === 0 ? null : (activeIds.length === 1 ? activeIds[0] : activeIds.slice()); }
       };
     })();
+
 
     /* ============================================================
        Intent Trace — temporary one-hop topology before durable focus.
@@ -9854,7 +9996,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
       function centerChapterButton(button) {
         if (!button || !chapterList) return false;
-        var target = Math.max(0, button.offsetLeft - (chapterList.clientWidth - button.offsetWidth) / 2);
+        var bounds = button.getBoundingClientRect();
+        var viewportLeft = chapterList.getBoundingClientRect().left + chapterList.clientLeft;
+        var target = Math.max(0, chapterList.scrollLeft + bounds.left - viewportLeft - (chapterList.clientWidth - bounds.width) / 2);
         if (typeof chapterList.scrollTo === 'function') chapterList.scrollTo({ left: target, behavior: 'auto' });
         else chapterList.scrollLeft = target;
         return true;
@@ -11172,7 +11316,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         }
       }, true);
 
-      function syncViewFromHash() {
+      function syncViewFromHash(options) {
+        options = options || {};
         try {
           var params = new URLSearchParams(location.hash.replace(/^#/, ''));
           var initial = params.get('view');
@@ -11181,7 +11326,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           if (initial) {
             var activated = activateById(initial, { updateUrl: false, restore: true });
             if (!activated) {
-              showAll({ updateUrl: false, restore: true });
+              showAll({ updateUrl: false, restore: true, resetView: options.preserveView !== true });
               return;
             }
             if (requestedBeat) afterHandoff(function () {
@@ -11195,9 +11340,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
             activeIndex = -1;
             render();
           } else {
-            showAll({ updateUrl: false, restore: true });
+            showAll({ updateUrl: false, restore: true, resetView: options.preserveView !== true });
           }
-        } catch (_) { showAll({ updateUrl: false, restore: true }); }
+        } catch (_) { showAll({ updateUrl: false, restore: true, resetView: options.preserveView !== true }); }
       }
 
       window.addEventListener('hashchange', syncViewFromHash);
@@ -11260,7 +11405,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         else clearStoryPulse();
         settleHandoff('print');
       });
-      syncViewFromHash();
+      syncViewFromHash({ preserveView: true });
       if (autoplayPending) {
         requestAnimationFrame(function () {
           requestAnimationFrame(maybeStartSharePlayback);
@@ -11363,6 +11508,15 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       var header = shell && shell.querySelector('.header');
       var guided = shell && shell.querySelector('.guided-views');
       var cards = shell && shell.querySelector('.cards');
+      var notes = document.getElementById('diagram-notes');
+      var notesContent = document.getElementById('diagram-notes-content');
+      var notesButton = document.getElementById('btn-diagram-notes');
+      var notesClose = document.getElementById('diagram-notes-close');
+      var notesCopy = notes && notes.querySelector('.diagram-notes-copy');
+      var notesTitle = document.getElementById('diagram-notes-full-title');
+      var notesSubtitle = document.getElementById('diagram-notes-full-subtitle');
+      var toolbar = document.querySelector('.toolbar');
+      var notesOpen = false;
       var viewBox = svg && svg.viewBox && svg.viewBox.baseVal;
       var ratio = viewBox && viewBox.height > 0 ? viewBox.width / viewBox.height : 0;
       var measuredHeightFit = svg && svg.getAttribute('data-reader-fit') === 'intrinsic-height';
@@ -11376,6 +11530,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       var MIN_PROJECTED_NODE_TEXT_PX = 6;
       var SAFE_BOTTOM_GAP = 12;
 
+      if (diagram && viewBox && viewBox.width > 0 && viewBox.height > 0) {
+        diagram.style.setProperty('--archify-canvas-width', viewBox.width + 'px');
+        diagram.style.setProperty('--archify-canvas-height', viewBox.height + 'px');
+      }
       if (diagram && ratio >= WIDE_RATIO) {
         diagram.setAttribute('data-wide-diagram', 'true');
         html.setAttribute('data-diagram-shape', 'wide');
@@ -11410,12 +11568,63 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       }
       function eligible() {
         return Boolean(
+          !fixedEligible() &&
           shell && diagram && svg && (ratio >= WIDE_RATIO || measuredHeightFit) &&
           window.innerWidth >= MIN_DESKTOP_WIDTH &&
           html.getAttribute('data-embed') !== 'true' &&
           html.getAttribute('data-present') !== 'true' &&
           (!window.matchMedia || !window.matchMedia('print').matches)
         );
+      }
+      function fixedEligible() {
+        return Boolean(shell && diagram && svg && notes &&
+          window.innerWidth >= MIN_DESKTOP_WIDTH && window.innerHeight >= 600 &&
+          html.getAttribute('data-embed') !== 'true' &&
+          html.getAttribute('data-present') !== 'true' &&
+          (!window.matchMedia || !window.matchMedia('print').matches));
+      }
+      function flag(name, enabled) {
+        if (html.hasAttribute(name) !== enabled) html.toggleAttribute(name, enabled);
+      }
+      function text(element, value) {
+        if (element && element.textContent !== value) element.textContent = value;
+      }
+      function focus(element) {
+        if (element) { try { element.focus({ preventScroll: true }); } catch (_) { element.focus(); } }
+      }
+      function syncFixedShell() {
+        var enabled = fixedEligible();
+        var wasEnabled = html.hasAttribute('data-fixed-canvas');
+        var focusInNotes = notes && notes.contains(document.activeElement);
+        flag('data-fixed-canvas', enabled);
+        if (!notesButton || !notesContent) return enabled;
+        var title = header && header.querySelector('h1');
+        var subtitle = header && header.querySelector('.subtitle');
+        var titleClipped = enabled && title && title.scrollWidth > title.clientWidth + 1;
+        var subtitleClipped = enabled && subtitle && subtitle.scrollWidth > subtitle.clientWidth + 1;
+        var clipped = Boolean(titleClipped || subtitleClipped);
+        text(notesTitle, titleClipped ? title.textContent : '');
+        text(notesSubtitle, subtitleClipped ? subtitle.textContent : '');
+        if (notesCopy) notesCopy.hidden = !clipped;
+        var hasCards = Boolean(notes && notes.querySelector('.cards .card'));
+        var available = enabled && (hasCards || clipped);
+        if (!available) notesOpen = false;
+        notesButton.hidden = !available;
+        notesButton.setAttribute('aria-expanded', String(notesOpen));
+        notesContent.tabIndex = notesOpen ? 0 : -1;
+        flag('data-notes-open', notesOpen);
+        if (!enabled && wasEnabled && (focusInNotes || document.activeElement === notesButton)) focus(diagram);
+        if (enabled && !notesOpen && focusInNotes) focus(available ? notesButton : diagram);
+        if (enabled && !wasEnabled) window.scrollTo(0, 0);
+        return enabled;
+      }
+      function setNotes(open, restoreFocus) {
+        if (!fixedEligible() || !notesButton || notesButton.hidden) return false;
+        notesOpen = open;
+        measure();
+        if (notesOpen) focus(notesContent);
+        else if (restoreFocus !== false) focus(notesButton);
+        return notesOpen;
       }
       function clear() {
         html.style.removeProperty('--archify-reader-width');
@@ -11464,6 +11673,11 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       }
       function measure() {
         frame = 0;
+        if (syncFixedShell()) {
+          if (settleFrame) { cancelAnimationFrame(settleFrame); settleFrame = 0; }
+          clear();
+          return { layout: 'fixed', notesOpen: notesOpen };
+        }
         if (!eligible()) {
           clear();
           return null;
@@ -11501,6 +11715,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         var diagramRect = diagram ? diagram.getBoundingClientRect() : { width: 0, height: 0 };
         return [
           lastWidth,
+          html.hasAttribute('data-fixed-canvas'),
+          notesOpen,
           html.getAttribute('data-reader-layout') || '',
           html.getAttribute('data-reader-overflow') || '',
           Math.ceil(document.documentElement.scrollWidth),
@@ -11523,19 +11739,36 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       }
 
       window.addEventListener('resize', schedule, { passive: true });
+      window.addEventListener('beforeprint', measure);
+      window.addEventListener('afterprint', schedule);
+      if (window.matchMedia) {
+        var printQuery = window.matchMedia('print');
+        if (printQuery.addEventListener) printQuery.addEventListener('change', schedule);
+      }
+      if (notesButton) notesButton.addEventListener('click', function () { setNotes(!notesOpen); });
+      if (notesClose) notesClose.addEventListener('click', function () { setNotes(false); });
+      if (notes) notes.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape' || event.defaultPrevented || !notesOpen) return;
+        if (event.target.closest('[aria-expanded="true"], [role="listbox"], [role="menu"]')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setNotes(false);
+      });
       window.addEventListener('load', schedule, { once: true });
       if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule).catch(function () {});
       if (typeof ResizeObserver === 'function') {
         var resizeObserver = new ResizeObserver(schedule);
-        [header, guided, cards].forEach(function (element) { if (element) resizeObserver.observe(element); });
+        [header, guided, cards, toolbar].forEach(function (element) { if (element) resizeObserver.observe(element); });
       }
       if (typeof MutationObserver === 'function') {
         var contentObserver = new MutationObserver(schedule);
         if (guided) contentObserver.observe(guided, { attributes: true, childList: true, subtree: true });
         if (cards) contentObserver.observe(cards, { attributes: true, childList: true, subtree: true });
+        if (header) contentObserver.observe(header, { childList: true, characterData: true, subtree: true });
         contentObserver.observe(html, { attributes: true, attributeFilter: ['data-embed', 'data-present'] });
       }
-      schedule();
+      // Establish the fixed shell before Camera computes its first visible frame.
+      measure();
 
       return {
         measure: measure,
@@ -11586,6 +11819,16 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       }
       function protectedStageRect() {
         if (!svg) return null;
+        if (html.hasAttribute('data-fixed-canvas')) {
+          var bounds = container.getBoundingClientRect();
+          var style = window.getComputedStyle(container);
+          var left = bounds.left + container.clientLeft + (parseFloat(style.paddingLeft) || 0);
+          var top = bounds.top + container.clientTop + (parseFloat(style.paddingTop) || 0);
+          var right = bounds.left + container.clientLeft + container.clientWidth - (parseFloat(style.paddingRight) || 0);
+          var bottom = bounds.top + container.clientTop + container.clientHeight - (parseFloat(style.paddingBottom) || 0);
+          return { x: left, y: top, left: left, top: top, right: right, bottom: bottom,
+            width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+        }
         var rect = svg.getBoundingClientRect();
         var transform = '';
         try { transform = window.getComputedStyle(svg).transform || ''; } catch (_) {}
@@ -11638,6 +11881,11 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         );
       }
       function cameraAtBaseline() {
+        // The fixed stage is independent of SVG camera scale.
+        if (html.hasAttribute('data-fixed-canvas')) return true;
+        // Automatic framing still permits layout reprobes after leaving the
+        // fixed shell; only a user's zoom should retain a previous rail.
+        if (Archify.view && Archify.view.state().mode === 'fit') return true;
         var scale = Number(svg && svg.getAttribute('data-view-scale'));
         return !Number.isFinite(scale) || Math.abs(scale - 1) < 0.001;
       }
@@ -11871,13 +12119,21 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       var resetDetailLabel = resetBtn.querySelector('[data-view-detail]');
       var resetPercentLabel = resetBtn.querySelector('[data-view-percent]');
       var inBtn = container.querySelector('[data-view="in"]');
+      var fitAllBtn = container.querySelector('[data-view="fit-all"]');
       var navigation = container.querySelector('.diagram-nav');
       var MIN_SCALE = 0.25;
       var MAX_SCALE = 4;
+      var minimumScale = MIN_SCALE;
+      var canvasGeometry = null;
+      var initialFraming = true;
+      // Only a temporary bridge while outside the fixed desktop layout.
+      var fixedReading = null;
       var CAMERA_LIMIT = 1000000;
       var grid = document.createElement('div');
       var state = { scale: 1, x: 0, y: 0, mode: 'overview' };
       var drag = null;
+      var spacePan = false;
+      var panClickPointer = null;
       var cameraTimer = null;
       var cameraFrame = null;
       var cameraGeneration = 0;
@@ -11900,7 +12156,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       var wheelPanInputEnded = false;
       var suppressContextMenuUntil = 0;
       var lastControlKey = '';
-      var interactionMetrics = { offsetLeft: 0, offsetTop: 0, width: 1, height: 1 };
+      var interactionMetrics = { offsetLeft: 0, offsetTop: 0 };
 
       var viewBox = svg.viewBox && svg.viewBox.baseVal;
 
@@ -11908,10 +12164,16 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       grid.setAttribute('aria-hidden', 'true');
       container.insertBefore(grid, svg);
 
+      function boundPosition(value) {
+        return Math.max(-CAMERA_LIMIT, Math.min(CAMERA_LIMIT, Number(value) || 0));
+      }
+      function directNavigationEnabled() {
+        return document.documentElement.getAttribute('data-embed') !== 'true' && !mobileScrollMode();
+      }
       function boundCamera() {
-        state.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, Number(state.scale) || 1));
-        state.x = Math.max(-CAMERA_LIMIT, Math.min(CAMERA_LIMIT, Number(state.x) || 0));
-        state.y = Math.max(-CAMERA_LIMIT, Math.min(CAMERA_LIMIT, Number(state.y) || 0));
+        state.scale = Number.isFinite(state.scale) && state.scale > 0 ? Math.min(MAX_SCALE, state.scale) : 1;
+        state.x = boundPosition(state.x);
+        state.y = boundPosition(state.y);
       }
       function mobileScrollMode() {
         return window.innerWidth <= 720 && container.hasAttribute('data-wide-diagram');
@@ -11920,7 +12182,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       }
       function contentMetrics() {
-        if (!viewBox || viewBox.width <= 0 || viewBox.height <= 0) return null;
+        if (!viewBox || !Number.isFinite(viewBox.width) || !Number.isFinite(viewBox.height) ||
+            viewBox.width <= 0 || viewBox.height <= 0) return null;
         var width = svg.clientWidth || 1;
         var height = svg.clientHeight || 1;
         var scale = Math.min(width / viewBox.width, height / viewBox.height);
@@ -11932,8 +12195,89 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           offsetY: (height - viewBox.height * scale) / 2
         };
       }
-      function worldViewport() {
+      // Geometry is refreshed at interaction boundaries, never for every input frame.
+      function measureCanvas() {
         var metrics = contentMetrics();
+        if (!metrics) return null;
+        var rect = container.getBoundingClientRect();
+        var style = getComputedStyle(container);
+        var visual = window.visualViewport;
+        var screenLeft = visual ? visual.offsetLeft : 0;
+        var screenTop = visual ? visual.offsetTop : 0;
+        var screenRight = screenLeft + (visual ? visual.width : window.innerWidth);
+        var screenBottom = screenTop + (visual ? visual.height : window.innerHeight);
+        var innerLeft = rect.left + container.clientLeft;
+        var innerTop = rect.top + container.clientTop;
+        // SVGSVGElement has no offsetLeft/offsetTop. Remove the rendered camera
+        // translation from its screen box to recover the untransformed origin.
+        var rendered = sampleRenderedState();
+        var svgRect = svg.getBoundingClientRect();
+        var originX = svgRect.left - rendered.x;
+        var originY = svgRect.top - rendered.y;
+        var left = Math.max(innerLeft, screenLeft) + (parseFloat(style.paddingLeft) || 0) - originX;
+        var top = Math.max(innerTop, screenTop) + (parseFloat(style.paddingTop) || 0) - originY;
+        var right = Math.min(innerLeft + container.clientWidth, screenRight) - (parseFloat(style.paddingRight) || 0) - originX;
+        var bottom = Math.min(innerTop + container.clientHeight, screenBottom) - (parseFloat(style.paddingBottom) || 0) - originY;
+        var fixed = document.documentElement.hasAttribute('data-fixed-canvas');
+        var scale = Math.min(fixed ? 1 : MAX_SCALE, (right - left - 32) / (viewBox.width * metrics.scale),
+          (bottom - top - 32) / (viewBox.height * metrics.scale));
+        var fit = Number.isFinite(scale) && scale > 0 ? {
+          scale: scale,
+          x: (left + right) / 2 - (metrics.offsetX + viewBox.width * metrics.scale / 2) * scale,
+          y: (top + bottom) / 2 - (metrics.offsetY + viewBox.height * metrics.scale / 2) * scale,
+          mode: 'fit'
+        } : null;
+        return { fixed: fixed, metrics: metrics, originX: originX, originY: originY, left: left, top: top, right: right, bottom: bottom, fit: fit };
+      }
+      function readingAt(geometry) {
+        var metrics = geometry.metrics;
+        return {
+          x: viewBox.x + (((geometry.left + geometry.right) / 2 - state.x) / state.scale - metrics.offsetX) / metrics.scale,
+          y: viewBox.y + (((geometry.top + geometry.bottom) / 2 - state.y) / state.scale - metrics.offsetY) / metrics.scale,
+          scale: state.scale * metrics.scale,
+          mode: state.mode
+        };
+      }
+      function restoreReading(reading, geometry) {
+        var metrics = geometry.metrics;
+        state = {
+          scale: reading.scale / metrics.scale,
+          x: (geometry.left + geometry.right) / 2 - ((reading.x - viewBox.x) * metrics.scale + metrics.offsetX) * reading.scale / metrics.scale,
+          y: (geometry.top + geometry.bottom) / 2 - ((reading.y - viewBox.y) * metrics.scale + metrics.offsetY) * reading.scale / metrics.scale,
+          mode: reading.mode
+        };
+      }
+      function refreshGeometry() {
+        var previous = canvasGeometry;
+        var next = measureCanvas();
+        // Reconstructing an SVG origin from its transformed DOMRect introduces
+        // subpixel rounding. It is not a layout change or a new reading anchor.
+        var changed = previous && next && (previous.fixed !== next.fixed ||
+          Math.abs(previous.left - next.left) > 0.01 || Math.abs(previous.right - next.right) > 0.01 ||
+          Math.abs(previous.top - next.top) > 0.01 || Math.abs(previous.bottom - next.bottom) > 0.01 ||
+          previous.metrics.scale !== next.metrics.scale);
+        if (changed && previous.fixed && !next.fixed && state.mode !== 'semantic' && state.mode !== 'fit') {
+          fixedReading = readingAt(previous);
+        }
+        if (next && next.fixed && next.fit) {
+          if (initialFraming || (changed && state.mode === 'fit')) {
+            state = next.fit;
+            initialFraming = false;
+          } else if (changed && state.mode !== 'semantic') {
+            var reading = !previous.fixed && fixedReading ? fixedReading : readingAt(previous);
+            if (reading) {
+              stopCameraMotion('layout', false);
+              restoreReading(reading, next);
+            }
+          }
+          fixedReading = null;
+        }
+        canvasGeometry = next;
+        minimumScale = next && next.fit ? Math.min(MIN_SCALE, next.fit.scale) : MIN_SCALE;
+      }
+      function worldViewport() {
+        var geometry = canvasGeometry;
+        var metrics = geometry ? geometry.metrics : contentMetrics();
         if (!metrics) return null;
         var x;
         var y;
@@ -11945,10 +12289,11 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           width = Math.min(viewBox.width, Math.max(1, container.clientWidth / metrics.scale));
           height = viewBox.height;
         } else {
-          x = viewBox.x + ((-state.x / state.scale) - metrics.offsetX) / metrics.scale;
-          y = viewBox.y + ((-state.y / state.scale) - metrics.offsetY) / metrics.scale;
-          width = metrics.width / state.scale / metrics.scale;
-          height = metrics.height / state.scale / metrics.scale;
+          if (!geometry) return null;
+          x = viewBox.x + (((geometry.left - state.x) / state.scale) - metrics.offsetX) / metrics.scale;
+          y = viewBox.y + (((geometry.top - state.y) / state.scale) - metrics.offsetY) / metrics.scale;
+          width = Math.max(0, geometry.right - geometry.left) / state.scale / metrics.scale;
+          height = Math.max(0, geometry.bottom - geometry.top) / state.scale / metrics.scale;
         }
         return { x: x, y: y, width: width, height: height, scale: state.scale };
       }
@@ -11970,32 +12315,25 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           world: world
         };
       }
-      function detailLevel() {
-        if (state.mode === 'semantic') return 'full';
-        if (state.scale >= 1.75) return 'full';
-        if (state.scale >= 1) return 'read';
-        return 'map';
+      function renderPercent() {
+        var percent = state.scale < 0.01 ? '<1%' : Math.round(state.scale * 100) + '%';
+        if (resetPercentLabel && resetPercentLabel.textContent !== percent) resetPercentLabel.textContent = percent;
+        return percent;
       }
       function renderControls() {
         var semantic = state.mode === 'semantic' && state.scale > 1.01;
-        var detail = detailLevel();
-        var percent = Math.round(state.scale * 100) + '%';
+        var detail = 'full';
+        var percent = renderPercent();
         var controlKey = [state.mode, semantic, detail, percent].join('|');
         if (controlKey === lastControlKey) return;
         lastControlKey = controlKey;
-        var levelLabel = viewerText('viewer.nav.level.' + detail);
-        var detailHint = detail === 'map'
-          ? viewerText('viewer.nav.detail.map')
-          : detail === 'read'
-            ? viewerText('viewer.nav.detail.read')
-            : viewerText('viewer.nav.detail.full');
-        var resolvedLevel = semantic ? viewerText('viewer.nav.level.auto') : levelLabel;
-        var showDetailLevel = semantic || detail !== 'read';
+        var detailHint = viewerText('viewer.nav.detail.full');
+        var resolvedLevel = semantic ? viewerText('viewer.nav.level.auto') : '';
+        var showDetailLevel = semantic;
         if (resetDetailLabel) {
           resetDetailLabel.textContent = resolvedLevel;
           resetDetailLabel.hidden = !showDetailLevel;
         }
-        if (resetPercentLabel) resetPercentLabel.textContent = percent;
         resetBtn.toggleAttribute('data-detail-visible', showDetailLevel);
         resetBtn.title = viewerText('viewer.nav.camera.title', {
           semantic: semantic ? viewerText('viewer.nav.camera.semantic') : '',
@@ -12007,19 +12345,20 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         container.setAttribute('data-camera-mode', state.mode);
         container.setAttribute('data-camera-indicator', semantic ? 'true' : 'false');
       }
-      function clipToViewport(camera, metrics) {
+      function clipToViewport(camera) {
         camera = camera || state;
-        if (camera.scale <= 1.001) {
+        var fixed = document.documentElement.hasAttribute('data-fixed-canvas') && canvasGeometry;
+        if (!fixed && camera.scale <= 1.001) {
           if (svg.style.clipPath) svg.style.removeProperty('clip-path');
           return;
         }
-        var width = metrics ? metrics.width : (svg.clientWidth || 1);
-        var height = metrics ? metrics.height : (svg.clientHeight || 1);
+        var width = fixed ? canvasGeometry.metrics.width : (svg.clientWidth || 1);
+        var height = fixed ? canvasGeometry.metrics.height : (svg.clientHeight || 1);
         var scale = camera.scale;
-        var top = Math.max(0, Math.min(height, -camera.y / scale));
-        var left = Math.max(0, Math.min(width, -camera.x / scale));
-        var right = Math.max(0, Math.min(width, width - (width - camera.x) / scale));
-        var bottom = Math.max(0, Math.min(height, height - (height - camera.y) / scale));
+        var top = Math.max(0, Math.min(height, ((fixed ? canvasGeometry.top : 0) - camera.y) / scale));
+        var left = Math.max(0, Math.min(width, ((fixed ? canvasGeometry.left : 0) - camera.x) / scale));
+        var right = Math.max(0, Math.min(width, width - ((fixed ? canvasGeometry.right : width) - camera.x) / scale));
+        var bottom = Math.max(0, Math.min(height, height - ((fixed ? canvasGeometry.bottom : height) - camera.y) / scale));
         var nextClip = 'inset(' + [top, right, bottom, left].map(function (value) {
           return Math.round(value * 1000) / 1000 + 'px';
         }).join(' ') + ')';
@@ -12043,28 +12382,32 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       }
       function apply(options) {
         options = options || {};
+        if (options.interactive !== true) refreshGeometry();
         boundCamera();
         svg.style.transform = 'translate(' + state.x + 'px,' + state.y + 'px) scale(' + state.scale + ')';
         var offsetLeft = options.interactive === true ? interactionMetrics.offsetLeft : (svg.offsetLeft || 0);
         var offsetTop = options.interactive === true ? interactionMetrics.offsetTop : (svg.offsetTop || 0);
         syncGrid(offsetLeft, offsetTop, options.gridPositionOnly === true);
-        if (options.cameraOnly === true) return;
         if (options.interactive === true) {
           if (clipFrame) cancelAnimationFrame(clipFrame);
           clipFrame = 0;
-        } else {
-          syncViewportClip();
+          if (document.documentElement.hasAttribute('data-fixed-canvas')) clipToViewport(state);
+          else svg.style.removeProperty('clip-path');
+          renderPercent();
+          if (Archify.radar && typeof Archify.radar.syncViewport === 'function') Archify.radar.syncViewport();
+          return;
         }
+        syncViewportClip();
         renderControls();
-        outBtn.disabled = state.scale <= MIN_SCALE;
+        outBtn.disabled = state.scale <= minimumScale;
+        fitAllBtn.hidden = !directNavigationEnabled();
+        fitAllBtn.disabled = !canvasGeometry || !canvasGeometry.fit;
         inBtn.disabled = state.scale >= MAX_SCALE;
-        container.classList.toggle('is-pannable', !mobileScrollMode());
+        container.classList.toggle('is-pannable', directNavigationEnabled());
         svg.setAttribute('data-view-scale', String(state.scale));
-        if (options.interactive !== true) {
-          if (Archify.radar && typeof Archify.radar.sync === 'function') Archify.radar.sync();
-          if (Archify.viewerChromeLayout && typeof Archify.viewerChromeLayout.schedule === 'function') {
-            Archify.viewerChromeLayout.schedule();
-          }
+        if (Archify.radar && typeof Archify.radar.sync === 'function') Archify.radar.sync();
+        if (Archify.viewerChromeLayout && typeof Archify.viewerChromeLayout.schedule === 'function') {
+          Archify.viewerChromeLayout.schedule();
         }
       }
       function syncGrid(offsetLeft, offsetTop, positionOnly) {
@@ -12081,16 +12424,15 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         if (interactionFrame) return;
         interactionFrame = requestAnimationFrame(function () {
           interactionFrame = 0;
-          apply({ interactive: true, cameraOnly: true, gridPositionOnly: !interactionChangesScale });
+          apply({ interactive: true, gridPositionOnly: !interactionChangesScale });
           interactionChangesScale = false;
         });
       }
       function captureInteractionGeometry() {
+        refreshGeometry();
         interactionMetrics = {
           offsetLeft: svg.offsetLeft || 0,
-          offsetTop: svg.offsetTop || 0,
-          width: svg.clientWidth || 1,
-          height: svg.clientHeight || 1
+          offsetTop: svg.offsetTop || 0
         };
         return container.getBoundingClientRect();
       }
@@ -12098,7 +12440,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         if (!interactionFrame) return;
         cancelAnimationFrame(interactionFrame);
         interactionFrame = 0;
-        apply({ interactive: true, cameraOnly: true, gridPositionOnly: !interactionChangesScale });
+        apply({ interactive: true, gridPositionOnly: !interactionChangesScale });
         interactionChangesScale = false;
       }
       function settleInteraction() {
@@ -12133,7 +12475,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         state.x += horizontal * distance;
         state.y += vertical * distance;
         state.mode = 'manual';
-        apply({ interactive: true, cameraOnly: true, gridPositionOnly: true });
+        apply({ interactive: true, gridPositionOnly: true });
         keyboardFrame = requestAnimationFrame(stepKeyboardPan);
       }
       function startKeyboardPan() {
@@ -12155,7 +12497,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           state.x = wheelPanTarget.x;
           state.y = wheelPanTarget.y;
           state.mode = 'manual';
-          apply({ interactive: true, cameraOnly: true, gridPositionOnly: true });
+          apply({ interactive: true, gridPositionOnly: true });
           try { getComputedStyle(svg).transform; } catch (_) {}
         }
         settleInteraction();
@@ -12180,7 +12522,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           finishWheelGesture(true);
           return;
         }
-        apply({ interactive: true, cameraOnly: true, gridPositionOnly: true });
+        apply({ interactive: true, gridPositionOnly: true });
         wheelPanFrame = requestAnimationFrame(stepWheelPan);
       }
       function scheduleWheelPan() {
@@ -12246,7 +12588,35 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         };
         return transaction;
       }
+      // New camera commands own the viewport; no earlier input loop may write it later.
+      function cancelDirectInteraction() {
+        if (Archify.radar && typeof Archify.radar.cancelPan === 'function') Archify.radar.cancelPan();
+        if (interactionFrame) cancelAnimationFrame(interactionFrame);
+        interactionFrame = 0;
+        interactionChangesScale = false;
+        if (keyboardFrame) cancelAnimationFrame(keyboardFrame);
+        keyboardFrame = 0;
+        keyboardStartedAt = 0;
+        keyboardDirections = Object.create(null);
+        keyboardShift = false;
+        if (wheelTimer) clearTimeout(wheelTimer);
+        wheelTimer = null;
+        if (wheelPanFrame) cancelAnimationFrame(wheelPanFrame);
+        wheelPanFrame = 0;
+        wheelPanTimestamp = 0;
+        wheelGeometry = null;
+        wheelMode = '';
+        wheelPanTarget = null;
+        wheelPanInputEnded = false;
+        if (drag) {
+          if (drag.moved && drag.button === 0) panClickPointer = drag.pointerId;
+          try { container.releasePointerCapture(drag.pointerId); } catch (_) {}
+          drag = null;
+        }
+        container.classList.remove('is-panning', 'is-keyboard-panning', 'is-wheel-moving');
+      }
       function stopCameraMotion(reason, commitTarget) {
+        cancelDirectInteraction();
         if (cameraTransaction && !cameraTransaction.settled) {
           cameraTransaction.cancel(reason || 'cancelled', commitTarget === true);
           return;
@@ -12260,6 +12630,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         container.removeAttribute('data-camera-transaction');
       }
       function interruptCamera(reason) {
+        initialFraming = false;
+        fixedReading = null;
         if (Archify.guidedViews && Archify.guidedViews.cancelHandoff) {
           Archify.guidedViews.cancelHandoff(reason || 'manual');
         }
@@ -12281,9 +12653,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         options = options || {};
         if (options.manual !== false) interruptCamera();
         var previous = state.scale;
-        next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, Number(next) || previous));
-        if (options.discrete === true) next = Math.round(next * 4) / 4;
-        else next = Math.round(next * 1000) / 1000;
+        next = Math.max(Math.min(minimumScale, previous), Math.min(MAX_SCALE, Number(next) || previous));
+        if (options.discrete === true && previous >= MIN_SCALE && next >= MIN_SCALE) {
+          next = Math.max(minimumScale, Math.round(next * 4) / 4);
+        }
         if (next === previous) return;
         var contentX = (anchorX - state.x) / previous;
         var contentY = (anchorY - state.y) / previous;
@@ -12293,15 +12666,25 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         if (options.defer === true) scheduleInteractionApply(true);
         else apply();
       }
+      function zoomStep(direction) {
+        return state.scale <= MIN_SCALE && minimumScale < MIN_SCALE
+          ? state.scale * (direction > 0 ? 1.25 : 0.8)
+          : state.scale + direction * 0.25;
+      }
       function zoom(next, options) {
         options = options || {};
         options.discrete = true;
-        zoomAtLocal(next, (svg.clientWidth || 1) / 2, (svg.clientHeight || 1) / 2, options);
+        refreshGeometry();
+        var geometry = canvasGeometry;
+        var centerX = geometry && geometry.fixed ? (geometry.left + geometry.right) / 2 : (svg.clientWidth || 1) / 2;
+        var centerY = geometry && geometry.fixed ? (geometry.top + geometry.bottom) / 2 : (svg.clientHeight || 1) / 2;
+        zoomAtLocal(next, centerX, centerY, options);
       }
       function zoomAt(next, clientX, clientY, options) {
-        var rect = container.getBoundingClientRect();
-        var anchorX = Number(clientX) - rect.left - (svg.offsetLeft || 0);
-        var anchorY = Number(clientY) - rect.top - (svg.offsetTop || 0);
+        refreshGeometry();
+        if (!canvasGeometry) return false;
+        var anchorX = Number(clientX) - canvasGeometry.originX;
+        var anchorY = Number(clientY) - canvasGeometry.originY;
         if (!Number.isFinite(anchorX) || !Number.isFinite(anchorY)) return false;
         zoomAtLocal(next, anchorX, anchorY, options);
         return true;
@@ -12319,7 +12702,19 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         else apply();
         return true;
       }
+      function fitAll(options) {
+        if (!directNavigationEnabled()) return false;
+        var geometry = measureCanvas();
+        if (!geometry || !geometry.fit) return false;
+        if (options && options.automatic === true) stopCameraMotion('fit-all', false);
+        else interruptCamera('fit-all');
+        state = geometry.fit;
+        apply();
+        return true;
+      }
       function reset(options) {
+        initialFraming = false;
+        fixedReading = null;
         options = options || {};
         if (options.automatic !== true) interruptCamera();
         else stopCameraMotion('reset', false);
@@ -12330,9 +12725,12 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         options = options || {};
         logicalX = Number(logicalX);
         logicalY = Number(logicalY);
-        var metrics = contentMetrics();
+        var metrics = options.defer === true && canvasGeometry ? canvasGeometry.metrics : contentMetrics();
         if (!metrics || !Number.isFinite(logicalX) || !Number.isFinite(logicalY)) return false;
-        interruptCamera();
+        if (options.manual !== false) {
+          interruptCamera('center');
+          if (options.defer === true) captureInteractionGeometry();
+        }
         if (mobileScrollMode()) {
           state.scale = 1;
           state.x = 0;
@@ -12346,16 +12744,18 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           catch (_) { container.scrollLeft = mobileTarget; }
           return true;
         }
-        var minimumScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, Number(options.minimumScale) || 1));
+        var requestedMinimum = Math.max(minimumScale, Math.min(MAX_SCALE, Number(options.minimumScale) || 1));
         var requestedScale = Number(options.scale);
-        state.scale = Math.max(minimumScale, Math.min(MAX_SCALE, Number.isFinite(requestedScale) ? requestedScale : state.scale));
+        state.scale = options.preserveScale === true ? state.scale
+          : Math.max(requestedMinimum, Math.min(MAX_SCALE, Number.isFinite(requestedScale) ? requestedScale : state.scale));
         var contentX = metrics.offsetX + (logicalX - viewBox.x) * metrics.scale;
         var contentY = metrics.offsetY + (logicalY - viewBox.y) * metrics.scale;
-        state.x = metrics.width / 2 - contentX * state.scale;
-        state.y = metrics.height / 2 - contentY * state.scale;
+        state.x = (canvasGeometry ? (canvasGeometry.left + canvasGeometry.right) / 2 : metrics.width / 2) - contentX * state.scale;
+        state.y = (canvasGeometry ? (canvasGeometry.top + canvasGeometry.bottom) / 2 : metrics.height / 2) - contentY * state.scale;
         state.mode = 'manual';
-        apply();
-        if (Archify.focus && Archify.focus.reposition) Archify.focus.reposition();
+        if (options.defer === true) scheduleInteractionApply(false);
+        else apply();
+        if (options.defer !== true && Archify.focus && Archify.focus.reposition) Archify.focus.reposition();
         return true;
       }
       function semanticIds(ids, includeNeighbors) {
@@ -12410,6 +12810,15 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         if (visibleBottom - visibleTop >= 240) {
           top = Math.max(top, visibleTop + padding);
           bottom = Math.min(bottom, visibleBottom - Math.max(padding, 72));
+        }
+        if (document.documentElement.hasAttribute('data-fixed-canvas')) {
+          var geometry = measureCanvas();
+          if (geometry) {
+            left = geometry.left + padding;
+            right = geometry.right - padding;
+            top = geometry.top + padding;
+            bottom = geometry.bottom - padding;
+          }
         }
         var chip = document.getElementById('focus-chip');
         if (chip && !chip.hidden) {
@@ -12481,6 +12890,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         return transaction;
       }
       function reveal(ids, options) {
+        initialFraming = false;
+        fixedReading = null;
         options = options || {};
         if (window.innerWidth > 720) return frameDesktop(ids, options);
         stopCameraMotion('replaced', false);
@@ -12534,7 +12945,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         var margin = window.innerWidth <= 720 ? 8 : 16;
         var viewportEdge = window.innerHeight - margin;
         var wasDocked = navigation.hasAttribute('data-viewport-docked');
-        var docked = !mobileScrollMode() && rect.top < viewportEdge &&
+        var docked = !document.documentElement.hasAttribute('data-fixed-canvas') && !mobileScrollMode() && rect.top < viewportEdge &&
           (rect.bottom > viewportEdge || (wasDocked && rect.bottom > 0));
         var changed = wasDocked !== docked;
         navigation.toggleAttribute('data-viewport-docked', docked);
@@ -12560,10 +12971,12 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         }
       }
       function onPointerEnd(event) {
-        if (!drag) return;
+        if (!drag || (event.pointerId != null && event.pointerId !== drag.pointerId)) return;
+        var pointerId = drag.pointerId;
         var moved = drag.moved;
+        if (moved && drag.button === 0) panClickPointer = pointerId;
         drag = null;
-        try { container.releasePointerCapture(event.pointerId); } catch (_) {}
+        try { container.releasePointerCapture(pointerId); } catch (_) {}
         if (moved) settleInteraction();
         container.classList.remove('is-panning');
         if (moved) {
@@ -12571,6 +12984,16 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           container.setAttribute('data-just-panned', 'true');
           setTimeout(function () { container.removeAttribute('data-just-panned'); }, 80);
         }
+      }
+      function releasePanKey() {
+        spacePan = false;
+        container.classList.remove('is-pan-ready');
+        if (drag && drag.space) onPointerEnd({ pointerId: drag.pointerId });
+      }
+      function leaveCanvas() {
+        releasePanKey();
+        if (drag) onPointerEnd({ pointerId: drag.pointerId });
+        stopKeyboardPan();
       }
       function cameraControlTarget(target) {
         return target.closest('.diagram-nav, .focus-chip, .node-finder, .diagram-guide, .overview-map, .route-probe, .semantic-lens');
@@ -12583,25 +13006,34 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         return rect.bottom > 0 && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth;
       }
 
-      inBtn.addEventListener('click', function () { zoom(state.scale + 0.25); });
-      outBtn.addEventListener('click', function () { zoom(state.scale - 0.25); });
+      inBtn.addEventListener('click', function () { zoom(zoomStep(1)); });
+      outBtn.addEventListener('click', function () { zoom(zoomStep(-1)); });
       resetBtn.addEventListener('click', reset);
-      if (!container.hasAttribute('tabindex')) container.setAttribute('tabindex', '-1');
+      fitAllBtn.addEventListener('click', fitAll);
+      if (document.documentElement.getAttribute('data-embed') !== 'true') {
+        container.setAttribute('tabindex', '0');
+        container.setAttribute('role', 'region');
+        var heading = document.querySelector('h1');
+        container.setAttribute('aria-label', heading ? heading.textContent : document.title);
+      }
       container.addEventListener('pointerdown', function (event) {
+        panClickPointer = null;
         var directPointerPan = (event.pointerType === 'touch' || event.pointerType === 'pen') && event.button === 0;
-        if (mobileScrollMode() || (event.button !== 2 && !directPointerPan) || cameraControlTarget(event.target)) return;
+        var mousePan = event.button === 2 || event.button === 1 || (event.button === 0 && spacePan);
+        if (!directNavigationEnabled() || (!mousePan && !directPointerPan) ||
+            cameraControlTarget(event.target) || keyboardInputTarget(event.target) || event.target.closest('button, a')) return;
         event.preventDefault();
         try { container.focus({ preventScroll: true }); } catch (_) { container.focus(); }
         if (container.classList.contains('is-wheel-moving')) finishWheelGesture(true);
         stopKeyboardPan();
         interruptCamera();
         captureInteractionGeometry();
-        drag = { startX: event.clientX, startY: event.clientY, x: state.x, y: state.y, moved: false };
+        drag = { pointerId: event.pointerId, button: event.button, space: event.button === 0 && spacePan, startX: event.clientX, startY: event.clientY, x: state.x, y: state.y, moved: false };
         container.classList.add('is-panning');
         try { container.setPointerCapture(event.pointerId); } catch (_) {}
       });
       container.addEventListener('pointermove', function (event) {
-        if (!drag) return;
+        if (!drag || drag.pointerId !== event.pointerId) return;
         var dx = event.clientX - drag.startX;
         var dy = event.clientY - drag.startY;
         if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
@@ -12611,11 +13043,19 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       });
       container.addEventListener('pointerup', onPointerEnd);
       container.addEventListener('pointercancel', onPointerEnd);
+      container.addEventListener('lostpointercapture', onPointerEnd);
+      container.addEventListener('click', function (event) {
+        if (panClickPointer !== null && event.detail !== 0 && !cameraControlTarget(event.target)) {
+          panClickPointer = null;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
+      }, true);
       container.addEventListener('contextmenu', function (event) {
         if (Date.now() < suppressContextMenuUntil && !cameraControlTarget(event.target)) event.preventDefault();
       });
       container.addEventListener('wheel', function (event) {
-        if (mobileScrollMode() || cameraControlTarget(event.target)) return;
+        if (!directNavigationEnabled() || cameraControlTarget(event.target)) return;
         event.preventDefault();
         try { container.focus({ preventScroll: true }); } catch (_) { container.focus(); }
         var nextWheelMode = event.ctrlKey || event.metaKey ? 'zoom' : 'pan';
@@ -12626,8 +13066,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           interruptCamera('wheel');
           var rect = captureInteractionGeometry();
           wheelGeometry = {
-            left: rect.left + interactionMetrics.offsetLeft,
-            top: rect.top + interactionMetrics.offsetTop
+            left: canvasGeometry ? canvasGeometry.originX : rect.left,
+            top: canvasGeometry ? canvasGeometry.originY : rect.top
           };
           wheelMode = nextWheelMode;
           if (wheelMode === 'pan') {
@@ -12644,8 +13084,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           wheelTimer = setTimeout(function () { finishWheelGesture(false); }, 120);
         } else {
           var deltaFactor = event.deltaMode === 1 ? 16 : (event.deltaMode === 2 ? container.clientHeight : 1);
-          wheelPanTarget.x -= event.deltaX * deltaFactor;
-          wheelPanTarget.y -= event.deltaY * deltaFactor;
+          wheelPanTarget.x = boundPosition(wheelPanTarget.x - event.deltaX * deltaFactor);
+          wheelPanTarget.y = boundPosition(wheelPanTarget.y - event.deltaY * deltaFactor);
           wheelPanInputEnded = false;
           scheduleWheelPan();
           wheelTimer = setTimeout(function () {
@@ -12658,53 +13098,75 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       }, { passive: false });
       window.addEventListener('keydown', function (event) {
         var activeTarget = document.activeElement;
-        if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || mobileScrollMode() ||
+        if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || !directNavigationEnabled() ||
             drag || keyboardInputTarget(event.target) || activeTarget !== container || !diagramInViewport()) return;
+        if (event.key === ' ') {
+          event.preventDefault();
+          spacePan = true;
+          container.classList.add('is-pan-ready');
+          return;
+        }
         if (!/^Arrow(Left|Right|Up|Down)$/.test(event.key)) return;
         event.preventDefault();
+        startKeyboardPan();
         keyboardDirections[event.key] = true;
         keyboardShift = event.shiftKey;
-        startKeyboardPan();
       });
       window.addEventListener('keyup', function (event) {
+        if (event.key === ' ') releasePanKey();
         if (event.key === 'Shift') keyboardShift = false;
         if (!/^Arrow(Left|Right|Up|Down)$/.test(event.key)) return;
         delete keyboardDirections[event.key];
         keyboardShift = event.shiftKey;
         if (!keyboardDirectionActive()) stopKeyboardPan();
       });
-      window.addEventListener('blur', stopKeyboardPan);
+      window.addEventListener('blur', leaveCanvas);
+      container.addEventListener('blur', leaveCanvas);
       container.addEventListener('scroll', onScroll, { passive: true });
-      window.addEventListener('scroll', syncNavigationDock, { passive: true });
+      window.addEventListener('scroll', function () {
+        refreshGeometry();
+        syncNavigationDock();
+        if (Archify.radar) Archify.radar.sync();
+      }, { passive: true });
       window.addEventListener('afterprint', function () {
         requestAnimationFrame(function () {
           requestAnimationFrame(resetNavigationDockLatch);
         });
       });
-      if (window.ResizeObserver) new ResizeObserver(syncNavigationDock).observe(container);
-      window.addEventListener('resize', function () {
+      function onGeometryChange() {
         if (resizeFrame) cancelAnimationFrame(resizeFrame);
         resizeFrame = requestAnimationFrame(function () {
           resizeFrame = 0;
-          if (state.mode === 'semantic') syncSemantic();
+          syncNavigationDock();
+          if (state.mode === 'fit') fitAll({ automatic: true });
+          else if (state.mode === 'semantic') syncSemantic();
           else apply();
         });
-      });
+      }
+      if (window.ResizeObserver) new ResizeObserver(onGeometryChange).observe(container);
+      window.addEventListener('resize', onGeometryChange);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', onGeometryChange);
+        window.visualViewport.addEventListener('scroll', onGeometryChange);
+      }
       window.addEventListener('hashchange', function () { requestAnimationFrame(syncSemantic); });
+      if (Archify.viewerChromeLayout && Archify.viewerChromeLayout.measure) Archify.viewerChromeLayout.measure();
       apply();
       pinControls();
       requestAnimationFrame(syncNavigationDock);
       requestAnimationFrame(syncSemantic);
 
       return {
-        zoomIn: function () { zoom(state.scale + 0.25); },
-        zoomOut: function () { zoom(state.scale - 0.25); },
+        zoomIn: function () { zoom(zoomStep(1)); },
+        zoomOut: function () { zoom(zoomStep(-1)); },
         zoomAt: zoomAt,
         panBy: panBy,
         fit: reset,
+        fitAll: fitAll,
         reset: reset,
         reveal: reveal,
         centerAt: centerAt,
+        settle: settleInteraction,
         logicalViewport: logicalViewport,
         worldViewport: worldViewport,
         sync: syncSemantic,
@@ -13064,21 +13526,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         if (!panel.hasAttribute('data-compact')) surface.focus();
         return !panel.hasAttribute('data-compact');
       }
-      function syncNow() {
-        syncFrame = 0;
+      // Camera frames update this small overlay without panel measurement or node scans.
+      function syncViewport() {
         if (panel.hidden || !Archify.view || typeof Archify.view.logicalViewport !== 'function') return;
-        if (!updateDocking()) {
-          reflectUnavailable();
-          return;
-        }
-        if (passportYielded && panel.hasAttribute('data-compact')) {
-          restorePassport();
-          if (!updateDocking()) {
-            reflectUnavailable();
-            return;
-          }
-        }
-        reflectVisible();
         var visible = Archify.view.logicalViewport();
         if (!visible) return;
         var markerWidth = visible.outside ? Math.max(2, viewBox.width * 0.025) : visible.width;
@@ -13100,8 +13550,26 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           ? viewerText('viewer.radar.viewport.full')
           : (mobileWide
             ? viewerText('viewer.radar.viewport.width', { percent: Math.round(visible.width / viewBox.width * 100) })
-            : viewerText('viewer.radar.viewport.scale', { percent: Math.round(visible.scale * 100) }));
-        status.textContent = viewerText('viewer.radar.status', { count: nodes.length, viewport: viewportCopy });
+            : viewerText('viewer.radar.viewport.scale', { percent: visible.scale < 0.01 ? '<1' : Math.round(visible.scale * 100) }));
+        var statusText = viewerText('viewer.radar.status', { count: nodes.length, viewport: viewportCopy });
+        if (status.textContent !== statusText) status.textContent = statusText;
+      }
+      function syncNow() {
+        syncFrame = 0;
+        if (panel.hidden || !Archify.view || typeof Archify.view.logicalViewport !== 'function') return;
+        if (!updateDocking()) {
+          reflectUnavailable();
+          return;
+        }
+        if (passportYielded && panel.hasAttribute('data-compact')) {
+          restorePassport();
+          if (!updateDocking()) {
+            reflectUnavailable();
+            return;
+          }
+        }
+        reflectVisible();
+        syncViewport();
         nodes.forEach(function (item) {
           var active = item.node.hasAttribute('data-focus-selected') ||
             item.node.getAttribute('data-story-beat-state') === 'active';
@@ -13133,7 +13601,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         } else {
           clearSpaceRetry();
           spaceRetryCount = 0;
-          viewportDrag = null;
+          endViewportDrag();
+          if (syncFrame) cancelAnimationFrame(syncFrame);
+          syncFrame = 0;
           panelDrag = null;
           container.classList.remove('is-panning');
           panel.hidden = true;
@@ -13190,15 +13660,17 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       function navigate(event) {
         var point = diagramPoint(event);
         if (!point || !Archify.view || typeof Archify.view.centerAt !== 'function') return;
-        Archify.view.centerAt(point.x, point.y, { minimumScale: 1.5, instant: true });
-        sync();
+        Archify.view.centerAt(point.x, point.y, { preserveScale: true, instant: true,
+          defer: true, manual: !viewportDrag });
       }
-      function endViewportDrag(event) {
-        if (!viewportDrag) return;
+      function endViewportDrag(event, cancelOnly) {
+        if (!viewportDrag || (event && event.pointerId !== viewportDrag.pointerId)) return;
+        var pointerId = viewportDrag.pointerId;
         viewportDrag = null;
+        if (!cancelOnly && Archify.view && Archify.view.settle) Archify.view.settle();
         panel.removeAttribute('data-dragging');
         container.classList.remove('is-panning');
-        try { surface.releasePointerCapture(event.pointerId); } catch (_) {}
+        try { surface.releasePointerCapture(pointerId); } catch (_) {}
       }
       function beginPanelDrag(event) {
         if (event.button !== 0 || event.target.closest('button, a, input, [role="button"]')) return;
@@ -13266,11 +13738,11 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       surface.addEventListener('pointerdown', function (event) {
         if (event.button !== 0 || event.target.closest('[data-radar-node-id]')) return;
         event.preventDefault();
+        navigate(event);
         viewportDrag = { pointerId: event.pointerId };
         panel.setAttribute('data-dragging', 'true');
         container.classList.add('is-panning');
         try { surface.setPointerCapture(event.pointerId); } catch (_) {}
-        navigate(event);
       });
       surface.addEventListener('pointermove', function (event) {
         if (!viewportDrag || viewportDrag.pointerId !== event.pointerId) return;
@@ -13278,6 +13750,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       });
       surface.addEventListener('pointerup', endViewportDrag);
       surface.addEventListener('pointercancel', endViewportDrag);
+      surface.addEventListener('lostpointercapture', endViewportDrag);
       surface.addEventListener('click', function (event) {
         var node = event.target.closest('[data-radar-node-id]');
         if (node) focusNode(node.getAttribute('data-radar-node-id'));
@@ -13307,7 +13780,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         else if (event.key === 'ArrowRight') x += stepX;
         else if (event.key === 'ArrowUp') y -= stepY;
         else y += stepY;
-        Archify.view.centerAt(x, y, { minimumScale: 1.5, instant: true });
+        Archify.view.centerAt(x, y, { preserveScale: true, instant: true });
         sync();
       });
       document.addEventListener('keydown', function (event) {
@@ -13343,6 +13816,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         close: close,
         toggle: toggle,
         sync: sync,
+        syncViewport: syncViewport,
+        cancelPan: function () { endViewportDrag(null, true); },
         focus: focusNode,
         isOpen: function () { return requestedOpen; },
         count: function () { return nodes.length; }
@@ -15607,6 +16082,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.defaultPrevented) return;
       var t = e.target;
+      if (t && t.closest && t.closest('.diagram-notes')) return;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       if (Archify.preset && Archify.preset.isOpen() && e.key !== 'Escape' && e.key !== 's' && e.key !== 'S') {
         Archify.preset.close(false);
