@@ -39,6 +39,8 @@
   <a href="https://x.com/t20000622yy"><img src="https://img.shields.io/badge/Creator_on_X-181717?style=for-the-badge&amp;logo=x&amp;logoColor=white" alt="Follow the creator on X" /></a>
 </p>
 
+<p align="center"><a href="#sponsors"><strong>❤️ Partners & sponsors: Kimi Work · Supercode · EverMind/Raven</strong></a></p>
+
 ## See Archify in action
 
 <p align="center">
@@ -71,6 +73,8 @@ Then continue: “Add authentication”, “Highlight the cache-miss path”, or
 **No repository is required:** start with a description, or ask your agent to read a repository for a source-backed architecture diagram.
 
 [Choose your agent](https://tt-a1i.github.io/archify/start.html?agent=cursor&type=architecture) · [Installation details and update checks](#quick-start)
+
+<a id="sponsors"></a>
 
 ## ❤️ Sponsors
 

@@ -39,6 +39,8 @@
   <a href="https://x.com/t20000622yy"><img src="https://img.shields.io/badge/Creator_on_X-181717?style=for-the-badge&amp;logo=x&amp;logoColor=white" alt="Follow the creator on X" /></a>
 </p>
 
+<p align="center"><a href="#sponsors"><strong>❤️ 合作与赞助伙伴：Kimi Work · Supercode · EverMind/Raven</strong></a></p>
+
 ## 看看 Archify 能做什么
 
 <p align="center">
@@ -71,6 +73,8 @@ API 优先读取 Redis，缓存未命中时查询 PostgreSQL 并回填缓存。
 **不需要绑定代码库：**从描述开始即可。也可以让 Agent 阅读仓库，生成有源码依据的架构图。
 
 [按 Agent 选择安装方式](https://tt-a1i.github.io/archify/start.html?agent=cursor&type=architecture) · [安装细节与更新检查](#快速开始)
+
+<a id="sponsors"></a>
 
 ## ❤️ 赞助伙伴
 
