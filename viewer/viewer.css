@@ -314,7 +314,8 @@ body {
   min-height: 100vh;
   padding: 2rem;
   color: var(--text);
-  transition: background 0.2s ease, color 0.2s ease;
+  /* Theme surfaces change together; animating the page background leaves it
+     visibly out of sync with the SVG and panel for the first 200ms. */
 }
 
 html[data-preset="signal-flow"] body {

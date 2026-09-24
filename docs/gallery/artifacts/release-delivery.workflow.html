@@ -483,7 +483,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       min-height: 100vh;
       padding: 2rem;
       color: var(--text);
-      transition: background 0.2s ease, color 0.2s ease;
+      /* Theme surfaces change together; animating the page background leaves it
+         visibly out of sync with the SVG and panel for the first 200ms. */
     }
 
     html[data-preset="signal-flow"] body {
@@ -11901,7 +11902,11 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       }
       if (typeof MutationObserver === 'function') {
         var contentObserver = new MutationObserver(function (records) {
-          var viewerModeChanged = records.some(function (record) { return record.target === html; });
+          // A theme switch changes paint, not the stage geometry. Reprobing
+          // drops the bottom rail for several frames and makes the diagram jump.
+          var viewerModeChanged = records.some(function (record) {
+            return record.target === html && record.attributeName !== 'data-theme';
+          });
           if (viewerModeChanged) reprobe();
           else schedule();
         });
