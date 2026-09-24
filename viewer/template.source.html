@@ -175,6 +175,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
        Motion appears only for trace-enabled artifacts and has no shortcut;
        Keyboard: T toggles theme, S cycles style, F toggles the stage, E opens export. -->
   <div class="toolbar" role="toolbar" aria-label="{{i18n:viewer.toolbar.actions}}">
+    <div class="toolbar-group">
     <button id="btn-theme" type="button"
             title="{{i18n:viewer.theme.toggle.title}}"
             aria-label="{{i18n:viewer.theme.toggle}}"
@@ -195,7 +196,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <span class="toolbar-icon toolbar-chevron" aria-hidden="true"></span>
       </button>
       <div class="preset-menu" id="preset-menu" role="menu" aria-label="{{i18n:viewer.preset.menu}}">
-        <div class="preset-menu-heading" role="presentation"><span>{{i18n:viewer.preset.identity}}</span><span>{{i18n:viewer.preset.cycles}}</span></div>
+        <div class="preset-menu-heading" role="presentation"><span>{{i18n:viewer.preset.identity}}</span><span class="preset-menu-shortcut"><kbd>S</kbd>{{i18n:viewer.preset.cycles}}</span></div>
         <button class="preset-option" data-preset-value="classic" type="button" role="menuitemradio" aria-checked="false" tabindex="-1">
           <span class="preset-option-swatch classic" aria-hidden="true"></span>
           <span class="preset-option-copy"><strong>{{i18n:viewer.preset.classic}}</strong><small>{{i18n:viewer.preset.classic.hint}}</small></span>
@@ -232,6 +233,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       <span id="present-icon" class="toolbar-icon" aria-hidden="true"></span>
       <span id="present-label">{{i18n:viewer.present.present}}</span>
     </button>
+    </div>
     <div class="export-wrap">
       <button id="btn-export" type="button"
               title="{{i18n:viewer.export.button.title}}"
@@ -667,10 +669,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Card Title 1</h3>
         </div>
         <ul>
-          <li>&bull; Item one</li>
-          <li>&bull; Item two</li>
-          <li>&bull; Item three</li>
-          <li>&bull; Item four</li>
+          <li>Item one</li>
+          <li>Item two</li>
+          <li>Item three</li>
+          <li>Item four</li>
         </ul>
       </div>
 
@@ -680,10 +682,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Card Title 2</h3>
         </div>
         <ul>
-          <li>&bull; Item one</li>
-          <li>&bull; Item two</li>
-          <li>&bull; Item three</li>
-          <li>&bull; Item four</li>
+          <li>Item one</li>
+          <li>Item two</li>
+          <li>Item three</li>
+          <li>Item four</li>
         </ul>
       </div>
 
@@ -693,10 +695,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Card Title 3</h3>
         </div>
         <ul>
-          <li>&bull; Item one</li>
-          <li>&bull; Item two</li>
-          <li>&bull; Item three</li>
-          <li>&bull; Item four</li>
+          <li>Item one</li>
+          <li>Item two</li>
+          <li>Item three</li>
+          <li>Item four</li>
         </ul>
       </div>
     </div>

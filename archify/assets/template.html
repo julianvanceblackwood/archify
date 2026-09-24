@@ -1073,14 +1073,14 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       display: inline-flex;
       align-items: center;
       max-width: calc(100% - 2rem);
-      padding: 0.15rem;
-      gap: 0;
+      padding: 0.25rem;
+      gap: 0.0625rem;
       overflow-x: auto;
-      border: 1px solid color-mix(in srgb, var(--toolbar-border) 48%, transparent);
-      border-radius: 0.58rem;
-      background: color-mix(in srgb, var(--toolbar-bg) 82%, transparent);
-      box-shadow: 0 5px 14px rgba(0, 0, 0, 0.07);
-      backdrop-filter: blur(10px);
+      border: 1px solid color-mix(in srgb, var(--panel-border) 80%, transparent);
+      border-radius: 0.75rem;
+      background: color-mix(in srgb, var(--panel) 84%, transparent);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 28px -14px rgba(15, 23, 42, 0.28);
+      backdrop-filter: blur(14px) saturate(1.2);
       scrollbar-width: none;
     }
     .diagram-nav::-webkit-scrollbar { display: none; }
@@ -1096,13 +1096,18 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     .diagram-nav button {
       min-width: 2rem;
       height: 2rem;
-      padding: 0 0.35rem;
-      border-radius: 0.35rem;
-      color: color-mix(in srgb, var(--toolbar-text) 68%, transparent);
-      font-size: 0.6875rem;
-      font-weight: 600;
-      letter-spacing: 0.02em;
+      padding: 0 0.4rem;
+      border-radius: 0.5rem;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0;
       transition: background 0.15s, color 0.15s;
+    }
+    .diagram-nav button:hover,
+    .diagram-nav button:focus-visible {
+      color: var(--text);
+      background: color-mix(in srgb, var(--text) 6%, transparent);
     }
     .diagram-nav button:hover,
     .diagram-nav button:focus-visible,
@@ -1122,30 +1127,30 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     .diagram-nav #btn-overview-map,
     .diagram-nav #btn-semantic-lens {
       min-width: auto;
-      padding-inline: 0.5rem;
-      color: color-mix(in srgb, var(--toolbar-text) 86%, transparent);
-      font-weight: 650;
+      padding-inline: 0.6rem;
+      color: var(--text-muted);
+      font-weight: 500;
     }
     .diagram-nav #btn-node-finder,
     .diagram-nav [data-view="out"] {
       position: relative;
-      margin-left: 0.25rem;
+      margin-left: 0.375rem;
     }
     .diagram-nav #btn-node-finder::before,
     .diagram-nav [data-view="out"]::before {
       position: absolute;
-      top: 0.4rem;
-      bottom: 0.4rem;
-      left: -0.13rem;
+      top: 0.55rem;
+      bottom: 0.55rem;
+      left: -0.19rem;
       width: 1px;
-      background: color-mix(in srgb, var(--toolbar-border) 62%, transparent);
+      background: color-mix(in srgb, var(--panel-border) 90%, transparent);
       content: "";
       pointer-events: none;
     }
     .diagram-nav-icon {
       display: block;
-      width: 0.72rem;
-      height: 0.72rem;
+      width: 0.875rem;
+      height: 0.875rem;
       margin: auto;
       background: currentColor;
       -webkit-mask-position: center;
@@ -1190,9 +1195,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       letter-spacing: 0.07em;
     }
     .diagram-nav-percent {
-      color: color-mix(in srgb, var(--toolbar-text) 84%, transparent);
-      font-size: 0.6875rem;
-      font-weight: 650;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 500;
       font-variant-numeric: tabular-nums;
       line-height: 1;
     }
@@ -3130,7 +3135,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       flex-direction: column;
       gap: 0;
       margin-top: 0;
-      padding: 0.25rem 0 0;
+      padding: 0.125rem 0 0;
     }
     html[data-reader-rail="true"] .cards .card {
       padding: 0 0.25rem 1.125rem;
@@ -3144,9 +3149,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       border-top: 1px solid var(--panel-border);
     }
     html[data-reader-rail="true"] .cards .card::before { display: none; }
-    html[data-reader-rail="true"] .card-header { margin-bottom: 0.4rem; }
+    html[data-reader-rail="true"] .card-header { gap: 0.55rem; margin-bottom: 0.45rem; }
     html[data-reader-rail="true"] .cards .card h3 { font-size: 0.875rem; letter-spacing: -0.005em; }
-    html[data-reader-rail="true"] .cards .card ul { font-size: 0.8125rem; line-height: 1.65; }
+    html[data-reader-rail="true"] .cards .card ul { font-size: 0.8125rem; line-height: 1.6; }
 
     .node-outline { display: none; }
     html[data-reader-rail="true"] .node-outline:not([hidden]) {
@@ -3164,61 +3169,90 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     html[data-reader-rail="true"] .cards:empty + .node-outline:not([hidden]) { margin-top: 0; border-top: 0; }
     .node-outline-head {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       gap: 0.5rem;
       padding: 1.125rem 0.25rem 0;
-      font-size: 0.875rem;
     }
-    .node-outline-head strong { font-weight: 600; color: var(--text); }
+    .node-outline-head strong {
+      color: var(--text);
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: -0.005em;
+    }
     .node-outline-count {
-      padding: 0.05rem 0.45rem;
+      min-width: 1.35rem;
+      padding: 0.1rem 0.4rem;
       border-radius: 999px;
-      background: color-mix(in srgb, var(--text) 7%, transparent);
+      background: color-mix(in srgb, var(--text) 6%, transparent);
       color: var(--text-muted);
       font-size: 0.6875rem;
       font-weight: 600;
+      line-height: 1.3;
+      text-align: center;
       font-variant-numeric: tabular-nums;
     }
     .node-outline-hint {
-      padding: 0.2rem 0.25rem 0.5rem;
+      padding: 0.25rem 0.25rem 0.375rem;
       color: var(--text-faint);
-      font-size: 0.6875rem;
+      font-size: 0.75rem;
     }
     .node-outline-list {
       flex: 1 1 auto;
       min-height: 0;
       margin: 0 -0.375rem;
-      padding: 0 0 0.625rem;
+      padding: 0 0 1.25rem;
       overflow-y: auto;
       list-style: none;
-      scrollbar-width: thin;
+      scrollbar-width: none;
+      -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 2rem), transparent);
+      mask-image: linear-gradient(to bottom, #000 calc(100% - 2rem), transparent);
     }
-    .node-outline-list {
-      -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent);
-      mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent);
+    .node-outline-list::-webkit-scrollbar { display: none; }
+    .node-outline-group + .node-outline-group { margin-top: 0.25rem; }
+    .node-outline-group > ul {
+      position: relative;
+      list-style: none;
     }
-    .node-outline-list ul { list-style: none; }
-    /* The rail frees the vertical budget, so compact viewports keep the normal
-       title spacing instead of the stacked layout's tight stage rail. */
-    html[data-reader-rail="true"] body { --archify-page-top: 1.5rem; padding-block: 1.5rem; }
-    html[data-reader-rail="true"] .toolbar { top: calc(var(--archify-page-top) - 0.1875rem); }
-    html[data-reader-rail="true"] .header { min-height: 0; margin-bottom: 1.125rem; }
+    /* A quiet spine ties each group's swatches together like a lane. */
+    .node-outline-group > ul::before {
+      position: absolute;
+      top: 0.95rem;
+      bottom: 0.95rem;
+      left: calc(0.625rem + 0.3125rem - 0.5px);
+      width: 1px;
+      background: var(--panel-border);
+      content: "";
+    }
     .node-outline-heading {
-      display: block;
-      padding: 0.55rem 0.625rem 0.2rem;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 0.7rem 0.625rem 0.25rem;
       color: var(--text-faint);
       font-size: 0.6875rem;
       font-weight: 600;
       letter-spacing: 0.02em;
     }
+    .node-outline-heading small {
+      color: var(--text-dim);
+      font-size: 0.6875rem;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+    /* The rail frees the vertical budget, so compact viewports keep the normal
+       title spacing instead of the stacked layout's tight stage rail. */
+    html[data-reader-rail="true"] body { --archify-page-top: 1.5rem; padding-block: 1.5rem; }
+    html[data-reader-rail="true"] .toolbar { top: calc(var(--archify-page-top) - 0.1875rem); }
+    html[data-reader-rail="true"] .header { min-height: 0; margin-bottom: 1.125rem; }
     .node-outline-item {
+      position: relative;
       display: grid;
-      grid-template-columns: 0.5rem minmax(0, auto) minmax(0, 1fr);
+      grid-template-columns: 0.625rem minmax(0, auto) minmax(0, 1fr);
       align-items: center;
-      column-gap: 0.55rem;
+      column-gap: 0.625rem;
       width: 100%;
-      min-height: 2rem;
-      padding: 0.3rem 0.625rem;
+      min-height: 1.95rem;
+      padding: 0.28rem 0.625rem;
       border: 0;
       border-radius: 0.5rem;
       background: transparent;
@@ -3226,30 +3260,33 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       font: inherit;
       text-align: left;
       cursor: pointer;
-      transition: background 0.14s ease;
+      transition: background 0.14s ease, color 0.14s ease;
     }
     .node-outline-item:hover,
-    .node-outline-item:focus-visible { background: color-mix(in srgb, var(--outline-tone) 11%, transparent); }
+    .node-outline-item:focus-visible,
+    .node-outline-item[data-previewing] { background: color-mix(in srgb, var(--outline-tone) 9%, transparent); }
     .node-outline-item:focus-visible { outline: 2px solid var(--outline-tone); outline-offset: -2px; }
-    .node-outline-item[data-previewing] { background: color-mix(in srgb, var(--outline-tone) 11%, transparent); }
-    .node-outline-item[aria-current="true"] {
-      background: color-mix(in srgb, var(--outline-tone) 16%, transparent);
-      box-shadow: inset 2px 0 0 var(--outline-tone);
-    }
+    .node-outline-item[aria-current="true"] { background: color-mix(in srgb, var(--outline-tone) 14%, transparent); }
+    /* Swatches echo the diagram's node cards: tinted fill, hairline stroke. */
     .node-outline-dot {
-      width: 0.5rem;
+      width: 0.625rem;
       height: 0.5rem;
-      border-radius: 50%;
-      background: var(--outline-tone);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--outline-tone) 18%, transparent);
+      border: 1.25px solid var(--outline-tone);
+      border-radius: 0.15rem;
+      background: color-mix(in srgb, var(--outline-tone) 16%, var(--bg));
+      transition: background 0.14s ease, transform 0.14s ease;
     }
+    .node-outline-item:hover .node-outline-dot,
+    .node-outline-item[data-previewing] .node-outline-dot { transform: scale(1.12); }
+    .node-outline-item[aria-current="true"] .node-outline-dot { background: var(--outline-tone); }
     .node-outline-item strong {
       overflow: hidden;
       font-size: 0.8125rem;
-      font-weight: 550;
+      font-weight: 500;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+    .node-outline-item[aria-current="true"] strong { font-weight: 600; }
     .node-outline-item small {
       overflow: hidden;
       color: var(--text-faint);
@@ -3290,8 +3327,31 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       line-height: 1.6;
     }
 
-    .card li { margin-bottom: 0.25rem; }
+    .card li {
+      position: relative;
+      margin-bottom: 0.3rem;
+      padding-left: 0.9rem;
+    }
     .card li:last-child { margin-bottom: 0; }
+    /* Hanging markers take the card's tone so wrapped lines align under text. */
+    .card li::before {
+      position: absolute;
+      top: calc(0.8em - 2px);
+      left: 0.2rem;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--card-tone, var(--text-muted)) 70%, transparent);
+      content: "";
+    }
+    .card:has(.card-dot.cyan)    { --card-tone: var(--frontend-stroke); }
+    .card:has(.card-dot.emerald) { --card-tone: var(--backend-stroke); }
+    .card:has(.card-dot.violet)  { --card-tone: var(--database-stroke); }
+    .card:has(.card-dot.amber)   { --card-tone: var(--cloud-stroke); }
+    .card:has(.card-dot.rose)    { --card-tone: var(--security-stroke); }
+    .card:has(.card-dot.orange)  { --card-tone: var(--messagebus-stroke); }
+    .card:has(.card-dot.slate)   { --card-tone: var(--external-stroke); }
+    .card-dot { box-shadow: 0 0 0 3px color-mix(in srgb, var(--card-tone, transparent) 16%, transparent); }
 
     /* ==========================================================
        Print stylesheet — hide interactive controls, force light,
@@ -3395,23 +3455,25 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
        viewport edge. */
     .toolbar {
       position: fixed;
-      top: calc(var(--archify-page-top) - 0.1875rem);
+      top: var(--archify-page-top);
       right: max(1rem, calc((100vw - min(100vw - 4rem, var(--archify-reader-width, 1440px))) / 2));
       display: flex;
       align-items: center;
       gap: 0.125rem;
-      padding: 0.125rem;
-      border: 1px solid color-mix(in srgb, var(--toolbar-border) 72%, transparent);
-      border-radius: 0.75rem;
-      background: var(--toolbar-bg);
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 24px -12px rgba(15, 23, 42, 0.2);
-      backdrop-filter: blur(12px);
+      padding: 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
       z-index: 100;
     }
+    /* Ghost controls keep a 44px hit area while the visible pill stays compact;
+       Export is the one primary action. */
     .toolbar button {
+      position: relative;
+      isolation: isolate;
       background: transparent;
-      color: var(--toolbar-text);
-      border: 1px solid transparent;
+      color: var(--text-muted);
+      border: 0;
       padding: 0.5rem 0.75rem;
       border-radius: 0.5625rem;
       font-family: inherit;
@@ -3420,33 +3482,128 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       cursor: pointer;
       white-space: nowrap;
       box-shadow: none;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      transition: color 0.15s;
       display: inline-flex;
       align-items: center;
-      gap: 0.375rem;
+      gap: 0.4rem;
       min-height: 2.75rem;
     }
-    .toolbar button:hover {
-      background: color-mix(in srgb, var(--text) 7%, transparent);
+    .toolbar button::before {
+      position: absolute;
+      z-index: -1;
+      inset: 0.375rem 0;
+      border-radius: 0.5rem;
+      background: transparent;
+      content: "";
+      transition: background 0.15s, box-shadow 0.15s;
     }
+    .toolbar button:hover { color: var(--text); }
+    .toolbar button:hover::before { background: color-mix(in srgb, var(--text) 6%, transparent); }
     .toolbar button[aria-expanded="true"],
-    .toolbar button[aria-pressed="true"]:not(#btn-theme) {
-      background: color-mix(in srgb, var(--frontend-stroke) 12%, transparent);
-      border-color: color-mix(in srgb, var(--frontend-stroke) 40%, transparent);
+    .toolbar button[aria-pressed="true"]:not(#btn-theme) { color: var(--text); }
+    .toolbar button[aria-expanded="true"]::before,
+    .toolbar button[aria-pressed="true"]:not(#btn-theme)::before {
+      background: color-mix(in srgb, var(--text) 8%, transparent);
     }
     .toolbar #btn-export {
-      padding-right: 0.82rem;
-      padding-left: 0.82rem;
+      margin-left: 0.375rem;
+      padding-right: 0.95rem;
+      padding-left: 1rem;
+      color: var(--bg);
+      font-weight: 550;
+    }
+    .toolbar #btn-export::before {
+      background: var(--text);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 6px 16px -8px rgba(15, 23, 42, 0.4);
     }
     .toolbar #btn-export:hover,
-    .toolbar #btn-export[aria-expanded="true"] {
-      color: var(--toolbar-text);
-      background: color-mix(in srgb, var(--frontend-stroke) 12%, transparent);
-    }
+    .toolbar #btn-export[aria-expanded="true"] { color: var(--bg); }
+    .toolbar #btn-export:hover::before,
+    .toolbar #btn-export[aria-expanded="true"]::before { background: color-mix(in srgb, var(--text) 86%, var(--bg)); }
     .toolbar button:focus-visible {
       outline: 2px solid var(--frontend-stroke);
-      outline-offset: 0;
+      outline-offset: -4px;
     }
+    .toolbar { gap: 0.5rem; }
+    .toolbar #btn-export { margin-left: 0; }
+    .toolbar #btn-export::before { inset: 0.25rem 0; border-radius: 0.6875rem; }
+    /* Tools share one quiet capsule; the capsule is drawn inside the 44px row
+       so the controls keep their hit area without a tall visible box. */
+    .toolbar-group {
+      position: relative;
+      isolation: isolate;
+      display: flex;
+      align-items: center;
+      gap: 0.0625rem;
+      padding: 0 0.25rem;
+    }
+    .toolbar-group::before {
+      position: absolute;
+      z-index: -1;
+      inset: 0.25rem 0;
+      border: 1px solid color-mix(in srgb, var(--panel-border) 85%, transparent);
+      border-radius: 0.6875rem;
+      background: color-mix(in srgb, var(--panel) 78%, transparent);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 20px -14px rgba(15, 23, 42, 0.22);
+      backdrop-filter: blur(12px);
+      content: "";
+    }
+    .toolbar-group button { padding-inline: 0.625rem; }
+    .toolbar-group button::before { inset: 0.5rem 0; border-radius: 0.5rem; }
+    /* Theme becomes a sliding switch; its label stays for assistive tech. */
+    .toolbar #theme-label,
+    .toolbar #present-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+    .toolbar #btn-theme {
+      width: 3.5rem;
+      padding: 0;
+      justify-content: center;
+    }
+    .toolbar #btn-theme::before {
+      inset: 0.75rem 0.4375rem;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--text) 9%, transparent);
+      box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+    .toolbar #btn-theme:hover::before { background: color-mix(in srgb, var(--text) 13%, transparent); }
+    .toolbar #btn-theme::after {
+      position: absolute;
+      z-index: 0;
+      top: 50%;
+      left: 0.5625rem;
+      width: 1.125rem;
+      height: 1.125rem;
+      border-radius: 50%;
+      background: var(--panel);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.12);
+      content: "";
+      transform: translateY(-50%);
+      transition: left 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .toolbar #theme-icon {
+      position: absolute;
+      z-index: 1;
+      top: 50%;
+      left: calc(0.5625rem + 0.1875rem);
+      width: 0.75rem;
+      height: 0.75rem;
+      color: var(--cloud-stroke);
+      transform: translateY(-50%);
+      transition: left 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    [data-theme="dark"] .toolbar #btn-theme::before { background: rgba(148, 163, 184, 0.16); }
+    [data-theme="dark"] .toolbar #btn-theme::after { left: calc(100% - 0.5625rem - 1.125rem); background: #3b4a63; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); }
+    [data-theme="dark"] .toolbar #theme-icon { left: calc(100% - 0.5625rem - 1.125rem + 0.1875rem); color: #c7d2fe; }
+    .toolbar #btn-present { width: 2.5rem; padding: 0; justify-content: center; }
+    .toolbar #btn-present .toolbar-icon { width: 1rem; height: 1rem; }
+    html[data-motion="still"] .toolbar #btn-theme::after,
+    html[data-motion="still"] .toolbar #theme-icon { transition: none; }
     html[data-present="true"]:not([data-embed="true"]) .toolbar { right: 1rem; }
     html[data-preset="editorial"] .toolbar { border-radius: 0.45rem; }
     .toolbar #btn-motion[hidden] { display: none !important; }
@@ -3522,19 +3679,30 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       box-shadow: 0 0 0 2px color-mix(in srgb, var(--arrow-emphasis) 14%, transparent);
       transform: rotate(45deg) scale(0.72);
     }
+    /* Menus anchor to the tools capsule so they open flush under it. */
+    .toolbar-group .preset-wrap { position: static; }
     .toolbar .preset-menu {
       position: absolute;
-      top: calc(100% + 0.375rem);
+      top: calc(100% + 0.125rem);
       right: 0;
       display: none;
-      width: 18.5rem;
+      width: 17.5rem;
       max-width: calc(100vw - 2rem);
-      padding: 0.45rem;
-      border: 1px solid var(--toolbar-border);
+      padding: 0.375rem;
+      border: 1px solid color-mix(in srgb, var(--panel-border) 90%, transparent);
       border-radius: 0.875rem;
       background: var(--toolbar-menu-bg);
-      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 18px 44px -14px rgba(15, 23, 42, 0.3);
     }
+    [data-theme="dark"] .toolbar .preset-menu,
+    [data-theme="dark"] .toolbar .export-menu {
+      border-color: rgba(148, 163, 184, 0.16);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 18px 44px -12px rgba(0, 0, 0, 0.6);
+    }
+    /* Menu rows are not toolbar pills: drop the ghost-button pseudo surface. */
+    .toolbar .preset-menu button,
+    .toolbar .export-menu button { isolation: auto; min-height: 0; }
+    .toolbar .preset-menu button::before { display: none; }
     .toolbar .preset-menu.open { display: block; }
     .toolbar .preset-menu.open,
     .toolbar .export-menu.open {
@@ -3547,50 +3715,74 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     }
     .preset-menu-heading {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       justify-content: space-between;
       gap: 1rem;
-      padding: 0.42rem 0.6rem 0.55rem;
+      padding: 0.45rem 0.55rem 0.4rem;
       color: var(--text-faint);
-      font-size: 0.56rem;
-      letter-spacing: 0.13em;
-      text-transform: uppercase;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
     }
-    .preset-menu-heading span:last-child {
-      font-size: 0.52rem;
-      letter-spacing: 0.04em;
-      text-transform: none;
+    .preset-menu-shortcut {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-weight: 500;
+    }
+    .preset-menu-shortcut kbd {
+      min-width: 1.125rem;
+      padding: 0.05rem 0.3rem;
+      border: 1px solid var(--panel-border);
+      border-bottom-width: 2px;
+      border-radius: 0.3rem;
+      background: color-mix(in srgb, var(--text) 3%, var(--toolbar-menu-bg));
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 0.625rem;
+      font-weight: 600;
+      line-height: 1.3;
+      text-align: center;
     }
     .toolbar .preset-option {
       display: grid;
-      grid-template-columns: 2rem minmax(0, 1fr) 1rem;
+      grid-template-columns: 2.375rem minmax(0, 1fr) 1rem;
       align-items: center;
-      gap: 0.68rem;
+      gap: 0.75rem;
       width: 100%;
-      min-height: 3.35rem;
-      padding: 0.5rem 0.62rem;
+      min-height: 3.125rem;
+      margin-top: 0.125rem;
+      padding: 0.45rem 0.6rem 0.45rem 0.5rem;
       border: 0;
-      border-radius: 0.5rem;
+      border-radius: 0.625rem;
       background: transparent;
+      color: var(--text);
       box-shadow: none;
       backdrop-filter: none;
       text-align: left;
+      transition: background 0.14s ease;
     }
     .toolbar .preset-option:hover,
-    .toolbar .preset-option:focus-visible { background: var(--toolbar-hover); }
-    .toolbar .preset-option[aria-checked="true"] {
-      background: color-mix(in srgb, var(--frontend-stroke) 9%, transparent);
-      border-color: color-mix(in srgb, var(--frontend-stroke) 36%, transparent);
+    .toolbar .preset-option:focus-visible { background: color-mix(in srgb, var(--text) 5%, transparent); }
+    .toolbar .preset-option[aria-checked="true"] { background: color-mix(in srgb, var(--frontend-stroke) 8%, transparent); }
+    .toolbar .preset-option:focus-visible {
+      outline: 1.5px solid color-mix(in srgb, var(--frontend-stroke) 55%, transparent);
+      outline-offset: -1.5px;
     }
     .preset-option-swatch {
       position: relative;
-      width: 2rem;
-      height: 1.55rem;
+      width: 2.375rem;
+      height: 1.75rem;
       overflow: hidden;
-      border: 1px solid #64748b;
-      border-radius: 0.24rem;
+      border: 0;
+      border-radius: 0.4375rem;
       background: #0f172a;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.28), 0 1px 2px rgba(15, 23, 42, 0.12);
+      transition: box-shadow 0.14s ease, transform 0.14s ease;
+    }
+    .toolbar .preset-option:hover .preset-option-swatch { transform: translateY(-1px); }
+    .toolbar .preset-option[aria-checked="true"] .preset-option-swatch {
+      box-shadow: 0 0 0 2px var(--toolbar-menu-bg), 0 0 0 3.5px var(--frontend-stroke);
     }
     .preset-option-swatch::before,
     .preset-option-swatch::after { position: absolute; content: ""; }
@@ -3602,6 +3794,17 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       border: 1px solid #22d3ee;
       border-radius: 0.16rem;
       background: rgba(34, 211, 238, 0.14);
+    }
+    /* Classic previews the canvas it will actually produce in this theme. */
+    [data-theme="light"] .preset-option-swatch.classic {
+      background:
+        radial-gradient(circle at 1px 1px, #d9dee5 0.6px, transparent 0.9px) 0 0 / 5px 5px,
+        #ffffff;
+    }
+    [data-theme="light"] .preset-option-swatch.classic::before {
+      border-color: #1b87a3;
+      background: rgba(14, 116, 144, 0.08);
+      box-shadow: 0 2px 4px rgba(17, 24, 39, 0.12);
     }
     .preset-option-swatch.signal-flow {
       border-color: #29415f;
@@ -3665,15 +3868,17 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     .preset-option-copy strong,
     .preset-option-copy small { display: block; }
     .preset-option-copy strong {
-      color: var(--toolbar-text);
-      font-size: 0.72rem;
-      font-weight: 600;
+      color: var(--text);
+      font-size: 0.8125rem;
+      font-weight: 550;
+      letter-spacing: -0.005em;
     }
+    .toolbar .preset-option[aria-checked="true"] .preset-option-copy strong { font-weight: 650; }
     .preset-option-copy small {
-      margin-top: 0.16rem;
+      margin-top: 0.125rem;
       overflow: hidden;
       color: var(--text-faint);
-      font-size: 0.57rem;
+      font-size: 0.6875rem;
       font-weight: 400;
       white-space: nowrap;
       text-overflow: ellipsis;
@@ -3723,19 +3928,20 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     }
     .toolbar .export-menu {
       position: absolute;
-      top: calc(100% + 0.375rem);
+      top: calc(100% + 0.125rem);
       right: 0;
       background: var(--toolbar-menu-bg);
-      border: 1px solid var(--toolbar-border);
+      border: 1px solid color-mix(in srgb, var(--panel-border) 90%, transparent);
       width: 19rem;
       max-width: calc(100vw - 2rem);
       max-height: calc(100vh - 5.5rem);
       overflow-y: auto;
       border-radius: 0.875rem;
-      padding: 0.55rem;
+      padding: 0.375rem;
       display: none;
       flex-direction: column;
-      box-shadow: 0 18px 48px rgba(0,0,0,0.24);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 18px 44px -14px rgba(15, 23, 42, 0.3);
+      scrollbar-width: thin;
     }
     .toolbar .export-menu.open { display: flex; }
     .export-menu-header {
@@ -3743,94 +3949,111 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       align-items: flex-start;
       justify-content: space-between;
       gap: 1rem;
-      padding: 0.5rem 0.55rem 0.72rem;
+      padding: 0.55rem 0.6rem 0.6rem;
     }
     .export-menu-header strong,
     .export-menu-header span { display: block; }
     .export-menu-header strong {
-      color: var(--toolbar-text);
-      font-size: 0.78rem;
-      font-weight: 650;
-      letter-spacing: -0.015em;
+      color: var(--text);
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: -0.005em;
     }
     .export-menu-header span {
-      margin-top: 0.16rem;
+      margin-top: 0.15rem;
       color: var(--text-faint);
-      font-size: 0.56rem;
+      font-size: 0.75rem;
     }
     .export-menu-header kbd {
-      padding: 0.16rem 0.36rem;
-      border: 1px solid var(--toolbar-border);
+      min-width: 1.125rem;
+      padding: 0.05rem 0.3rem;
+      border: 1px solid var(--panel-border);
+      border-bottom-width: 2px;
       border-radius: 0.3rem;
-      color: var(--text-faint);
-      background: color-mix(in srgb, var(--toolbar-border) 16%, transparent);
+      background: color-mix(in srgb, var(--text) 3%, var(--toolbar-menu-bg));
+      color: var(--text-muted);
       font-family: inherit;
-      font-size: 0.54rem;
+      font-size: 0.625rem;
       font-weight: 600;
+      line-height: 1.3;
+      text-align: center;
     }
     .export-menu-section {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
-      gap: 0.18rem;
+      gap: 0.0625rem;
     }
     .export-menu-section + .export-menu-section {
-      margin-top: 0.42rem;
-      padding-top: 0.42rem;
-      border-top: 1px solid color-mix(in srgb, var(--toolbar-border) 68%, transparent);
+      margin-top: 0.3rem;
+      padding-top: 0.3rem;
+      border-top: 1px solid color-mix(in srgb, var(--panel-border) 80%, transparent);
     }
     .export-menu-heading {
       grid-column: 1 / -1;
       display: block;
-      padding: 0.24rem 0.55rem 0.2rem;
+      padding: 0.4rem 0.6rem 0.25rem;
       color: var(--text-faint);
-      font-size: 0.54rem;
+      font-size: 0.6875rem;
       font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      letter-spacing: 0.01em;
     }
     .toolbar .export-menu button {
       display: grid;
-      grid-template-columns: 1.15rem minmax(0, 1fr);
+      grid-template-columns: 1rem minmax(0, 1fr);
       align-items: center;
-      column-gap: 0.52rem;
+      column-gap: 0.7rem;
       background: transparent;
-      border: 1px solid transparent;
+      border: 0;
       box-shadow: none;
       backdrop-filter: none;
       width: 100%;
-      min-height: 3rem;
+      min-height: 2.5rem;
       text-align: left;
-      padding: 0.48rem 0.55rem;
-      border-radius: 0.5rem;
+      padding: 0.4rem 0.6rem;
+      border-radius: 0.5625rem;
+      color: var(--text);
       white-space: nowrap;
+      transition: background 0.14s ease;
     }
+    .toolbar .export-menu button:hover,
+    .toolbar .export-menu button:focus-visible { background: color-mix(in srgb, var(--text) 5%, transparent); color: var(--text); }
+    .toolbar .export-menu button:focus-visible {
+      outline: 1.5px solid color-mix(in srgb, var(--frontend-stroke) 55%, transparent);
+      outline-offset: -1.5px;
+    }
+    /* Name and format hint share one line, so each row stays compact. */
     .export-item-copy {
-      display: block;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.75rem;
       min-width: 0;
     }
-    .export-item-copy strong,
-    .export-item-copy small { display: block; }
     .export-item-copy strong {
       overflow: hidden;
       color: inherit;
-      font-size: 0.7rem;
-      font-weight: 550;
+      font-size: 0.8125rem;
+      font-weight: 500;
       text-overflow: ellipsis;
     }
     .export-item-copy small {
-      margin-top: 0.12rem;
-      overflow: hidden;
+      flex: none;
       color: var(--text-faint);
-      font-size: 0.55rem;
+      font-size: 0.6875rem;
       font-weight: 450;
-      text-overflow: ellipsis;
     }
     .toolbar .export-menu button::before {
+      position: static;
+      z-index: auto;
+      inset: auto;
+      border-radius: 0;
+      display: block;
       width: 1rem;
       height: 1rem;
       background: currentColor;
+      color: var(--text-muted);
       content: "";
-      opacity: 0.72;
+      opacity: 0.8;
       -webkit-mask-position: center;
       -webkit-mask-repeat: no-repeat;
       -webkit-mask-size: contain;
@@ -3862,30 +4085,27 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     .toolbar .export-menu button[data-format="share-card"],
     .toolbar .export-menu button[data-action="route-share-card"],
     .toolbar .export-menu button[data-action="reach-share-card"] {
-      min-height: 3.35rem;
-      color: var(--toolbar-text);
-      background: color-mix(in srgb, var(--frontend-stroke) 8%, transparent);
-      border-color: color-mix(in srgb, var(--frontend-stroke) 24%, var(--toolbar-border));
+      color: var(--text);
+      background: color-mix(in srgb, var(--frontend-stroke) 7%, transparent);
     }
+    .toolbar .export-menu button[data-format="share-card"]::before,
+    .toolbar .export-menu button[data-action="route-share-card"]::before,
+    .toolbar .export-menu button[data-action="reach-share-card"]::before { color: var(--frontend-stroke); opacity: 1; }
     .toolbar .export-menu button[hidden] { display: none; }
-    .toolbar .export-menu button:hover {
-      background: var(--toolbar-hover);
-    }
-    .toolbar .export-menu button:focus-visible {
-      background: var(--toolbar-hover);
-      outline-offset: -2px;
+    .toolbar .export-menu button[data-format="share-card"]:hover,
+    .toolbar .export-menu button[data-action="route-share-card"]:hover,
+    .toolbar .export-menu button[data-action="reach-share-card"]:hover {
+      background: color-mix(in srgb, var(--frontend-stroke) 12%, transparent);
     }
     .toolbar .export-menu button:disabled {
       color: var(--text-faint);
-      background: color-mix(in srgb, var(--toolbar-border) 18%, transparent);
+      background: transparent;
+      opacity: 0.55;
       cursor: not-allowed;
-    }
-    .toolbar .export-menu button:disabled:hover {
-      border-color: transparent;
     }
     .toolbar .export-menu .hint {
       color: var(--text-faint);
-      font-size: 0.55rem;
+      font-size: 0.6875rem;
     }
 
     /* Toast — brief feedback for actions like "copied" */
@@ -4285,6 +4505,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
        ========================================================== */
     .c-grid       { stroke: var(--grid); fill: none; }
     .c-mask       { fill: var(--mask); stroke: none; }
+    .c-lane-rule  { stroke: var(--lane-stroke); fill: none; opacity: 0.7; }
+    .c-lane-wash  { fill: var(--lane-fill); stroke: none; }
 
     .c-frontend   { fill: var(--frontend-fill);   stroke: var(--frontend-stroke); }
     .c-backend    { fill: var(--backend-fill);    stroke: var(--backend-stroke); }
@@ -4329,6 +4551,26 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35));
     }
     html[data-preset="classic"] .diagram-container > svg .t-dim { fill: var(--text-faint); }
+    html[data-preset="classic"] .diagram-container > svg [data-edge-from] {
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    html[data-preset="classic"] .diagram-container > svg .a-security { stroke-dasharray: 5 4; }
+    html[data-preset="classic"] .diagram-container > svg .a-dashed { stroke-dasharray: 2 4; }
+    html[data-preset="classic"] .diagram-container > svg .c-lane-wash { fill: color-mix(in srgb, var(--text) 2.6%, transparent); }
+    html[data-preset="classic"] .diagram-container > svg .c-lane-rule { stroke: var(--panel-border); opacity: 1; }
+    html[data-preset="classic"][data-theme="dark"] .diagram-container > svg .c-lane-rule { stroke: rgba(148, 163, 184, 0.16); }
+    /* Edge label plates become deliberate hairline chips, so they read the same
+       on the open canvas and on a band wash. */
+    html[data-preset="classic"] .diagram-container > svg g[data-edge-from] > rect.c-mask {
+      fill: var(--panel);
+      stroke: var(--panel-border);
+      stroke-width: 0.6px;
+    }
+    html[data-preset="classic"][data-theme="dark"] .diagram-container > svg g[data-edge-from] > rect.c-mask {
+      fill: #0b1224;
+      stroke: rgba(148, 163, 184, 0.14);
+    }
     html[data-preset="classic"] .diagram-container > svg [data-node-id] {
       transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
     }
@@ -5290,6 +5532,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
        Motion appears only for trace-enabled artifacts and has no shortcut;
        Keyboard: T toggles theme, S cycles style, F toggles the stage, E opens export. -->
   <div class="toolbar" role="toolbar" aria-label="{{i18n:viewer.toolbar.actions}}">
+    <div class="toolbar-group">
     <button id="btn-theme" type="button"
             title="{{i18n:viewer.theme.toggle.title}}"
             aria-label="{{i18n:viewer.theme.toggle}}"
@@ -5310,7 +5553,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <span class="toolbar-icon toolbar-chevron" aria-hidden="true"></span>
       </button>
       <div class="preset-menu" id="preset-menu" role="menu" aria-label="{{i18n:viewer.preset.menu}}">
-        <div class="preset-menu-heading" role="presentation"><span>{{i18n:viewer.preset.identity}}</span><span>{{i18n:viewer.preset.cycles}}</span></div>
+        <div class="preset-menu-heading" role="presentation"><span>{{i18n:viewer.preset.identity}}</span><span class="preset-menu-shortcut"><kbd>S</kbd>{{i18n:viewer.preset.cycles}}</span></div>
         <button class="preset-option" data-preset-value="classic" type="button" role="menuitemradio" aria-checked="false" tabindex="-1">
           <span class="preset-option-swatch classic" aria-hidden="true"></span>
           <span class="preset-option-copy"><strong>{{i18n:viewer.preset.classic}}</strong><small>{{i18n:viewer.preset.classic.hint}}</small></span>
@@ -5347,6 +5590,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       <span id="present-icon" class="toolbar-icon" aria-hidden="true"></span>
       <span id="present-label">{{i18n:viewer.present.present}}</span>
     </button>
+    </div>
     <div class="export-wrap">
       <button id="btn-export" type="button"
               title="{{i18n:viewer.export.button.title}}"
@@ -5782,10 +6026,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Card Title 1</h3>
         </div>
         <ul>
-          <li>&bull; Item one</li>
-          <li>&bull; Item two</li>
-          <li>&bull; Item three</li>
-          <li>&bull; Item four</li>
+          <li>Item one</li>
+          <li>Item two</li>
+          <li>Item three</li>
+          <li>Item four</li>
         </ul>
       </div>
 
@@ -5795,10 +6039,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Card Title 2</h3>
         </div>
         <ul>
-          <li>&bull; Item one</li>
-          <li>&bull; Item two</li>
-          <li>&bull; Item three</li>
-          <li>&bull; Item four</li>
+          <li>Item one</li>
+          <li>Item two</li>
+          <li>Item three</li>
+          <li>Item four</li>
         </ul>
       </div>
 
@@ -5808,10 +6052,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Card Title 3</h3>
         </div>
         <ul>
-          <li>&bull; Item one</li>
-          <li>&bull; Item two</li>
-          <li>&bull; Item three</li>
-          <li>&bull; Item four</li>
+          <li>Item one</li>
+          <li>Item two</li>
+          <li>Item three</li>
+          <li>Item four</li>
         </ul>
       </div>
     </div>
@@ -12433,8 +12677,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         var maxX = Math.max.apply(Math, boxes.map(function (box) { return box.x + box.width; }));
         var maxY = Math.max.apply(Math, boxes.map(function (box) { return box.y + box.height; }));
         var bounds = {
-          x: contentOffsetX + minX * contentScale,
-          y: contentOffsetY + minY * contentScale,
+          x: contentOffsetX + (minX - viewBox.x) * contentScale,
+          y: contentOffsetY + (minY - viewBox.y) * contentScale,
           width: Math.max(1, (maxX - minX) * contentScale),
           height: Math.max(1, (maxY - minY) * contentScale)
         };
@@ -12538,7 +12782,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         if (!boxes.length || !viewBox || viewBox.width <= 0) return false;
         var minX = Math.min.apply(Math, boxes.map(function (box) { return box.x; }));
         var maxX = Math.max.apply(Math, boxes.map(function (box) { return box.x + box.width; }));
-        var center = ((minX + maxX) / 2 / viewBox.width) * (svg.clientWidth || 1);
+        var center = (((minX + maxX) / 2 - viewBox.x) / viewBox.width) * (svg.clientWidth || 1);
         var target = Math.max(0, Math.min(svg.clientWidth - container.clientWidth, center - container.clientWidth / 2));
         var transaction = cameraReceipt({ scrollLeft: target }, options);
         cameraTransaction = transaction;
@@ -13653,7 +13897,12 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         if (groups.length > 1 && group.label) {
           var heading = document.createElement('span');
           heading.className = 'node-outline-heading';
-          heading.textContent = group.label;
+          var headingLabel = document.createElement('span');
+          headingLabel.textContent = group.label;
+          var headingCount = document.createElement('small');
+          headingCount.textContent = String(group.nodes.length);
+          heading.appendChild(headingLabel);
+          heading.appendChild(headingCount);
           section.appendChild(heading);
         }
         var items = document.createElement('ul');

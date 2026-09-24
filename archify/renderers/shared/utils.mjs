@@ -11,17 +11,17 @@ export { esc };
 export function renderDefinitions() {
   return `        <!-- Definitions -->
         <defs>
-          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" class="m-default" />
+          <marker id="arrowhead" viewBox="0 0 10 7" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="6.3" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7, 2.4 3.5" class="m-default" />
           </marker>
-          <marker id="arrowhead-emphasis" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" class="m-emphasis" />
+          <marker id="arrowhead-emphasis" viewBox="0 0 10 7" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7, 2.4 3.5" class="m-emphasis" />
           </marker>
-          <marker id="arrowhead-security" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" class="m-security" />
+          <marker id="arrowhead-security" viewBox="0 0 10 7" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="6.3" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7, 2.4 3.5" class="m-security" />
           </marker>
-          <marker id="arrowhead-dashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" class="m-dashed" />
+          <marker id="arrowhead-dashed" viewBox="0 0 10 7" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="6.3" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7, 2.4 3.5" class="m-dashed" />
           </marker>
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
             <path d="M 40 0 L 0 0 0 40" class="c-grid" stroke-width="0.5"/>
@@ -110,7 +110,7 @@ ${list.map((card) => `      <div class="card">
           <h3>${esc(card.title)}</h3>
         </div>
         <ul>
-${card.items.map((item) => `          <li>&bull; ${esc(item)}</li>`).join('\n')}
+${card.items.map((item) => `          <li>${esc(item)}</li>`).join('\n')}
         </ul>
       </div>`).join('\n\n')}
     </div>`;

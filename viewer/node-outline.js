@@ -50,7 +50,12 @@
         if (groups.length > 1 && group.label) {
           var heading = document.createElement('span');
           heading.className = 'node-outline-heading';
-          heading.textContent = group.label;
+          var headingLabel = document.createElement('span');
+          headingLabel.textContent = group.label;
+          var headingCount = document.createElement('small');
+          headingCount.textContent = String(group.nodes.length);
+          heading.appendChild(headingLabel);
+          heading.appendChild(headingCount);
           section.appendChild(heading);
         }
         var items = document.createElement('ul');

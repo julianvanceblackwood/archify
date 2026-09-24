@@ -86,7 +86,7 @@ const MESSAGE_PAIRS = {
   'viewer.preset.style': ['Style', '风格', 'Estilo'],
   'viewer.preset.menu': ['Visual style', '视觉风格', 'Estilo visual'],
   'viewer.preset.identity': ['Visual identity', '视觉表达', 'Identidad visual'],
-  'viewer.preset.cycles': ['S cycles', 'S 循环切换', 'S alterna'],
+  'viewer.preset.cycles': ['to cycle', '循环切换', 'alterna'],
   'viewer.preset.classic': ['Classic', '经典', 'Clásico'],
   'viewer.preset.classic.short': ['Classic', '经典', 'Clásico'],
   'viewer.preset.classic.hint': ['Stable technical default', '稳定的技术默认风格', 'Predeterminado técnico estable'],

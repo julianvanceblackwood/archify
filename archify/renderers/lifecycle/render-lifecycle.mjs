@@ -37,7 +37,7 @@ import {
 } from '../shared/geometry.mjs';
 
 const stateTextFit = {
-  sublabelPreferred: 7,
+  sublabelPreferred: 8,
   sublabelMinimum: 6,
   tagPreferred: 7,
   tagMinimum: 6,
@@ -469,7 +469,7 @@ function transitionLabelBox(transition) {
 
 function transitionLabelBoxAt(transition, [lx, ly]) {
   const longestLine = Math.max(textUnits(transition.label), textUnits(transition.note || ''));
-  const width = Math.max(32, longestLine * 4.9 + 12);
+  const width = Math.max(32, longestLine * 5.5 + 12);
   const height = transition.label && transition.note ? 27 : 16;
   return { x: lx - width / 2, y: ly - 11, width, height, lx, ly };
 }
@@ -515,15 +515,22 @@ function bandTitles() {
 function bandGeometry() {
   return bandTitles().map((title, index) => {
     const baseline = [100, 252, 424][index];
-    const label = `${String(index + 1).padStart(2, '0')} / ${title}`;
-    return { index, label, x: 72, y: baseline - 11, width: textUnits(label) * 6.2, height: 14, baseline };
+    const number = `${String(index + 1).padStart(2, '0')} / `;
+    const label = `${number}${title}`;
+    return { index, label, number, title, x: 72, y: baseline - 11, width: textUnits(label) * 6.2, height: 14, baseline };
   });
 }
 
 function renderBands() {
-  const right = viewBox[0] - 72;
-  return bandGeometry().map((band) => `        <path d="M 72 ${band.baseline + 12} L ${right} ${band.baseline + 12}" class="a-default" stroke-width="0.8" stroke-dasharray="3,8"/>
-        <text x="${band.x}" y="${band.baseline}" class="t-dim" font-size="10" font-weight="600">${esc(band.label)}</text>`).join('\n');
+  const right = canvas.bandRight;
+  const bands = bandGeometry();
+  // The middle band gets a faint wash so the three bands read as rows, not
+  // as more dashed routes competing with the transitions.
+  const middle = bands[1] && bands[2]
+    ? `        <rect x="${canvas.x + 14}" y="${bands[1].baseline + 12}" width="${canvas.width - 28}" height="${bands[2].baseline - bands[1].baseline - 24}" rx="10" class="c-lane-wash"/>\n`
+    : '';
+  return middle + bands.map((band) => `        <path d="M 72 ${band.baseline + 12} L ${right} ${band.baseline + 12}" class="c-lane-rule" stroke-width="0.75"/>
+        <text x="${band.x}" y="${band.baseline}" class="t-muted" font-size="10" font-weight="600"><tspan class="t-dim">${esc(band.number)}</tspan>${esc(band.title)}</text>`).join('\n');
 }
 
 function renderState(state) {
@@ -583,7 +590,7 @@ function renderTransitionLabel(transition, index) {
   if (!(transition.label || transition.note)) return '';
   const { lx, ly, width: labelW, height: labelH } = transitionLabelBox(transition);
   const label = transition.label
-    ? `\n          <text x="${lx}" y="${ly}" class="${edgeLabelAccent(transition.variant)}" font-size="8" text-anchor="middle">${esc(transition.label)}</text>`
+    ? `\n          <text x="${lx}" y="${ly}" class="${edgeLabelAccent(transition.variant)}" font-size="9" text-anchor="middle">${esc(transition.label)}</text>`
     : '';
   const note = transition.note
     ? `\n        <text data-detail="fine" x="${lx}" y="${ly + (transition.label ? 11 : 0)}" class="t-dim" font-size="7" text-anchor="middle">${esc(transition.note)}</text>`
@@ -604,6 +611,36 @@ const LEGEND_CATALOG = [
   'external',
 ].map((kind) => ({ kind, label: i18nText(lifecycle.meta.locale, `legend.lifecycle.${kind}`) }));
 
+// A renderer-sized canvas hugs its composition instead of the fixed band
+// reserve, so the reader spends its scale on states rather than margin.
+// Authored meta.viewBox stays authoritative; coordinates never move.
+const CANVAS_PAD = 28;
+const LEGEND_GAP = 58;
+function contentFrame() {
+  const boxes = [...states.values()].map((state) => ({ x: state.x, y: state.y, width: state.width, height: state.height }));
+  for (const transition of asArray(lifecycle.transitions)) {
+    if (!states.has(transition.from) || !states.has(transition.to)) continue;
+    for (const [x, y] of pathFor(transition).points) boxes.push({ x, y, width: 0, height: 0 });
+    if (transition.label || transition.note) boxes.push(transitionLabelBox(transition));
+  }
+  boxes.push(...bandGeometry());
+  return {
+    minX: Math.min(...boxes.map((box) => box.x)),
+    minY: Math.min(...boxes.map((box) => box.y)),
+    maxX: Math.max(...boxes.map((box) => box.x + box.width)),
+    maxY: Math.max(...boxes.map((box) => box.y + box.height)),
+  };
+}
+const frame = lifecycle.meta?.viewBox ? null : contentFrame();
+const canvas = frame
+  ? (() => {
+    const width = Math.ceil(frame.maxX + Math.max(frame.minX, CANVAS_PAD));
+    const y = Math.floor(frame.minY - CANVAS_PAD);
+    const legendBaseline = Math.ceil(frame.maxY + LEGEND_GAP);
+    return { x: 0, y, width, legendBaseline, bandRight: Math.ceil(frame.maxX) };
+  })()
+  : { x: 0, y: 0, width: viewBox[0], legendBaseline: legendY(), bandRight: viewBox[0] - 72 };
+
 function renderLegend() {
   const presentKinds = new Set([...states.values()].map((state) => state.type));
   const entries = resolveLegend(lifecycle.meta?.legend, LEGEND_CATALOG, presentKinds);
@@ -612,9 +649,9 @@ function renderLegend() {
     locale: lifecycle.meta.locale,
     layout: {
       x: 40,
-      baselineY: legendY(),
-      width: viewBox[0] - 80,
-      minTitleY: lifecycleAreaBottom() + 8,
+      baselineY: canvas.legendBaseline,
+      width: canvas.width - 80,
+      minTitleY: frame ? frame.maxY + 12 : lifecycleAreaBottom() + 8,
       unfit: lifecycle.meta?.legend === undefined ? 'hide' : 'error',
       diagramType: 'lifecycle',
     },
@@ -637,12 +674,17 @@ function renderSvg() {
   // ratio, so without this the desktop Reader could neither narrow it nor
   // scroll it and every default lifecycle failed the browser gate.
   const readerFit = lifecycle.meta?.viewBox ? '' : ' data-reader-fit="intrinsic-height"';
-  return `      <svg viewBox="0 0 ${viewBox[0]} ${viewBox[1]}"${readerFit} ${svgRootAttrs(lifecycle.meta)}>
+  const legend = renderLegend();
+  const bottom = frame
+    ? (legend ? canvas.legendBaseline + 8 : frame.maxY) + CANVAS_PAD
+    : viewBox[1];
+  const height = Math.ceil(bottom - canvas.y);
+  return `      <svg viewBox="${canvas.x} ${canvas.y} ${canvas.width} ${height}"${readerFit} ${svgRootAttrs(lifecycle.meta)}>
 ${svgAccessibleText(lifecycle.meta, 'lifecycle')}
 ${renderDefinitions()}
 
         <!-- Background Grid -->
-        <rect width="100%" height="100%" fill="url(#grid)" />
+        <rect x="${canvas.x}" y="${canvas.y}" width="${canvas.width}" height="${height}" fill="url(#grid)" />
 
         <!-- Lifecycle bands -->
 ${renderBands()}
@@ -660,7 +702,7 @@ ${[...states.values()].map(renderState).join('\n\n')}
 ${asArray(lifecycle.transitions).map(renderTransitionLabel).join('\n')}
 
         <!-- Legend -->
-${renderLegend()}
+${legend}
       </svg>`;
 }
 
