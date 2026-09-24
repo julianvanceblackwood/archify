@@ -391,4 +391,4 @@ workflow, pair `type: "backend", icon: "calendar"` with
 an appropriate legend label for make-up work. Keep the node label meaningful:
 icons are decorative and are hidden from assistive technology.
 
-See [holiday planning](../examples/holiday-planning.workflow.json) for a complete workflow example.
+See [holiday planning](../examples/holiday-planning.workflow.json) for a complete workflow example and [monitoring and alert flow](../examples/monitoring-alerts.dataflow.json) for responsibility-specific monitoring and alert icons that preserve `type: "backend"`.
