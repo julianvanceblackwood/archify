@@ -1118,12 +1118,14 @@ test('theme switches repaint the page and diagram without dropping the desktop r
         var root = document.documentElement;
         var panel = document.querySelector('.diagram-container');
         function sample() {
+          var rect = panel.getBoundingClientRect();
           return {
             theme: root.getAttribute('data-theme'),
             body: getComputedStyle(document.body).backgroundColor,
             panel: getComputedStyle(panel).backgroundColor,
             rail: root.getAttribute('data-nav-stage-rail'),
-            height: panel.getBoundingClientRect().height
+            width: rect.width,
+            height: rect.height
           };
         }
         var before = sample();
@@ -1141,7 +1143,8 @@ test('theme switches repaint the page and diagram without dropping the desktop r
       assert.notEqual(result.before.panel, result.frames.at(-1).panel);
       assert.ok(result.frames.every((frame) => frame.body === result.frames.at(-1).body),
         'the page background must reach the new theme in the first paint');
-      assert.ok(result.frames.every((frame) => frame.rail === result.before.rail && frame.height === result.before.height),
+      assert.ok(result.frames.every((frame) => frame.rail === result.before.rail
+        && frame.width === result.before.width && frame.height === result.before.height),
         'theme switching must not remove the rail or move the diagram');
     }
   } finally {
