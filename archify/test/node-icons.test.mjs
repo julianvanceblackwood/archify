@@ -7,6 +7,13 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const iconCatalog = JSON.parse(fs.readFileSync(path.join(root, 'schemas/common.schema.json'))).$defs.nodeIcon.enum;
+
+test('node icon catalog includes monitoring and alerting roles', () => {
+  assert.ok(iconCatalog.includes('monitor'));
+  assert.ok(iconCatalog.includes('alert'));
+});
+
 const cases = {
   architecture: ['web-app.architecture.json', 'components'],
   workflow: ['agent-tool-call.workflow.json', 'nodes'],
@@ -31,8 +38,7 @@ for (const [mode, [example, collection]] of Object.entries(cases)) {
       const sigil = /<g aria-hidden="true" data-semantic-sigil="[^"]+"[^>]*>[\s\S]*?<\/g>/;
       const old = baseline.match(sigil)?.[0];
       assert.ok(old);
-      const icons = JSON.parse(fs.readFileSync(path.join(root, 'schemas/common.schema.json'))).$defs.nodeIcon.enum;
-      for (const icon of icons) {
+      for (const icon of iconCatalog) {
         spec[collection][0].icon = icon;
         const html = render();
         if (icon === 'none') {
