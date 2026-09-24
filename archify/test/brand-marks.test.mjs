@@ -689,7 +689,7 @@ test('brand capture requests identity content coding across redirects and icon f
       return;
     }
     if (request.url === '/mark.png') {
-      response.writeHead(200, { 'content-type': 'image/png' });
+      response.writeHead(200, { 'content-type': 'image/png', 'content-encoding': 'Identity' });
       response.end(icon);
       return;
     }
