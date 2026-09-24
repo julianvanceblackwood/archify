@@ -29,6 +29,11 @@
         : MIN_PROJECTED_NODE_TEXT_PX;
       var declaredPrimaryText = svg ? parseFloat(svg.getAttribute('data-reader-primary-text') || '') : null;
       var SAFE_BOTTOM_GAP = 12;
+      // Wide viewports move summary cards beside the diagram, so the height
+      // budget belongs to the diagram and spare width holds the notes.
+      var RAIL_MIN_VIEWPORT = 1280;
+      var RAIL_WIDTH = 288;
+      var RAIL_GAP = 20;
 
       if (diagram && ratio >= WIDE_RATIO) {
         diagram.setAttribute('data-wide-diagram', 'true');
@@ -93,8 +98,26 @@
         html.style.removeProperty('--archify-reader-width');
         html.removeAttribute('data-reader-layout');
         html.removeAttribute('data-reader-overflow');
+        setRail(false);
         lastWidth = 0;
         settledCap = 0;
+      }
+      function setRail(on) {
+        if (on) {
+          html.setAttribute('data-reader-rail', 'true');
+          html.style.setProperty('--archify-rail-width', RAIL_WIDTH + 'px');
+          html.style.setProperty('--archify-rail-gap', RAIL_GAP + 'px');
+        } else {
+          html.removeAttribute('data-reader-rail');
+          html.style.removeProperty('--archify-rail-width');
+          html.style.removeProperty('--archify-rail-gap');
+        }
+      }
+      function hasCards() {
+        var outline = document.getElementById('node-outline');
+        return Boolean((cards && cards.children.length && !cards.hidden &&
+          (html.getAttribute('data-reader-rail') === 'true' || visible(cards))) ||
+          (outline && !outline.hidden));
       }
       function chromeMetrics() {
         var bodyStyle = window.getComputedStyle(body);
@@ -163,10 +186,15 @@
         }
         var primaryWidth = primaryReadingWidth();
         if (primaryWidth > 0) minWidth = Math.max(minWidth, Math.min(maxWidth, primaryWidth + chrome.diagramX));
+        var railExtra = RAIL_WIDTH + RAIL_GAP;
+        var rail = hasCards() && window.innerWidth >= RAIL_MIN_VIEWPORT && minWidth + railExtra <= maxWidth;
+        setRail(rail);
+        chrome = chromeMetrics();
+        if (rail) minWidth += railExtra;
         var fixedHeight = chrome.bodyY + chrome.diagramY + SAFE_BOTTOM_GAP +
-          outerHeight(header) + outerHeight(guided) + outerHeight(cards);
+          outerHeight(header) + outerHeight(guided) + (rail ? 0 : outerHeight(cards));
         var availableSvgHeight = Math.max(1, window.innerHeight - fixedHeight);
-        var desiredWidth = availableSvgHeight * ratio + chrome.diagramX;
+        var desiredWidth = availableSvgHeight * ratio + chrome.diagramX + (rail ? railExtra : 0);
         var width = Math.max(minWidth, Math.min(maxWidth, desiredWidth, settledCap || desiredWidth));
         applyWidth(width, minWidth);
         settleOverflow(minWidth);

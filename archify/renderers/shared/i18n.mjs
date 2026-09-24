@@ -518,6 +518,8 @@ const MESSAGE_PAIRS = {
   'viewer.nav.lens.short': ['LENS', '透镜', 'LENTE'],
   'viewer.nav.find': ['Find a node', '查找节点', 'Buscar un nodo'],
   'viewer.nav.find.title': ['Find a node (/)', '查找节点（/）', 'Buscar un nodo (/)'],
+  'viewer.outline.title': ['Node index', '节点索引', 'Índice de nodos'],
+  'viewer.outline.hint': ['Hover to trace neighbors · click to focus', '悬停查看上下游 · 点击聚焦', 'Pasa el cursor para ver vecinos · haz clic para enfocar'],
   'viewer.nav.guide': ['Open diagram guide', '打开图表指南', 'Abrir la guía del diagrama'],
   'viewer.nav.guide.title': ['Diagram guide (?)', '图表指南（?）', 'Guía del diagrama (?)'],
   'viewer.nav.zoomOut': ['Zoom out', '缩小', 'Alejar'],

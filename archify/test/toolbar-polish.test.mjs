@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const template = fs.readFileSync(path.resolve(__dirname, '../assets/template.html'), 'utf8');
 
-test('toolbar keeps four independent controls with explicit open states', () => {
-  assert.match(template, /\.toolbar \{[\s\S]*?gap: 0\.5rem;[\s\S]*?padding: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/);
-  assert.match(template, /\.toolbar button \{[\s\S]*?background: var\(--toolbar-bg\);[\s\S]*?border: 1px solid var\(--toolbar-border\);/);
+test('toolbar groups its controls on one surface aligned with the reader column', () => {
+  assert.match(template, /\.toolbar \{[\s\S]*?top: calc\(var\(--archify-page-top\) - 0\.1875rem\);[\s\S]*?right: max\(1rem, calc\(\(100vw - min\(100vw - 4rem, var\(--archify-reader-width, 1440px\)\)\) \/ 2\)\);[\s\S]*?background: var\(--toolbar-bg\);/);
+  assert.match(template, /\.toolbar button \{[\s\S]*?background: transparent;[\s\S]*?border: 1px solid transparent;[\s\S]*?min-height: 2\.75rem;/);
   assert.match(template, /button\[aria-expanded="true"\]/);
   assert.doesNotMatch(template, /\.preset-wrap::before,[\s\S]*?\.export-wrap::before/);
   assert.match(template, /<span id="theme-icon" class="toolbar-icon"/);
