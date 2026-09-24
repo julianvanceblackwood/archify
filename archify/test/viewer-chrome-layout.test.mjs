@@ -933,8 +933,8 @@ test('Chrome Layout preserves scheduling, mode restoration and Reader handoffs',
   }
   function variant(name, source) {
     const original = fs.readFileSync(file, 'utf8');
-    const html = original.replace('  <script>\n    var Archify = {};',
-      () => `  <script>${source}</script>\n  <script>\n    var Archify = {};`);
+    const html = original.replace(/<script>\s*var Archify\s*=\s*\{\};/,
+      match => `<script>${source}</script>\n${match}`);
     assert.notEqual(html, original);
     const output = path.join(tmp, `chrome-${name}.html`);
     fs.writeFileSync(output, html);
@@ -982,7 +982,8 @@ test('Chrome Layout preserves scheduling, mode restoration and Reader handoffs',
       assert.equal((await state('observer-returned')).reserve, initial.reserve);
       await run(`document.querySelector('.diagram-nav').style.bottom = '-200px'; window.dispatchEvent(new Event('resize'))`);
       await waitForLayout(browser, session);
-      zero(await state('no-reserve-needed'));
+      const legendOnly = await state('legend-still-needs-reserve');
+      assert.ok(legendOnly.reserve > 0, 'the fixed legend retains its bottom safe area when navigation moves out of the stage');
     });
 
     await t.test('embed and print restore a zoomed rail, while Presentation remains eligible', async () => {

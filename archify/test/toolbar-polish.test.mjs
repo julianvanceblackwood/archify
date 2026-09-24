@@ -1,3 +1,4 @@
+import { viewerContractSource } from './helpers/viewer-contract-source.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const template = fs.readFileSync(path.resolve(__dirname, '../assets/template.html'), 'utf8');
+const template = viewerContractSource(fs.readFileSync(path.resolve(__dirname, '../assets/template.html'), 'utf8'));
 
 test('toolbar keeps four independent controls with explicit open states', () => {
   assert.match(template, /\.toolbar \{[\s\S]*?gap: 0\.5rem;[\s\S]*?padding: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/);

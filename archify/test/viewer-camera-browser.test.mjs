@@ -128,12 +128,14 @@ test('Camera preserves transactions, rendered state and real caller handoffs', {
     fs.writeFileSync(path.join(evidence, `${name}.png`), Buffer.from(shot.data, 'base64'));
   }
 
-  await t.test('native Space-left and middle dragging preserve click ownership and show hand cursors', async () => {
-    for (const button of ['left', 'middle']) {
+  await t.test('native Space-left, middle and right dragging preserve click and context-menu ownership', async () => {
+    for (const button of ['left', 'middle', 'right']) {
       await load();
       const initial = await run('Archify.view.state()');
       const point = await run(`(() => {
         const c = document.querySelector('.diagram-container'); c.focus({ preventScroll: true });
+        window.panContextMenus = [];
+        document.addEventListener('contextmenu', event => panContextMenus.push(event.defaultPrevented));
         const n = c.querySelector('[data-node-id]'), r = n.getBoundingClientRect();
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       })()`);
@@ -143,7 +145,7 @@ test('Camera preserves transactions, rendered state and real caller handoffs', {
       }
       await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button, clickCount: 1 });
       await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x + 60, y: point.y + 40,
-        button, buttons: button === 'left' ? 1 : 4 });
+        button, buttons: button === 'left' ? 1 : button === 'right' ? 2 : 4 });
       await run(`cameraWait(() => Archify.view.state().x >= ${initial.x} + 59)`, true);
       assert.equal(await run(`getComputedStyle(document.querySelector('[data-node-id]')).cursor`), 'grabbing');
       if (button === 'left') {
@@ -156,6 +158,11 @@ test('Camera preserves transactions, rendered state and real caller handoffs', {
       const state = await run('Archify.view.state()');
       assert.ok(Math.abs(state.x - initial.x - 60) < 1 && Math.abs(state.y - initial.y - 40) < 1);
       assert.equal(await run(`document.querySelector('.diagram-container').matches('.is-pan-ready, .is-panning')`), false);
+      if (button === 'right') {
+        const menus = await run('panContextMenus');
+        assert.ok(menus.length > 0, 'native right input must exercise the browser context-menu event');
+        assert.ok(menus.every(Boolean), 'both press-time and release-time menus belong to the pan gesture');
+      }
     }
   });
 

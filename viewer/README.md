@@ -19,15 +19,20 @@ sources live outside the packaged `archify/` directory.
 
 From `archify/`, run `npm run generate:viewer` after editing any source.
 `npm run check:viewer` verifies freshness without writing; `npm test` includes
-that check. Assembly inserts JavaScript fragments verbatim at fixed markers.
-The CSS fragment is authored at column zero and reindented four spaces when it
-is inserted into the shell's `<style>` block; this preserves the delivered
-template bytes while keeping the standalone source easy to edit.
-Reader, Chrome Layout, Camera, Radar, Motion Governor, Finder, Intent Trace, Semantic Lens, Route Probe, Guided Views, Focus and Export
-extractions preserve delivered HTML bytes. Export cleanup adds a
-private function and a call, changing script bytes but preserving cleanup order
-and SVG output. All JavaScript fragments retain classic-script scope and
-initialization order.
+that check. Assembly inserts fragments at fixed markers in classic-script scope
+and initialization order. A final build-only esbuild pass compacts owned JS/CSS
+blocks using `minifyWhitespace`, with identifier/syntax minification and tree
+shaking disabled. HTML slots and the complete licensed font block remain intact.
+The pinned development dependency is not required by the packaged renderers or
+browser artifacts. No source maps or runtime decompressor are shipped.
+
+Maintain readable source here, not minified output. Ordinary comments and
+formatting discarded by compilation do not by themselves make output stale.
+Source-contract tests first verify the emitted blocks against this exact compiler
+output before inspecting readable source; browser tests run the compact artifact.
+The historical Reader, Chrome Layout, Camera, Radar, Motion Governor, Finder,
+Intent Trace, Semantic Lens, Route Probe, Guided Views, Focus and Export
+extractions preserved bytes before this final compilation step.
 Generated output is not a second editing
 surface; release identity changes also belong in `template.source.html`.
 
@@ -378,10 +383,12 @@ The nineteen methods remain `begin`, `choose`, `clear`, `toggle`, `escape`,
   error while retaining target mode. Unknown IDs and choices outside picker mode
   retain their existing early returns. Finder's allowed list does not constrain
   every public choose call. Results retain full path/hops and begin in overview.
-- `begin` rejects embed, clears Lens preview/active selection, captures an explicit
+- `begin` rejects embed, clears Lens preview/selection and any open Lens panel, captures an explicit
   source or single Focus node, clears old Route, then clears Intent/Guided/Focus
-  and closes Finder/Radar in the existing order. Optional checks and options stay
-  unchanged. Multi-Focus and invalid sources are not normalized into new behavior.
+  and closes Finder/Radar in the existing order. Guided cleanup preserves the
+  Camera. Starting a new path clears obsolete share state; `updateUrl:false`
+  retains the incoming hash during route restoration. Multi-Focus and invalid
+  sources are not normalized into new behavior.
 - `clear` returns undefined, closes only the applicable route Finder context,
   invalidates Journey work and removes Route state, overlays and docking, then
   updates controls/Export. Camera resets only when previously active and without
@@ -468,7 +475,9 @@ Lens controls and shared translation helpers; Legend Bridge is optional.
   false; existing kinds toggle off. Removing the last kind returns false without
   the Camera reset performed by explicit `clear`. Adding the first kind clears
   Focus, Route, Guided Views and Intent in that order, with existing options.
-  These real callers can affect Camera; the second kind does not repeat prepare.
+  Chapter cleanup passes `resetView:false`, preserving the fitted or manually
+  positioned Camera instead of resetting to 100% and clipping selected nodes.
+  The second kind does not repeat prepare.
 - `close` returns false and hides only the panel, retaining selection, hash and
   flow. It normally restores the current opener's focus. `clear` returns false,
   clears selection/Lens SVG state and docking, updates URL unless disabled,
@@ -476,7 +485,8 @@ Lens controls and shared translation helpers; Legend Bridge is optional.
   It does not itself clear legend preview. `clearPreview` returns undefined,
   clears preview attributes but retains hovered/focused references, selection,
   URL and panel state. A false return is not a guarantee of no side effects.
-- `open` rejects embed early, records the opener, closes Export/Finder/Radar/Guide
+- `open` rejects embed early, records the opener, clears Route while preserving
+  the Camera, and closes Export/Finder/Radar/Guide
   as currently implemented, renders and opens the panel, then docks/focuses in
   rAF. It does not introduce a universal preview cleanup. Repeated/rapid calls
   retain pending-frame ordering. Guide is initialized later and stays a runtime
@@ -524,6 +534,16 @@ Lens controls and shared translation helpers; Legend Bridge is optional.
 
 `semantic-lens-browser.test.mjs` covers five-mode initialization, trusted input,
 real capability handoffs, cleanup, URL/copy, themes, motion and SVG export.
+
+Path, Map and Lens are mutually exclusive navigation tools. Starting Path closes
+even an unselected Lens panel and cancels Map; opening Lens exits Path before a
+kind is selected; opening Map clears Path and Lens selections as well as their
+panels. Switching tools preserves the Camera and removes obsolete share hashes.
+Direct Lens selection also cancels Map. Buttons, shortcuts and capability calls
+use these same entry points; no separate toolbar selection state is stored.
+Route hash restoration explicitly preserves its incoming URL during startup.
+`navigation-modes-browser.test.mjs` covers all six directions, active selections,
+completed routes, shortcuts, rapid switches and deep links.
 Explicit DOM/media/geometry/clipboard fixtures isolate boundary inputs; they do
 not certify touch hardware, OS clipboard permission, screen readers or arbitrary
 layout collision freedom. Static Lens/legend/flow checks remain useful alongside
@@ -778,6 +798,12 @@ translation and scale but remains outside the authored SVG, semantic geometry, a
 exports. Wide diagrams at widths up to 720px keep their established horizontal-scroll
 behavior.
 
+An accepted right-button pan owns the native context menu from pointerdown,
+including before the first movement and throughout a long hold. This handles
+browsers that dispatch contextmenu on press; the existing post-movement grace
+period still handles release-time menus. Unclaimed controls, editors, embed and
+mobile wide-diagram scrolling retain their native input behavior.
+
 Arrow-key movement uses elapsed-time animation frames rather than operating-system
 key-repeat steps. Holding multiple arrows combines their directions, Shift raises
 the movement speed, key release ends the interaction, and window blur clears held
@@ -902,9 +928,9 @@ universally remove every drag attribute. In particular, `data-dragging` is remov
 by the surface drag-end handler, not by the close/reset-docking path.
 
 Camera and Focus notify Radar to sync. Radar consumes Camera logicalViewport and
-calls centerAt/reveal; opening clears Semantic Lens preview and closes that panel
-as before. Route, Semantic Lens, Guide and global keyboard handlers keep their
-existing mutual-exclusion and focus rules. Reader's wide-diagram classification
+calls centerAt/reveal; opening clears Semantic Lens preview, selection and panel,
+and exits Route while preserving the Camera. Guide and global keyboard handlers
+retain their focus rules. Reader's wide-diagram classification
 and Chrome's navigation reserve affect measured placement without transferring
 ownership. Embed/print and narrow-screen presentation retain their existing CSS
 and caller rules, rather than a new universal Radar eligibility gate. Export

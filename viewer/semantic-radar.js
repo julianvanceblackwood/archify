@@ -120,7 +120,7 @@
         if (controlRect) bottom = Math.min(bottom, controlRect.top - placementGap);
         var lens = document.getElementById('focus-chip');
         var lensRect = visibleRect(lens);
-        var legendRect = visibleRect(diagram.querySelector('[data-legend]'));
+        var legendRect = visibleRect((container.hasAttribute('data-fixed-legend') ? container.querySelector('.fixed-legend') : diagram.querySelector('[data-legend]')));
         var active = diagram.querySelector('[data-focus-selected]');
         var activeRect = visibleRect(active);
         return {
@@ -413,8 +413,11 @@
         options = options || {};
         next = Boolean(next);
         if (next && Archify.semanticLens && typeof Archify.semanticLens.clearPreview === 'function') Archify.semanticLens.clearPreview();
-        if (next && Archify.semanticLens && Archify.semanticLens.isOpen()) {
-          Archify.semanticLens.close({ restoreFocus: false });
+        if (next && Archify.semanticLens && (Archify.semanticLens.active() || Archify.semanticLens.isOpen())) {
+          Archify.semanticLens.clear({ updateUrl: !!Archify.semanticLens.active(), preserveView: true, closePanel: true });
+        }
+        if (next && Archify.routeProbe && Archify.routeProbe.active()) {
+          Archify.routeProbe.clear({ preserveView: true, restoreFocus: false });
         }
         requestedOpen = next;
         if (next) {

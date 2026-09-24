@@ -17,6 +17,8 @@
       var fixedReading = null;
       var CAMERA_LIMIT = 1000000;
       var grid = document.createElement('div');
+      var gridScale = null;
+      var gridFixed = null;
       var state = { scale: 1, x: 0, y: 0, mode: 'overview' };
       var drag = null;
       var spacePan = false;
@@ -27,7 +29,6 @@
       var cameraTransaction = null;
       var clipFrame = 0;
       var interactionFrame = 0;
-      var interactionChangesScale = false;
       var keyboardFrame = 0;
       var keyboardStartedAt = 0;
       var keyboardShift = false;
@@ -274,7 +275,7 @@
         svg.style.transform = 'translate(' + state.x + 'px,' + state.y + 'px) scale(' + state.scale + ')';
         var offsetLeft = options.interactive === true ? interactionMetrics.offsetLeft : (svg.offsetLeft || 0);
         var offsetTop = options.interactive === true ? interactionMetrics.offsetTop : (svg.offsetTop || 0);
-        syncGrid(offsetLeft, offsetTop, options.gridPositionOnly === true);
+        syncGrid(offsetLeft, offsetTop);
         if (options.interactive === true) {
           if (clipFrame) cancelAnimationFrame(clipFrame);
           clipFrame = 0;
@@ -297,22 +298,31 @@
           Archify.viewerChromeLayout.schedule();
         }
       }
-      function syncGrid(offsetLeft, offsetTop, positionOnly) {
+      function syncGrid(offsetLeft, offsetTop) {
         offsetLeft = Number.isFinite(offsetLeft) ? offsetLeft : (svg.offsetLeft || 0);
         offsetTop = Number.isFinite(offsetTop) ? offsetTop : (svg.offsetTop || 0);
         container.style.setProperty('--archify-grid-x', (state.x + offsetLeft) + 'px');
         container.style.setProperty('--archify-grid-y', (state.y + offsetTop) + 'px');
-        if (positionOnly) return;
-        container.style.setProperty('--archify-grid-minor', (24 * state.scale) + 'px');
-        container.style.setProperty('--archify-grid-major', (120 * state.scale) + 'px');
+        var fixed = document.documentElement.hasAttribute('data-fixed-canvas');
+        if (gridScale === state.scale && gridFixed === fixed) return;
+        gridScale = state.scale; gridFixed = fixed;
+        var spacing = 24 * state.scale;
+        var weight = 1;
+        if (fixed) {
+          // Nested world-space lattices share an origin. At a level boundary
+          // the outgoing half-spacing layer is the incoming full-spacing one.
+          spacing *= Math.pow(2, Math.ceil(Math.log2(1 / state.scale)));
+          weight = 2 - spacing / 24;
+        }
+        container.style.setProperty('--archify-grid-minor', spacing + 'px');
+        container.style.setProperty('--archify-grid-major', (5 * spacing) + 'px');
+        container.style.setProperty('--archify-grid-weight', String(weight));
       }
-      function scheduleInteractionApply(changesScale) {
-        if (changesScale === true) interactionChangesScale = true;
+      function scheduleInteractionApply() {
         if (interactionFrame) return;
         interactionFrame = requestAnimationFrame(function () {
           interactionFrame = 0;
-          apply({ interactive: true, gridPositionOnly: !interactionChangesScale });
-          interactionChangesScale = false;
+          apply({ interactive: true });
         });
       }
       function captureInteractionGeometry() {
@@ -327,8 +337,7 @@
         if (!interactionFrame) return;
         cancelAnimationFrame(interactionFrame);
         interactionFrame = 0;
-        apply({ interactive: true, gridPositionOnly: !interactionChangesScale });
-        interactionChangesScale = false;
+        apply({ interactive: true });
       }
       function settleInteraction() {
         flushInteractionApply();
@@ -362,7 +371,7 @@
         state.x += horizontal * distance;
         state.y += vertical * distance;
         state.mode = 'manual';
-        apply({ interactive: true, gridPositionOnly: true });
+        apply({ interactive: true });
         keyboardFrame = requestAnimationFrame(stepKeyboardPan);
       }
       function startKeyboardPan() {
@@ -384,7 +393,7 @@
           state.x = wheelPanTarget.x;
           state.y = wheelPanTarget.y;
           state.mode = 'manual';
-          apply({ interactive: true, gridPositionOnly: true });
+          apply({ interactive: true });
           try { getComputedStyle(svg).transform; } catch (_) {}
         }
         settleInteraction();
@@ -409,7 +418,7 @@
           finishWheelGesture(true);
           return;
         }
-        apply({ interactive: true, gridPositionOnly: true });
+        apply({ interactive: true });
         wheelPanFrame = requestAnimationFrame(stepWheelPan);
       }
       function scheduleWheelPan() {
@@ -480,7 +489,6 @@
         if (Archify.radar && typeof Archify.radar.cancelPan === 'function') Archify.radar.cancelPan();
         if (interactionFrame) cancelAnimationFrame(interactionFrame);
         interactionFrame = 0;
-        interactionChangesScale = false;
         if (keyboardFrame) cancelAnimationFrame(keyboardFrame);
         keyboardFrame = 0;
         keyboardStartedAt = 0;
@@ -550,7 +558,7 @@
         state.scale = next;
         state.x = anchorX - contentX * next;
         state.y = anchorY - contentY * next;
-        if (options.defer === true) scheduleInteractionApply(true);
+        if (options.defer === true) scheduleInteractionApply();
         else apply();
       }
       function zoomStep(direction) {
@@ -585,7 +593,7 @@
         state.x += dx;
         state.y += dy;
         state.mode = 'manual';
-        if (options.defer === true) scheduleInteractionApply(false);
+        if (options.defer === true) scheduleInteractionApply();
         else apply();
         return true;
       }
@@ -640,7 +648,7 @@
         state.x = (canvasGeometry ? (canvasGeometry.left + canvasGeometry.right) / 2 : metrics.width / 2) - contentX * state.scale;
         state.y = (canvasGeometry ? (canvasGeometry.top + canvasGeometry.bottom) / 2 : metrics.height / 2) - contentY * state.scale;
         state.mode = 'manual';
-        if (options.defer === true) scheduleInteractionApply(false);
+        if (options.defer === true) scheduleInteractionApply();
         else apply();
         if (options.defer !== true && Archify.focus && Archify.focus.reposition) Archify.focus.reposition();
         return true;
@@ -890,7 +898,7 @@
         stopKeyboardPan();
       }
       function cameraControlTarget(target) {
-        return target.closest('.diagram-nav, .focus-chip, .node-finder, .diagram-guide, .overview-map, .route-probe, .semantic-lens');
+        return target.closest('.diagram-nav, .fixed-legend, .focus-chip, .node-finder, .diagram-guide, .overview-map, .route-probe, .semantic-lens');
       }
       function keyboardInputTarget(target) {
         return target && target.closest && target.closest('input, select, textarea, [contenteditable="true"]');
@@ -933,7 +941,7 @@
         if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
         state.x = drag.x + dx;
         state.y = drag.y + dy;
-        scheduleInteractionApply(false);
+        scheduleInteractionApply();
       });
       container.addEventListener('pointerup', onPointerEnd);
       container.addEventListener('pointercancel', onPointerEnd);
@@ -946,7 +954,8 @@
         }
       }, true);
       container.addEventListener('contextmenu', function (event) {
-        if (Date.now() < suppressContextMenuUntil && !cameraControlTarget(event.target)) event.preventDefault();
+        // Some browsers open the menu on press, before the first pan movement.
+        if (((drag && drag.button === 2) || Date.now() < suppressContextMenuUntil) && !cameraControlTarget(event.target)) event.preventDefault();
       });
       container.addEventListener('wheel', function (event) {
         if (!directNavigationEnabled() || cameraControlTarget(event.target)) return;

@@ -42,11 +42,11 @@ test('Guided Views preserves chapters, Story playback and handoff contracts', {
   function variant(name, views, setup = '') {
     const original = fs.readFileSync(files.trace, 'utf8');
     assert.match(original, /<script id="archify-guided-views-data"[^>]*>[\s\S]*?<\/script>/, 'Guided Views data fixture anchor');
-    assert.ok(original.includes('    var Archify = {};'), 'Guided Views setup fixture anchor');
+    assert.ok(/var Archify\s*=\s*\{\};/.test(original), 'Guided Views setup fixture anchor');
     const html = original.replace(
       /(<script id="archify-guided-views-data"[^>]*>)[\s\S]*?(<\/script>)/,
       (_, start, end) => start + (typeof views === 'string' ? views : JSON.stringify(views)) + end,
-    ).replace('    var Archify = {};', setup + '\n    var Archify = {};');
+    ).replace(/var Archify\s*=\s*\{\};/, match => setup + '\n' + match);
     files[name] = path.join(scratch, name + '.html'); fs.writeFileSync(files[name], html);
   }
   const chapter = (id, focus) => ({ id, label: id, focus, note: 'Chapter ' + id });

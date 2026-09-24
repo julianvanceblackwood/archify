@@ -1214,7 +1214,7 @@
         var safeGap = 10;
         var protectViewerChrome = !mobile || compactOnMobile || previewingOnMobile;
         var protectedRects = (protectViewerChrome
-          ? [svg.querySelector('[data-legend]'), container.querySelector('.diagram-nav')]
+          ? [container.hasAttribute('data-fixed-legend') ? container.querySelector('.fixed-legend') : svg.querySelector('[data-legend]'), container.querySelector('.diagram-nav')]
           : [])
           .filter(function (element) {
             if (!element || element.hidden) return false;

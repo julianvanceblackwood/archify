@@ -4974,3 +4974,90 @@ html[data-share-playback="true"] svg[data-animation="trace"] [data-animate] {
     outline-offset: -2px;
   }
 }
+
+/* Desktop reader polish is scoped to its active mode, including preset overrides. */
+@media screen and (min-width: 1024px) and (min-height: 600px) {
+  html[data-fixed-canvas] .infinite-canvas-grid {
+    --grid-soft: color-mix(in srgb, var(--text) 8%, transparent);
+    --grid-strong: color-mix(in srgb, var(--text) 13%, transparent);
+    background-image:
+      radial-gradient(circle, color-mix(in srgb, var(--grid-soft) calc(var(--archify-grid-weight, 1) * 100%), transparent) 0 0.8px, transparent 1px),
+      radial-gradient(circle, color-mix(in srgb, var(--grid-soft) calc((1 - var(--archify-grid-weight, 1)) * 100%), transparent) 0 0.8px, transparent 1px),
+      radial-gradient(circle, color-mix(in srgb, var(--grid-strong) calc(var(--archify-grid-weight, 1) * 100%), transparent) 0 1px, transparent 1.2px),
+      radial-gradient(circle, color-mix(in srgb, var(--grid-strong) calc((1 - var(--archify-grid-weight, 1)) * 100%), transparent) 0 1px, transparent 1.2px);
+    background-size:
+      var(--archify-grid-minor) var(--archify-grid-minor),
+      calc(var(--archify-grid-minor) / 2) calc(var(--archify-grid-minor) / 2),
+      var(--archify-grid-major) var(--archify-grid-major),
+      calc(var(--archify-grid-major) / 2) calc(var(--archify-grid-major) / 2);
+    background-position:
+      calc(var(--archify-grid-x) - var(--archify-grid-minor) / 2) calc(var(--archify-grid-y) - var(--archify-grid-minor) / 2),
+      calc(var(--archify-grid-x) - var(--archify-grid-minor) / 4) calc(var(--archify-grid-y) - var(--archify-grid-minor) / 4),
+      calc(var(--archify-grid-x) - var(--archify-grid-major) / 2) calc(var(--archify-grid-y) - var(--archify-grid-major) / 2),
+      calc(var(--archify-grid-x) - var(--archify-grid-major) / 4) calc(var(--archify-grid-y) - var(--archify-grid-major) / 4);
+  }
+  html[data-fixed-canvas][data-preset] .diagram-container,
+  html[data-fixed-canvas] .diagram-notes { box-shadow: none; }
+  html[data-fixed-canvas] .toolbar button { box-shadow: 0 1px 3px rgb(0 0 0 / 4%); }
+  html[data-fixed-canvas] .diagram-nav,
+  html[data-fixed-canvas] .fixed-legend,
+  html[data-fixed-canvas] .overview-map,
+  html[data-fixed-canvas] .focus-chip { box-shadow: 0 3px 12px rgb(0 0 0 / 10%); }
+  html[data-fixed-canvas] .preset-menu,
+  html[data-fixed-canvas] .export-menu,
+  html[data-fixed-canvas] .node-finder,
+  html[data-fixed-canvas] .semantic-lens { box-shadow: 0 8px 24px rgb(0 0 0 / 16%); }
+}
+
+.fixed-legend { display: none; }
+@media screen and (min-width: 1024px) and (min-height: 600px) {
+  html[data-fixed-canvas] .diagram-nav { background: var(--toolbar-menu-bg); border-color: var(--toolbar-border); }
+  html[data-fixed-canvas] .diagram-nav button { flex-shrink: 0; min-width: 32px; height: 32px; font-size: 11px; color: var(--toolbar-text); }
+  html[data-fixed-canvas] .diagram-nav #btn-route-probe,
+  html[data-fixed-canvas] .diagram-nav #btn-overview-map,
+  html[data-fixed-canvas] .diagram-nav #btn-semantic-lens,
+  html[data-fixed-canvas] .diagram-nav #btn-node-finder,
+  html[data-fixed-canvas] .diagram-nav #btn-diagram-guide { color: var(--toolbar-text); }
+  html[data-fixed-canvas] .diagram-nav-icon { width: 14px; height: 14px; }
+  html[data-fixed-canvas] .diagram-nav [data-view="reset"] { width: 6.4rem; min-width: 6.4rem; }
+  html[data-fixed-canvas] .diagram-container .diagram-nav-percent { font-size: 11px; color: var(--toolbar-text); font-variant-numeric: tabular-nums; }
+  html[data-fixed-canvas] .diagram-container .diagram-nav-detail { font-size: 11px; color: var(--toolbar-text); }
+  html[data-fixed-canvas] .diagram-nav [data-view="out"] { margin-left: 0; }
+  html[data-fixed-canvas] .diagram-nav [data-view="out"]::before { display: none; }
+  html[data-fixed-canvas] .diagram-nav [data-view="fit-all"] { border-left: 1px solid var(--toolbar-border); border-radius: 0; margin-left: 4px; padding-left: 8px; }
+  html[data-fixed-canvas] .diagram-nav button[aria-pressed="true"],
+  html[data-fixed-canvas] .diagram-nav button[aria-expanded="true"] { background: var(--toolbar-hover); box-shadow: inset 0 -2px var(--toolbar-text); }
+  html[data-fixed-canvas] .diagram-nav button:focus-visible { outline-color: var(--toolbar-text); outline-offset: -2px; }
+  html[data-fixed-canvas] .fixed-legend {
+    position: absolute; left: 16px; bottom: 16px; z-index: 13;
+    display: block; width: max-content; padding: 3px;
+    border: 1px solid var(--toolbar-border); border-radius: .58rem;
+    background: var(--toolbar-menu-bg); color: var(--toolbar-text);
+    font-size: 11px; line-height: 1.4;
+  }
+  html[data-fixed-canvas][data-preset="blueprint"] .fixed-legend { border-radius: .28rem; }
+  html[data-fixed-canvas] .fixed-legend[hidden],
+  html[data-fixed-canvas] .fixed-legend [hidden] { display: none !important; }
+  html[data-fixed-canvas] .diagram-container[data-fixed-legend] > svg [data-legend] { visibility: hidden; }
+  .fixed-legend-list { display: flex; flex-wrap: wrap; gap: 2px 6px; }
+  .fixed-legend-entry, .fixed-legend-toggle {
+    display: inline-flex; align-items: center; gap: 5px; min-height: 32px;
+    padding: 3px 5px; margin: 0; border: 1px solid transparent; border-radius: .35rem;
+    font: inherit; color: inherit; background: transparent; white-space: nowrap;
+  }
+  .fixed-legend button { cursor: pointer; }
+  .fixed-legend-entry > svg { flex: none; height: 20px; min-width: 0; max-width: none; margin: 0; overflow: visible; }
+  .fixed-legend-count { font-size: 10px; opacity: .8; font-variant-numeric: tabular-nums; }
+  .fixed-legend [data-legend-zero] { opacity: .5; }
+  .fixed-legend button:hover { background: var(--toolbar-hover); }
+  .fixed-legend button[aria-pressed="true"] { background: var(--toolbar-hover); border-color: var(--toolbar-text); }
+  .fixed-legend button:focus-visible, .fixed-legend-list:focus-visible { outline: 2px solid var(--toolbar-text); outline-offset: -2px; }
+  .fixed-legend[data-collapsed] .fixed-legend-list {
+    position: absolute; left: -1px; bottom: calc(100% + 8px); width: min(28rem, 100% + 16rem);
+    max-width: calc(100vw - 64px); overflow-y: auto; overscroll-behavior: contain;
+    padding: 6px; border: 1px solid var(--toolbar-border); border-radius: .58rem;
+    background: var(--toolbar-menu-bg); box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+  }
+  .fixed-legend[data-collapsed] .fixed-legend-entry { width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+  .fixed-legend[data-collapsed] .fixed-legend-entry > span:not(.fixed-legend-count) { min-width: 0; }
+}

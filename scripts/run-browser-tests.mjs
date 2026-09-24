@@ -12,6 +12,8 @@ const testFiles = [
   'reader-layout-browser.test.mjs',
   'fixed-canvas-browser.test.mjs',
   'canvas-framing-browser.test.mjs',
+  'canvas-polish-browser.test.mjs',
+  'navigation-modes-browser.test.mjs',
   'browser-zoom-browser.test.mjs',
   'canvas-endpoints-browser.test.mjs',
   'sequence-header-clearance.test.mjs',

@@ -119,6 +119,41 @@ function cameraFixture({ svgWidth = 1000, svgHeight = 600, width = 1000, height 
       win.innerWidth = w; win.innerHeight = h; win.emit('resize'); frame(5); } };
 }
 
+test('right pan owns context menus before movement, during a long drag, and after release', () => {
+  const f = cameraFixture();
+  const menu = () => f.container.emit('contextmenu', { button: 2 }).defaultPrevented;
+  assert.equal(menu(), false, 'an unowned context menu remains native');
+  f.container.emit('pointerdown', { button: 2 });
+  assert.equal(menu(), true, 'press-time context menus must not interrupt right pan');
+  f.frame(60);
+  assert.equal(menu(), true, 'holding the button must not expire ownership');
+  f.container.emit('pointermove', { clientX: 160 }); f.frame();
+  f.container.emit('pointerup', { button: 2 });
+  assert.equal(menu(), true, 'release-time context menus must also be suppressed');
+  f.frame(30);
+  assert.equal(menu(), false, 'suppression must not survive the completed gesture');
+  assert.equal(f.state().x, 60);
+});
+
+test('unclaimed right input and cancelled holds retain native menus', () => {
+  for (const options of [{ embed: true }, { width: 640, wide: true }]) {
+    const f = cameraFixture(options);
+    f.container.emit('pointerdown', { button: 2 });
+    assert.equal(f.container.emit('contextmenu', { button: 2 }).defaultPrevented, false);
+  }
+  for (const match of ['.diagram-nav', '.fixed-legend', 'input', 'button']) {
+    const f = cameraFixture(), target = f.element(); target.match = match;
+    f.container.emit('pointerdown', { button: 2, target });
+    assert.equal(f.container.emit('contextmenu', { button: 2, target }).defaultPrevented, false);
+  }
+  for (const end of ['pointerup', 'pointercancel', 'lostpointercapture', 'blur']) {
+    const f = cameraFixture();
+    f.container.emit('pointerdown', { button: 2 });
+    f.container.emit(end, { button: 2 });
+    assert.equal(f.container.emit('contextmenu', { button: 2 }).defaultPrevented, false);
+  }
+});
+
 test('middle and Space-left pan in all directions and release input ownership', () => {
   for (const button of [1, 2, 0]) {
     for (const [dx, dy] of [[80, 0], [-80, 0], [0, 60], [0, -60]]) {
@@ -460,4 +495,24 @@ test('document semantic framing keeps the legacy 100 percent minimum', () => {
   f.view.reveal(['left', 'right'], { instant: true });
   assert.equal(f.state().mode, 'semantic');
   assert.equal(f.state().scale, 1);
+});
+
+test('fixed canvas grid stays sparse across zoom levels and pan writes only its origin', () => {
+  const f = cameraFixture({ fixed: true, width: 1440, height: 900, svgWidth: 200000, svgHeight: 900, viewWidth: 200000, viewHeight: 900 });
+  for (const scale of [.001, .01, .05, .1, .24999, .25, .25001, .5, 1, 2, 4]) {
+    f.view.zoomAt(scale, 300, 200); f.frame(3);
+    const spacing = parseFloat(f.container.style['--archify-grid-minor']);
+    assert.ok(spacing >= 24 - .001 && spacing <= 48 + .001, `spacing ${spacing} at ${scale}`);
+    const before = { ...f.container.style };
+    const writes = [];
+    const setProperty = f.container.style.setProperty;
+    f.container.style.setProperty = function(name, value) { writes.push(name); setProperty.call(this, name, value); };
+    f.view.panBy(-53, 71); f.frame(3);
+    f.container.style.setProperty = setProperty;
+    assert.ok(writes.filter(name => name.startsWith('--archify-grid-')).every(name => name === '--archify-grid-x' || name === '--archify-grid-y'));
+    assert.equal(f.container.style['--archify-grid-minor'], before['--archify-grid-minor']);
+    assert.equal(f.container.style['--archify-grid-weight'], before['--archify-grid-weight']);
+    assert.ok(Math.abs(parseFloat(f.container.style['--archify-grid-x']) - parseFloat(before['--archify-grid-x']) + 53) < .01);
+    assert.ok(Math.abs(parseFloat(f.container.style['--archify-grid-y']) - parseFloat(before['--archify-grid-y']) - 71) < .01);
+  }
 });

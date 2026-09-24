@@ -65,6 +65,8 @@ test('real browser page zoom selects canvas or document flow from the resulting 
           const observation = await run(`(()=>{const cards=document.querySelector('.cards'),root=document.documentElement;return {
             css:[innerWidth,innerHeight],outer:[outerWidth,outerHeight],dpr:devicePixelRatio,pinch:visualViewport.scale,
             fixed:root.hasAttribute('data-fixed-canvas'),cards:cards.querySelectorAll('.card').length,
+            legendVisible:getComputedStyle(document.querySelector('[data-legend]')).visibility!=='hidden',
+            dockVisible:getComputedStyle(document.querySelector('.fixed-legend')).display!=='none',
             cardsHeight:cards.getBoundingClientRect().height,rootRange:[root.scrollWidth-root.clientWidth,root.scrollHeight-root.clientHeight],
             camera:Archify.view.state()};})()`);
           records.push({ factor, round, requestedWindow: [width, height], ...observation });
@@ -73,6 +75,8 @@ test('real browser page zoom selects canvas or document flow from the resulting 
           assert.equal(observation.camera.scale, 1, 'each page-zoom observation uses an explicit 100% diagram reset');
           assert.equal(observation.fixed, observation.css[0] >= 1024 && observation.css[1] >= 600);
           assert.equal(observation.cards, 3);
+          assert.equal(observation.dockVisible, observation.fixed);
+          assert.equal(observation.legendVisible, !observation.fixed);
           if (observation.fixed) assert.ok(observation.rootRange.every(value => value <= 1), JSON.stringify(observation));
           else assert.ok(observation.cardsHeight > 0, 'document fallback must restore cards');
           if (round === 0 && evidence) {

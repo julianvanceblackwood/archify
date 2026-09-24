@@ -160,6 +160,7 @@
       function measure() {
         frame = 0;
         if (probingBaseline) return null;
+        var fixedLegend = Archify.semanticLens && Archify.semanticLens.layoutLegendDock();
         if (!eligible()) {
           var temporaryViewerMode = html.getAttribute('data-embed') === 'true' ||
             Boolean(window.matchMedia && window.matchMedia('print').matches);
@@ -202,7 +203,8 @@
         if (!usable(navRect) || !usable(stageRect)) return clear();
 
         var actualIntersectionArea = usable(legendRect) ? intersectionArea(navRect, legendRect) : 0;
-        var stageGap = navRect.top - stageRect.bottom;
+        var controlsTop = fixedLegend ? Math.min(navRect.top, fixedLegend.getBoundingClientRect().top) : navRect.top;
+        var stageGap = controlsTop - stageRect.bottom;
         if (!railLatched && reserve === 0) {
           baselineIntersectionArea = actualIntersectionArea;
           baselineStageGap = stageGap;
@@ -221,7 +223,7 @@
         navRect = nav.getBoundingClientRect();
         legendRect = visible(legend) ? legend.getBoundingClientRect() : null;
         stageRect = protectedStageRect();
-        stageGap = navRect.top - stageRect.bottom;
+        stageGap = (fixedLegend ? Math.min(navRect.top, fixedLegend.getBoundingClientRect().top) : navRect.top) - stageRect.bottom;
         lastReceipt = {
           eligible: true,
           active: reserve > 0,
@@ -314,7 +316,7 @@
         if (legend) contentObserver.observe(legend, { attributes: true, childList: true, subtree: true });
         contentObserver.observe(html, {
           attributes: true,
-          attributeFilter: ['data-embed', 'data-present', 'data-preset', 'data-theme']
+          attributeFilter: ['data-embed', 'data-present', 'data-preset', 'data-theme', 'data-fixed-canvas']
         });
       }
       schedule();
