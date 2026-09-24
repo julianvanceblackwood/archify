@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { brotliCompressSync, gzipSync } from 'node:zlib';
 import { BRAND_MARKS } from '../renderers/shared/generated-brand-marks.mjs';
 import { isPrivateBrandAddress, prepareDiagramBrandMarks } from '../renderers/shared/brand-marks.mjs';
 import {
@@ -676,3 +677,210 @@ test('viewer exposes brand identity to Passport and Finder while keeping source 
 });
 
 process.on('exit', () => fs.rmSync(tmp, { recursive: true, force: true }));
+
+test('brand capture requests identity content coding across redirects and icon fetches', async () => {
+  const icon = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+  const requests = [];
+  const server = http.createServer((request, response) => {
+    requests.push({ url: request.url, acceptEncoding: request.headers['accept-encoding'] });
+    if (request.url === '/start') {
+      response.writeHead(302, { location: '/page' });
+      response.end();
+      return;
+    }
+    if (request.url === '/mark.png') {
+      response.writeHead(200, { 'content-type': 'image/png' });
+      response.end(icon);
+      return;
+    }
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    response.end('<!doctype html><title>Negotiated mark</title><link rel="icon" type="image/png" href="/mark.png">');
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const address = server.address();
+    const capture = await runCliAsync(
+      ['brands', 'capture', 'http://127.0.0.1:' + address.port + '/start', '--json'],
+      { ARCHIFY_BRAND_ALLOW_PRIVATE: '1' },
+    );
+    assert.equal(capture.status, 0, capture.stderr || capture.stdout);
+    assert.deepEqual(requests, [
+      { url: '/start', acceptEncoding: 'identity' },
+      { url: '/page', acceptEncoding: 'identity' },
+      { url: '/mark.png', acceptEncoding: 'identity' },
+    ]);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('brand capture rejects successful encoded page and direct-image responses before parsing bytes', async () => {
+  const icon = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+  const html = Buffer.from('<!doctype html><title>Compressed page</title><link rel="icon" href="/favicon.ico">');
+  const cases = [
+    { path: '/gzip-page', coding: 'gzip', type: 'text/html; charset=utf-8', body: gzipSync(html) },
+    { path: '/brotli-image.png', coding: 'br', type: 'image/png', body: brotliCompressSync(icon) },
+  ];
+  const observed = [];
+  const server = http.createServer((request, response) => {
+    observed.push({ url: request.url, acceptEncoding: request.headers['accept-encoding'] });
+    const current = cases.find((entry) => entry.path === request.url);
+    if (!current) {
+      response.writeHead(404);
+      response.end();
+      return;
+    }
+    response.writeHead(200, {
+      'content-type': current.type,
+      'content-encoding': current.coding,
+    });
+    response.end(current.body);
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const address = server.address();
+    for (const current of cases) {
+      const capture = await runCliAsync(
+        ['brands', 'capture', 'http://127.0.0.1:' + address.port + current.path, '--json'],
+        { ARCHIFY_BRAND_ALLOW_PRIVATE: '1' },
+      );
+      assert.notEqual(capture.status, 0, capture.stdout);
+      assert.match(capture.stderr, new RegExp('unsupported content encoding ' + current.coding, 'i'));
+    }
+    assert.deepEqual(observed, cases.map((entry) => ({
+      url: entry.path,
+      acceptEncoding: 'identity',
+    })));
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('encoded declared icon failure is not hidden by a later favicon 404', async () => {
+  const icon = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+  let fallbackHits = 0;
+  const server = http.createServer((request, response) => {
+    if (request.url === '/mark.png') {
+      response.writeHead(200, {
+        'content-type': 'image/png',
+        'content-encoding': 'gzip',
+      });
+      response.end(gzipSync(icon));
+      return;
+    }
+    if (request.url === '/favicon.ico') {
+      fallbackHits += 1;
+      response.writeHead(404);
+      response.end();
+      return;
+    }
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    response.end('<!doctype html><title>Encoded icon</title><link rel="icon" type="image/png" href="/mark.png">');
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const address = server.address();
+    const capture = await runCliAsync(
+      ['brands', 'capture', 'http://127.0.0.1:' + address.port + '/', '--json'],
+      { ARCHIFY_BRAND_ALLOW_PRIVATE: '1' },
+    );
+    assert.notEqual(capture.status, 0, capture.stdout);
+    assert.match(capture.stderr, /unsupported content encoding gzip/i);
+    assert.doesNotMatch(capture.stderr, /HTTP 404/i);
+    assert.equal(fallbackHits, 1);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('brand capture can fall through an encoded icon to a later usable declared icon', async () => {
+  const icon = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+  let encodedHits = 0;
+  let usableHits = 0;
+  const server = http.createServer((request, response) => {
+    if (request.url === '/encoded.png') {
+      encodedHits += 1;
+      response.writeHead(200, {
+        'content-type': 'image/png',
+        'content-encoding': 'gzip',
+      });
+      response.end(gzipSync(icon));
+      return;
+    }
+    if (request.url === '/usable.png') {
+      usableHits += 1;
+      response.writeHead(200, { 'content-type': 'image/png' });
+      response.end(icon);
+      return;
+    }
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    response.end('<!doctype html><title>Fallback chain</title>'
+      + '<link rel="icon" type="image/png" sizes="64x64" href="/encoded.png">'
+      + '<link rel="icon" type="image/png" sizes="32x32" href="/usable.png">');
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const address = server.address();
+    const capture = await runCliAsync(
+      ['brands', 'capture', 'http://127.0.0.1:' + address.port + '/', '--json'],
+      { ARCHIFY_BRAND_ALLOW_PRIVATE: '1' },
+    );
+    assert.equal(capture.status, 0, capture.stderr || capture.stdout);
+    assert.equal(JSON.parse(capture.stdout).evidence.contentType, 'image/png');
+    assert.equal(encodedHits, 1);
+    assert.equal(usableHits, 1);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('pinned brand re-fetch rejects encoded bytes before digest validation', async () => {
+  const icon = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+  let iconHits = 0;
+  const observedEncodings = [];
+  const server = http.createServer((request, response) => {
+    observedEncodings.push(request.headers['accept-encoding']);
+    if (request.url === '/mark.png') {
+      iconHits += 1;
+      if (iconHits === 1) {
+        response.writeHead(200, { 'content-type': 'image/png' });
+        response.end(icon);
+      } else {
+        response.writeHead(200, {
+          'content-type': 'image/png',
+          'content-encoding': 'br',
+        });
+        response.end(brotliCompressSync(icon));
+      }
+      return;
+    }
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    response.end('<!doctype html><title>Pinned mark</title><link rel="icon" type="image/png" href="/mark.png">');
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const address = server.address();
+    const url = 'http://127.0.0.1:' + address.port + '/';
+    const capture = await runCliAsync(
+      ['brands', 'capture', url, '--json'],
+      { ARCHIFY_BRAND_ALLOW_PRIVATE: '1' },
+    );
+    assert.equal(capture.status, 0, capture.stderr || capture.stdout);
+    const input = writeFixture('architecture', 'encoded-pinned-refetch', JSON.parse(capture.stdout).brand);
+    const validation = await runCliAsync(
+      ['validate', 'architecture', input, '--json'],
+      { ARCHIFY_BRAND_ALLOW_PRIVATE: '1' },
+    );
+    assert.equal(validation.status, 1, validation.stderr || validation.stdout);
+    const receipt = JSON.parse(validation.stdout);
+    const diagnostic = receipt.diagnostics.find((entry) => entry.code === 'brand/capture-unavailable');
+    assert.ok(diagnostic, validation.stdout);
+    assert.match(diagnostic.message, /unsupported content encoding br/i);
+    assert.equal(iconHits, 2);
+    assert.ok(observedEncodings.length >= 4);
+    assert.ok(observedEncodings.every((value) => value === 'identity'));
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
