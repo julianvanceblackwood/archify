@@ -3012,8 +3012,8 @@ html[data-reader-rail="true"] .reader-rail {
   contain: size;
   min-height: 0;
 }
-html[data-reader-rail="true"] .cards:empty { display: none; }
-html[data-reader-rail="true"] .cards {
+html:is([data-reader-rail="true"], [data-reader-rail="overlay"]) .cards:empty { display: none; }
+html:is([data-reader-rail="true"], [data-reader-rail="overlay"]) .cards {
   display: flex;
   flex: 0 1 auto;
   flex-direction: column;
@@ -3026,26 +3026,26 @@ html[data-reader-rail="true"] .cards {
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.25rem), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 1.25rem), transparent);
 }
-html[data-reader-rail="true"] .cards::-webkit-scrollbar { display: none; }
-html[data-reader-rail="true"] .cards .card { flex: none; }
-html[data-reader-rail="true"] .cards .card {
+html:is([data-reader-rail="true"], [data-reader-rail="overlay"]) .cards::-webkit-scrollbar { display: none; }
+html:is([data-reader-rail="true"], [data-reader-rail="overlay"]) .cards .card { flex: none; }
+html:is([data-reader-rail="true"], [data-reader-rail="overlay"]) .cards .card {
   padding: 0 0.25rem 1.125rem;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
 }
-html[data-reader-rail="true"] .cards .card + .card {
+html:is([data-reader-rail="true"], [data-reader-rail="overlay"]) .cards .card + .card {
   padding-top: 1.125rem;
   border-top: 1px solid var(--panel-border);
 }
-html[data-reader-rail="true"] .cards .card::before { display: none; }
-html[data-reader-rail="true"] .card-header { gap: 0.55rem; margin-bottom: 0.45rem; }
-html[data-reader-rail="true"] .cards .card h3 { font-size: 0.875rem; letter-spacing: -0.005em; }
-html[data-reader-rail="true"] .cards .card ul { font-size: 0.8125rem; line-height: 1.6; }
+html:is([data-reader-rail="true"], [data-reader-rail="overlay"]) .cards .card::before { display: none; }
+html:is([data-reader-rail="true"], [data-reader-rail="overlay"]) .card-header { gap: 0.55rem; margin-bottom: 0.45rem; }
+html:is([data-reader-rail="true"], [data-reader-rail="overlay"]) .cards .card h3 { font-size: 0.875rem; letter-spacing: -0.005em; }
+html:is([data-reader-rail="true"], [data-reader-rail="overlay"]) .cards .card ul { font-size: 0.8125rem; line-height: 1.6; }
 
 .node-outline { display: none; }
-html[data-reader-rail="true"] .node-outline:not([hidden]) {
+html:is([data-reader-rail="true"], [data-reader-rail="overlay"]) .node-outline:not([hidden]) {
   display: flex;
   flex: 1 0 min(13rem, 55%);
   flex-direction: column;
@@ -3054,7 +3054,118 @@ html[data-reader-rail="true"] .node-outline:not([hidden]) {
   overflow: hidden;
   border-top: 1px solid var(--panel-border);
 }
-html[data-reader-rail="true"] .cards:empty + .node-outline:not([hidden]) { margin-top: 0; border-top: 0; }
+html:is([data-reader-rail="true"], [data-reader-rail="overlay"]) .cards:empty + .node-outline:not([hidden]) { margin-top: 0; border-top: 0; }
+/* Collapsed: only the reveal control remains, so the diagram takes the width. */
+html[data-reader-rail="collapsed"] .reader-rail { display: none; }
+/* Overlay: a drawer for diagrams whose readable floor leaves no room to dock. */
+html[data-reader-rail="overlay"] .reader-rail {
+  position: fixed;
+  z-index: 150;
+  top: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  width: var(--archify-rail-width);
+  padding: 0.75rem 1rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--panel-border) 90%, transparent);
+  border-radius: 1rem;
+  background: var(--toolbar-menu-bg);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 28px 64px -18px rgba(15, 23, 42, 0.38);
+  animation: rail-drawer-in 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes rail-drawer-in {
+  from { opacity: 0; transform: translateX(0.75rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+/* Bottom: notes keep their card grid and the index sits beside them. */
+html[data-reader-rail="bottom"] .reader-rail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18rem;
+  gap: 0.5rem 1rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+html[data-reader-rail="bottom"] .rail-controls { grid-column: 1 / -1; }
+html[data-reader-rail="bottom"] .cards { margin-top: 0; }
+html[data-reader-rail="bottom"] .cards:empty { display: none; }
+html[data-reader-rail="bottom"] .cards:empty ~ .node-outline { grid-column: 1 / -1; }
+html[data-reader-rail="bottom"] .node-outline:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  max-height: 22rem;
+  padding: 0 0.875rem 0.25rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 0.75rem;
+  background: var(--panel);
+}
+html[data-reader-rail="bottom"] .node-outline-head { padding-top: 0.875rem; }
+.rail-controls { display: none; }
+html:is([data-reader-rail="true"], [data-reader-rail="overlay"], [data-reader-rail="bottom"]) .rail-controls {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  gap: 0.125rem;
+  margin: -0.25rem -0.25rem 0.25rem 0;
+}
+.rail-control {
+  display: inline-grid;
+  place-items: center;
+  width: 1.875rem;
+  height: 1.875rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.rail-control[hidden] { display: none; }
+.rail-control:hover,
+.rail-control:focus-visible { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+.rail-control:focus-visible { outline: 1.5px solid color-mix(in srgb, var(--frontend-stroke) 60%, transparent); outline-offset: -1.5px; }
+.rail-control-icon,
+.rail-reveal-icon {
+  width: 1rem;
+  height: 1rem;
+  background: currentColor;
+  -webkit-mask: var(--rail-glyph) center / contain no-repeat;
+  mask: var(--rail-glyph) center / contain no-repeat;
+}
+/* Panel glyphs: a frame with the panel drawn on the side it moves to. */
+.rail-control-icon.placement,
+#rail-placement[data-placement="right"] .rail-control-icon { --rail-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cg fill='none' stroke='black' stroke-width='1.6'%3E%3Crect x='2.8' y='3.8' width='14.4' height='12.4' rx='2'/%3E%3Cpath d='M2.8 12h14.4'/%3E%3C/g%3E%3C/svg%3E"); }
+#rail-placement[data-placement="bottom"] .rail-control-icon { --rail-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cg fill='none' stroke='black' stroke-width='1.6'%3E%3Crect x='2.8' y='3.8' width='14.4' height='12.4' rx='2'/%3E%3Cpath d='M12.6 3.8v12.4'/%3E%3C/g%3E%3C/svg%3E"); }
+.rail-control-icon.collapse { --rail-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='m8 5.5 4.5 4.5L8 14.5' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+.rail-reveal-icon { --rail-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cg fill='none' stroke='black' stroke-width='1.6'%3E%3Crect x='2.8' y='3.8' width='14.4' height='12.4' rx='2'/%3E%3Cpath d='M12.6 3.8v12.4M14.4 7.2h1M14.4 9.6h1M14.4 12h1'/%3E%3C/g%3E%3C/svg%3E"); }
+.rail-reveal[hidden] { display: none; }
+/* The collapsed rail leaves one quiet pill in the canvas corner. */
+.rail-reveal {
+  position: absolute;
+  z-index: 13;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2rem;
+  padding: 0 0.75rem 0 0.625rem;
+  border: 1px solid color-mix(in srgb, var(--panel-border) 85%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
+  color: var(--text-muted);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 20px -12px rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(12px);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.14s ease, background 0.14s ease;
+}
+.rail-reveal:hover,
+.rail-reveal:focus-visible { color: var(--text); background: var(--panel); }
+.rail-reveal:focus-visible { outline: 1.5px solid color-mix(in srgb, var(--frontend-stroke) 60%, transparent); outline-offset: 2px; }
+html[data-motion="still"] .reader-rail { animation: none !important; }
 .node-outline-head {
   display: flex;
   align-items: center;
@@ -3124,9 +3235,9 @@ html[data-reader-rail="true"] .cards:empty + .node-outline:not([hidden]) { margi
 }
 /* The rail frees the vertical budget, so compact viewports keep the normal
    title spacing instead of the stacked layout's tight stage rail. */
-html[data-reader-rail="true"] body { --archify-page-top: 1.5rem; padding-block: 1.5rem; }
-html[data-reader-rail="true"] .toolbar { top: calc(var(--archify-page-top) - 0.1875rem); }
-html[data-reader-rail="true"] .header { min-height: 0; margin-bottom: 1.125rem; }
+html[data-reader-rail] body { --archify-page-top: 1.5rem; padding-block: 1.5rem; }
+html[data-reader-rail] .toolbar { top: calc(var(--archify-page-top) - 0.1875rem); }
+html[data-reader-rail] .header { min-height: 0; margin-bottom: 1.125rem; }
 .node-outline-item {
   position: relative;
   display: grid;

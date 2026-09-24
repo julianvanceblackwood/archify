@@ -37,15 +37,16 @@ function fixture(t, changes = {}) {
   return { source, output, read: () => run([checker, output]) };
 }
 
-test('automatic Architecture reports visible leading space as review evidence only', t => {
-  const { read } = fixture(t);
+test('automatic Architecture crops authored leading space instead of asking for review', t => {
+  const { read, output } = fixture(t);
   const report = read();
   const space = report.composition.leadingSpace;
+  // The renderer-sized canvas starts one margin above the first drawn element,
+  // so a component authored at y=225 no longer leaves an empty band to repair.
+  assert.match(fs.readFileSync(output, 'utf8'), /<svg viewBox="0 (\d+) /);
   assert.equal(space.measured, true);
-  assert.equal(space.reviewSuggested, true);
-  assert.ok(space.emptyTopPx > 120);
-  assert.ok(space.emptyTopRatio > 0.2);
-  assert.ok(space.occupiedTop <= 225);
+  assert.equal(space.reviewSuggested, false);
+  assert.ok(space.emptyTopPx <= 60, JSON.stringify(space));
   assert.deepEqual(report.composition.summary, { errors: 0, warnings: 0 });
   assert.equal(report.composition.status, 'pass');
   assert.equal(report.composition.issues.length, 0);

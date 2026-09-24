@@ -43,7 +43,7 @@ test('automatic architectures preserve primary reading size when fitting the ful
           const toolbar = document.querySelector('.toolbar').getBoundingClientRect();
           const guide = document.querySelector('.guided-views').getBoundingClientRect();
           const svg = document.querySelector('.diagram-container > svg');
-          return { rail: document.documentElement.dataset.navStageRail,
+          return { rail: document.documentElement.dataset.navStageRail, summaryRail: document.documentElement.dataset.readerRail || null,
             toolbarBottom: toolbar.bottom, guideTop: guide.top, guideWidth: guide.width,
             primaryFont: Math.min(...Array.from(svg.querySelectorAll('text[data-node-label]')).map(text => parseFloat(text.getAttribute('font-size')) * svg.getBoundingClientRect().width / svg.viewBox.baseVal.width)),
             scrollWidth: document.documentElement.scrollWidth,
@@ -55,7 +55,10 @@ test('automatic architectures preserve primary reading size when fitting the ful
         assert.ok(observed.guideWidth > 0, label + ': guide must be visible');
         assert.ok(observed.guideTop >= observed.toolbarBottom + 4, label + ': toolbar overlaps guide ' + JSON.stringify(observed));
         assert.ok(observed.scrollWidth <= width, label + ': horizontal overflow');
-        assert.ok(observed.primaryFont >= 13.5, label + ': full-page fitting made primary text too small: ' + observed.primaryFont);
+        // A docked summary rail may trade comfort down to its 12px default floor;
+        // without it (collapsed, bottom or unavailable) the 13.5px comfort holds.
+        const primaryFloor = observed.summaryRail === 'true' ? 12 : 13.5;
+        assert.ok(observed.primaryFont >= primaryFloor, label + ': full-page fitting made primary text too small: ' + observed.primaryFont + ' (rail ' + observed.summaryRail + ')');
         if (geometry) assert.deepEqual(observed.geometry, geometry, label + ': authored node geometry/font changed');
         else geometry = observed.geometry;
       }

@@ -185,7 +185,7 @@ test('production showcase is readable in the real 1440 by 900 adaptive reader', 
     assert.ok(svgRoot, 'production fixture must contain an SVG root');
     // The comfortable primary-text preference uses the available width here;
     // the viewport cap still wins over the preferred reading size.
-    assert.match(svgRoot, /viewBox="0 0 1376 728"/);
+    assert.match(svgRoot, /viewBox="0 45 1376 683"/);
     assert.match(svgRoot, /data-reader-fit="intrinsic-height"/);
     assert.match(svgRoot, /data-reader-min-text="7\.5"/);
 
@@ -253,7 +253,7 @@ test('route-expanded intrinsic architecture preserves reading size with ordinary
     const html = fs.readFileSync(artifact, 'utf8');
     const svgRoot = html.match(/<svg\b[^>]*>/)?.[0];
     assert.ok(svgRoot, 'expected an SVG root');
-    assert.match(svgRoot, /viewBox="0 0 980 678"/);
+    assert.match(svgRoot, /viewBox="0 40 980 638"/);
     assert.match(svgRoot, /data-reader-fit="intrinsic-height"/);
     assert.match(svgRoot, /data-reader-min-text="7\.5"/);
 
@@ -310,7 +310,7 @@ test('extreme intrinsic architecture keeps readable page scroll below first-scre
     const html = fs.readFileSync(artifact, 'utf8');
     const svgRoot = html.match(/<svg\b[^>]*>/)?.[0];
     assert.ok(svgRoot, 'expected an SVG root');
-    assert.match(svgRoot, /viewBox="0 0 980 1188"/);
+    assert.match(svgRoot, /viewBox="0 40 980 1148"/);
     assert.match(svgRoot, /data-reader-fit="intrinsic-height"/);
     assert.match(svgRoot, /data-reader-min-text="7\.5"/);
 

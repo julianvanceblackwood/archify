@@ -49,6 +49,16 @@ async function evaluate(browser, sessionId, expression, awaitPromise = false) {
   return response.result?.value;
 }
 
+// Mobile radar scenarios measure placement against a specific canvas height.
+// Pin the authored-canvas form so automatic top cropping does not change it.
+function pinnedArchitectureInput(name) {
+  const input = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', CASES.architecture), 'utf8'));
+  input.meta = { ...input.meta, viewBox: [1080, 588] };
+  const file = path.join(tmp, name);
+  fs.writeFileSync(file, JSON.stringify(input));
+  return file;
+}
+
 async function loadArtifact(browser, artifactPath, { width = 1440, height = 900 } = {}) {
   const sessionId = await browser.sessionPromise;
   await browser.cdp.send('Emulation.setDeviceMetricsOverride', {
@@ -245,7 +255,7 @@ test('Semantic Radar avoids an expanded mobile Passport without hiding a collisi
   const artifact = path.join(tmp, 'radar-mobile-passport.html');
   execFileSync(process.execPath, [
     path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'),
-    path.join(skillRoot, 'examples', CASES.architecture),
+    pinnedArchitectureInput('radar-mobile-passport.json'),
     artifact,
   ]);
   const browser = new ChromeVisualBrowser(chromePath);
@@ -344,7 +354,7 @@ test('Semantic Radar reports a consistent unavailable state and recovers when sp
   const artifact = path.join(tmp, 'radar-unavailable.html');
   execFileSync(process.execPath, [
     path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'),
-    path.join(skillRoot, 'examples', CASES.architecture),
+    pinnedArchitectureInput('radar-unavailable.json'),
     artifact,
   ]);
   const browser = new ChromeVisualBrowser(chromePath);

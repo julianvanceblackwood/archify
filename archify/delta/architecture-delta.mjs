@@ -361,7 +361,7 @@ function esc(value) {
 const safeJson = (value) => JSON.stringify(value, null, 2).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e').replaceAll('&', '\\u0026');
 
 export function extractArchitectureSvg(html) {
-  const match = html.match(/<svg viewBox="0 0 [^"]+" role="img"[\s\S]*?<\/svg>/);
+  const match = html.match(/<svg viewBox="[^"]+" role="img"[\s\S]*?<\/svg>/);
   if (!match) fail('delta/svg-missing', 'A validated Architecture artifact did not contain its primary SVG.');
   return match[0];
 }
@@ -558,9 +558,11 @@ function forceBoundaryState(markup, state, key, classifications = []) {
     .replace(/<text[^>]*>/, (tag) => tag.replace(/>$/, () => ` data-delta-state="${state}" data-delta-boundary-state="${state}" data-delta-boundary-key="${esc(key)}">`));
 }
 
-function viewBoxSize(svg) {
-  const match = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
-  return match ? [Number(match[1]), Number(match[2])] : [0, 0];
+// Renderer-sized canvases may start below the origin; compose from each side's
+// full rectangle instead of assuming a 0,0 corner.
+function viewBoxRect(svg) {
+  const match = svg.match(/viewBox="(-?[\d.]+) (-?[\d.]+) ([\d.]+) ([\d.]+)"/);
+  return match ? match.slice(1).map(Number) : [0, 0, 0, 0];
 }
 
 function edgeSymbolMarkup(markup, state) {
@@ -581,8 +583,8 @@ function boundarySymbolMarkup(markup, state) {
 }
 
 export function buildDeltaSvg(baseSvg, headSvg, receipt) {
-  const [baseW, baseH] = viewBoxSize(baseSvg);
-  const [headW, headH] = viewBoxSize(headSvg);
+  const [baseX, baseY, baseW, baseH] = viewBoxRect(baseSvg);
+  const [headX, headY, headW, headH] = viewBoxRect(headSvg);
   // Baseline paths and their definitions must travel together in a namespace
   // distinct from the current snapshot before the final Delta prefix is added.
   const baseRelationshipsSvg = prefixSvgIds(baseSvg, 'base');
@@ -635,7 +637,11 @@ export function buildDeltaSvg(baseSvg, headSvg, receipt) {
     const baseDefinitions = baseRelationshipsSvg.match(/<defs>([\s\S]*?)<\/defs>/)?.[1] || '';
     delta = delta.replace('</defs>', () => `${baseDefinitions}</defs>`);
   }
-  delta = delta.replace(/^<svg[^>]+>/, (tag) => tag.replace(/viewBox="[^"]+"/, `viewBox="0 0 ${Math.max(baseW, headW) + 24} ${Math.max(baseH, headH) + 24}"`));
+  const deltaX = Math.min(baseX, headX);
+  const deltaY = Math.min(baseY, headY);
+  const deltaW = Math.max(baseX + baseW, headX + headW) - deltaX + 24;
+  const deltaH = Math.max(baseY + baseH, headY + headH) - deltaY + 24;
+  delta = delta.replace(/^<svg[^>]+>/, (tag) => tag.replace(/viewBox="[^"]+"/, `viewBox="${deltaX} ${deltaY} ${deltaW} ${deltaH}"`));
   delta = delta.replace('        <!-- Boundaries (behind everything) -->', () => `        <!-- Baseline boundary frame phantoms -->\n${baseBoundaryFramePhantoms.filter(Boolean).join('\n')}\n\n        <!-- Boundaries (behind everything) -->`);
   delta = delta.replace('        <!-- Connection paths (before components for correct z-order) -->', () => `        <!-- Baseline relationship phantoms -->\n${baseEdgePhantoms.join('\n')}\n\n        <!-- Connection paths (before components for correct z-order) -->`);
   delta = delta.replace('        <!-- Components -->', () => `        <!-- Baseline boundary label phantoms (below current components) -->\n${baseBoundaryLabelPhantoms.filter(Boolean).join('\n')}\n\n        <!-- Baseline removed and move-from component phantoms -->\n${baseNodePhantoms.join('\n')}\n\n        <!-- Components -->`);

@@ -945,12 +945,21 @@ function renderSvg() {
   // shrinking a semantically rich graph to the universal emergency floor.
   const readerMinimumText = arch.meta?.viewBox ? '' : ' data-reader-min-text="7.5"';
   const readerPrimaryText = arch.meta?.viewBox ? '' : ' data-reader-primary-text="14"';
-  return `      <svg viewBox="0 0 ${viewBox[0]} ${viewBox[1]}" ${svgRootAttrs(arch.meta)}${readerFit}${readerMinimumText}${readerPrimaryText}>
+  // A renderer-sized canvas starts at the drawn composition, so an authored
+  // top offset does not become empty margin. Coordinates and every
+  // containment check keep the full canvas; authored viewBoxes stay exact.
+  const canvasTop = arch.meta?.viewBox ? 0 : Math.max(0, Math.floor(Math.min(
+    ...[...components.values()].map((component) => component.y),
+    ...boundaries.flatMap((boundary) => [boundary.y, boundary.title?.y ?? boundary.y]),
+    ...connectionGeometry.map((rect) => rect.y),
+  ) - layout.margin));
+  const canvasHeight = viewBox[1] - canvasTop;
+  return `      <svg viewBox="0 ${canvasTop} ${viewBox[0]} ${canvasHeight}" ${svgRootAttrs(arch.meta)}${readerFit}${readerMinimumText}${readerPrimaryText}>
 ${svgAccessibleText(arch.meta, 'architecture')}
 ${renderDefinitions()}
 
         <!-- Background Grid -->
-        <rect width="100%" height="100%" fill="url(#grid)" />
+        <rect x="0" y="${canvasTop}" width="${viewBox[0]}" height="${canvasHeight}" fill="url(#grid)" />
 
         <!-- Boundaries (behind everything) -->
 ${boundaries.map(renderBoundaryFrame).join('\n\n')}

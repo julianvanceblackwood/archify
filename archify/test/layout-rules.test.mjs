@@ -1176,7 +1176,7 @@ test('workflow: readable-v2 contains the same pinned label without this rule', (
   const { code, stderr, outPath } = render('workflow', grown);
   assert.equal(code, 0, stderr);
   const html = fs.readFileSync(outPath, 'utf8');
-  const [, width] = html.match(/viewBox="0 0 (\d+) (\d+)"/).map(Number);
+  const [, width] = html.match(/<svg viewBox="0 \d+ (\d+) (\d+)"/).map(Number);
   assert.ok(width >= 777, `expected the v2 canvas to contain the label rect, got width ${width}`);
 
   // An authored v2 viewBox that cannot hold the layout is already rejected by
@@ -1289,7 +1289,7 @@ test('architecture: an auto viewBox grows to contain a wide connection label', (
   const { code, stderr, outPath } = render('architecture', d);
   assert.equal(code, 0, stderr);
   const html = fs.readFileSync(outPath, 'utf8');
-  const [, width] = html.match(/viewBox="0 0 (\d+) (\d+)"/).map(Number);
+  const [, width] = html.match(/<svg viewBox="0 \d+ (\d+) (\d+)"/).map(Number);
   const mask = html.match(/<g data-detail="context"[^>]*>\s*<rect x="([\d.-]+)"[^>]*width="([\d.]+)"/);
   const labelRight = Number(mask[1]) + Number(mask[2]);
   assert.ok(labelRight <= width, `label right edge ${labelRight} exceeds the ${width}px auto canvas`);
@@ -1391,7 +1391,7 @@ test('architecture: label-driven canvas growth keeps boundary titles at the read
   const { code, stderr, outPath } = render('architecture', d);
   assert.equal(code, 0, stderr);
   const html = fs.readFileSync(outPath, 'utf8');
-  const [, width] = html.match(/viewBox="0 0 (\d+) (\d+)"/).map(Number);
+  const [, width] = html.match(/<svg viewBox="0 \d+ (\d+) (\d+)"/).map(Number);
   assert.ok(width > 1395, `expected the label to grow the canvas past 1395px, got ${width}`);
   const floor = minimumReadableSourceTextPx(width);
   const fonts = [...html.matchAll(/data-boundary-label=""[^>]*font-size="([\d.]+)"/g)]

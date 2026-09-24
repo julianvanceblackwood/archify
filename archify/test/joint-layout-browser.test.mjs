@@ -295,7 +295,7 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
             assert.deepEqual(raw.dimensions.slice(0, 2), [options.width, options.height], 'actual raw viewport');
             assert.deepEqual([metrics.innerWidth, metrics.innerHeight], [options.width, options.height], 'actual CLI metrics viewport');
             assert.equal(raw.theme, options.theme);
-            assert.equal(raw.viewBox, '0 0 980 678');
+            assert.equal(raw.viewBox, '0 40 980 638');
             assert.equal(raw.readerFit, 'intrinsic-height');
             states.push([options.width, options.height, options.theme]);
             return metrics;

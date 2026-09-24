@@ -33,12 +33,12 @@ test('declared wide synthetic reader preserves geometry and reaches edge/node re
     const svgEnd = artifactSource.indexOf('</svg>', svgStart) + '</svg>'.length;
     assert.ok(svgStart >= 0 && svgEnd > svgStart, 'generated artifact must contain a canonical SVG');
     const canonicalSvg = artifactSource.slice(svgStart, svgEnd);
-    assert.match(canonicalSvg, /viewBox="0 0 1428 706"/);
+    assert.match(canonicalSvg, /viewBox="0 42 1428 664"/);
     const tallArtifact = path.join(scratch, 'synthetic-wide-tall.html');
     // With the fixture's 9px minimum label, 2300x1600 yields 1946.67px of
     // reader width, below the 1984px viewport reserve but above the 1920px
     // new-wide cap. This keeps the explicit legacy-width guard meaningful.
-    fs.writeFileSync(tallArtifact, artifactSource.replace('viewBox="0 0 1428 706"', 'viewBox="0 0 2300 1600"'));
+    fs.writeFileSync(tallArtifact, artifactSource.replace(/<svg viewBox="0 \d+ 1428 \d+"/, '<svg viewBox="0 0 2300 1600"'));
 
     const browser = new ChromeVisualBrowser(chromePath);
     try {
@@ -143,7 +143,7 @@ test('declared wide synthetic reader preserves geometry and reaches edge/node re
           assert.ok(Number.isFinite(state.chromeIntersectionArea));
           assert.ok(state.chromeStageIntersectionArea <= 0, JSON.stringify(state));
           assert.ok(state.chromeIntersectionArea <= 0, JSON.stringify(state));
-          assert.equal(state.geometry[0], '0 0 1428 706');
+          assert.equal(state.geometry[0], '0 42 1428 664');
           if (state.overflowY) assert.equal(state.overflow, 'authored', JSON.stringify(state));
           if (width === 1440) assert.ok(state.receipt.width >= 1294, JSON.stringify(state));
           await stable();
