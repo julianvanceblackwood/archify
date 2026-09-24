@@ -1032,6 +1032,50 @@ svg {
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
+/* Mode buttons carry a small glyph so the dock reads as one icon language. */
+.diagram-nav #btn-route-probe,
+.diagram-nav #btn-overview-map,
+.diagram-nav #btn-semantic-lens {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding-inline: 0.55rem 0.65rem;
+}
+.diagram-nav #btn-route-probe::before,
+.diagram-nav #btn-overview-map::before,
+.diagram-nav #btn-semantic-lens::before {
+  flex: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  background: currentColor;
+  content: "";
+  opacity: 0.85;
+  -webkit-mask: var(--nav-glyph) center / contain no-repeat;
+  mask: var(--nav-glyph) center / contain no-repeat;
+}
+.diagram-nav #btn-route-probe { --nav-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cg fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round'%3E%3Ccircle cx='4.8' cy='14.8' r='2.2'/%3E%3Ccircle cx='15.2' cy='5.2' r='2.2'/%3E%3Cpath d='M6.9 13.9c3.8-1.4 2.6-6.3 6.2-7.8'/%3E%3C/g%3E%3C/svg%3E"); }
+.diagram-nav #btn-overview-map { --nav-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cg fill='none' stroke='black' stroke-width='1.7' stroke-linejoin='round'%3E%3Cpath d='M2.8 5.4 7.4 3.5l5.2 2 4.6-1.9v11l-4.6 1.9-5.2-2-4.6 1.9z'/%3E%3Cpath d='M7.4 3.5v11M12.6 5.5v11'/%3E%3C/g%3E%3C/svg%3E"); }
+.diagram-nav #btn-semantic-lens { --nav-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cg fill='none' stroke='black' stroke-width='1.7'%3E%3Ccircle cx='10' cy='10' r='6.8'/%3E%3Ccircle cx='10' cy='10' r='2.6'/%3E%3C/g%3E%3C/svg%3E"); }
+/* Zoom out / level / zoom in join into one stepper well. */
+.diagram-nav [data-view="out"],
+.diagram-nav [data-view="reset"],
+.diagram-nav [data-view="in"] {
+  border-radius: 0;
+  background: color-mix(in srgb, var(--text) 4.5%, transparent);
+}
+.diagram-nav [data-view="out"] { margin-left: 0.375rem; border-radius: 0.5rem 0 0 0.5rem; }
+.diagram-nav [data-view="out"]::before { display: none; }
+.diagram-nav [data-view="reset"],
+.diagram-nav [data-view="in"] { margin-left: -0.0625rem; }
+.diagram-nav [data-view="in"] { border-radius: 0 0.5rem 0.5rem 0; }
+.diagram-nav [data-view="out"]:hover,
+.diagram-nav [data-view="reset"]:hover,
+.diagram-nav [data-view="in"]:hover { background: color-mix(in srgb, var(--text) 9%, transparent); }
+.diagram-nav [data-view="out"]:disabled,
+.diagram-nav [data-view="in"]:disabled { opacity: 1; color: color-mix(in srgb, var(--text-muted) 40%, transparent); }
+.diagram-nav [data-view="out"]:disabled:hover,
+.diagram-nav [data-view="in"]:disabled:hover { background: color-mix(in srgb, var(--text) 4.5%, transparent); }
+.diagram-nav [data-view="reset"] { min-width: 3.25rem; }
 .diagram-container[data-camera-indicator="true"] .diagram-nav-detail,
 .diagram-container[data-camera-indicator="true"] .diagram-nav-percent { color: var(--frontend-stroke); }
 .diagram-nav #btn-diagram-guide[aria-expanded="true"] {
@@ -1255,7 +1299,7 @@ html[data-preset="blueprint"] .overview-map-surface { border-radius: 0.1rem; }
 }
 .diagram-nav #btn-overview-map[aria-expanded="true"] {
   color: var(--frontend-stroke);
-  background: var(--toolbar-hover);
+  background: color-mix(in srgb, var(--frontend-stroke) 11%, transparent);
 }
 .overview-map-feedback {
   position: absolute;
@@ -1277,12 +1321,12 @@ html[data-preset="blueprint"] .overview-map-surface { border-radius: 0.1rem; }
 .focus-chip[data-radar-yielded="true"] { display: none !important; }
 .diagram-nav #btn-route-probe[aria-pressed="true"] {
   color: var(--backend-stroke);
-  background: var(--toolbar-hover);
+  background: color-mix(in srgb, var(--backend-stroke) 11%, transparent);
 }
 .diagram-nav #btn-semantic-lens[aria-expanded="true"],
 .diagram-nav #btn-semantic-lens[aria-pressed="true"] {
   color: var(--database-stroke);
-  background: var(--toolbar-hover);
+  background: color-mix(in srgb, var(--database-stroke) 11%, transparent);
 }
 
 /* Semantic Lens turns the compiled node-kind palette into an analytical
@@ -3078,12 +3122,12 @@ html[data-reader-rail="true"] .header { min-height: 0; margin-bottom: 1.125rem; 
 .node-outline-item {
   position: relative;
   display: grid;
-  grid-template-columns: 0.625rem minmax(0, auto) minmax(0, 1fr);
+  grid-template-columns: 0.625rem minmax(0, auto) minmax(0, 1fr) 0.75rem;
   align-items: center;
   column-gap: 0.625rem;
   width: 100%;
   min-height: 1.95rem;
-  padding: 0.28rem 0.625rem;
+  padding: 0.28rem 0.5rem 0.28rem 0.625rem;
   border: 0;
   border-radius: 0.5rem;
   background: transparent;
@@ -3091,13 +3135,30 @@ html[data-reader-rail="true"] .header { min-height: 0; margin-bottom: 1.125rem; 
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 0.14s ease, color 0.14s ease;
+  transition: background 0.16s ease;
+}
+/* Trailing chevron hints that a click focuses the node. */
+.node-outline-item::after {
+  grid-column: 4;
+  width: 0.75rem;
+  height: 0.75rem;
+  background: currentColor;
+  color: var(--text-muted);
+  content: "";
+  opacity: 0;
+  transform: translateX(-3px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='m4.5 3 3 3-3 3' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='m4.5 3 3 3-3 3' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 .node-outline-item:hover,
 .node-outline-item:focus-visible,
-.node-outline-item[data-previewing] { background: color-mix(in srgb, var(--outline-tone) 9%, transparent); }
-.node-outline-item:focus-visible { outline: 2px solid var(--outline-tone); outline-offset: -2px; }
-.node-outline-item[aria-current="true"] { background: color-mix(in srgb, var(--outline-tone) 14%, transparent); }
+.node-outline-item[data-previewing] { background: color-mix(in srgb, var(--text) 4.5%, transparent); }
+.node-outline-item:hover::after,
+.node-outline-item:focus-visible::after { opacity: 0.7; transform: translateX(0); }
+.node-outline-item:focus-visible { outline: 1.5px solid color-mix(in srgb, var(--outline-tone) 60%, transparent); outline-offset: -1.5px; }
+.node-outline-item[aria-current="true"] { background: color-mix(in srgb, var(--outline-tone) 10%, transparent); }
+.node-outline-item[aria-current="true"]::after { opacity: 0; }
 /* Swatches echo the diagram's node cards: tinted fill, hairline stroke. */
 .node-outline-dot {
   width: 0.625rem;
@@ -3105,11 +3166,16 @@ html[data-reader-rail="true"] .header { min-height: 0; margin-bottom: 1.125rem; 
   border: 1.25px solid var(--outline-tone);
   border-radius: 0.15rem;
   background: color-mix(in srgb, var(--outline-tone) 16%, var(--bg));
-  transition: background 0.14s ease, transform 0.14s ease;
+  transition: background 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
 }
 .node-outline-item:hover .node-outline-dot,
-.node-outline-item[data-previewing] .node-outline-dot { transform: scale(1.12); }
-.node-outline-item[aria-current="true"] .node-outline-dot { background: var(--outline-tone); }
+.node-outline-item:focus-visible .node-outline-dot,
+.node-outline-item[data-previewing] .node-outline-dot,
+.node-outline-item[aria-current="true"] .node-outline-dot {
+  background: var(--outline-tone);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--outline-tone) 18%, transparent);
+  transform: scale(1.08);
+}
 .node-outline-item strong {
   overflow: hidden;
   font-size: 0.8125rem;
@@ -3125,7 +3191,11 @@ html[data-reader-rail="true"] .header { min-height: 0; margin-bottom: 1.125rem; 
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: color 0.16s ease;
 }
+.node-outline-item:hover small,
+.node-outline-item[data-previewing] small,
+.node-outline-item[aria-current="true"] small { color: var(--text-muted); }
 
 .card-header {
   display: flex;
