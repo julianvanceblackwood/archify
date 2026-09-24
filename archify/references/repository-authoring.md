@@ -42,6 +42,10 @@ fact has supporting source evidence.
    discovering an implementation role does not automatically add it to the overview.
    A configured provider, an injected adapter, a local stub, and a durable
    service are different claims; label the one the source supports.
+   Distinguish a data artifact from the store or process that creates it. Trace
+   the normal path through any source-backed validation or delivery gate that
+   determines whether the artifact reaches the user; do not let a summary card
+   conceal a bypass implied by the main arrows.
 
 4. **Record evidence while reading.** Keep exact repository-relative paths and
    inclusive line ranges for each component and meaningful relationship. Follow
