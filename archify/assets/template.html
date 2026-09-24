@@ -3160,27 +3160,43 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
     /* Summary rail: the reader measures the viewport and enables it only when the
        diagram keeps its readable width beside the notes. */
+    .reader-rail { display: contents; }
     html[data-reader-rail="true"] .container {
       display: grid;
       grid-template-columns: minmax(0, 1fr) var(--archify-rail-width);
-      grid-template-rows: auto auto auto minmax(0, 1fr);
+      grid-auto-flow: row dense;
       column-gap: var(--archify-rail-gap);
       align-items: start;
     }
-    html[data-reader-rail="true"] .container > .header { grid-area: 1 / 1 / 2 / -1; }
-    html[data-reader-rail="true"] .container > .guided-views { grid-area: 2 / 1 / 3 / -1; }
-    html[data-reader-rail="true"] .container > .diagram-container { grid-area: 3 / 1 / 5 / 2; }
-    html[data-reader-rail="true"] .container > .cards { grid-area: 3 / 2 / 4 / 3; }
-    html[data-reader-rail="true"] .container > .node-outline { grid-area: 4 / 2 / 5 / 3; }
-    html[data-reader-rail="true"] .container > .cards:empty + .node-outline { grid-row: 3 / 5; }
+    html[data-reader-rail="true"] .container > .header,
+    html[data-reader-rail="true"] .container > .guided-views { grid-column: 1 / -1; }
+    html[data-reader-rail="true"] .container > .diagram-container { grid-column: 1; }
+    /* The rail takes exactly the diagram's height: notes scroll when long and
+       the index keeps a usable share instead of collapsing to its header. */
+    html[data-reader-rail="true"] .reader-rail {
+      display: flex;
+      flex-direction: column;
+      grid-column: 2;
+      align-self: stretch;
+      contain: size;
+      min-height: 0;
+    }
     html[data-reader-rail="true"] .cards:empty { display: none; }
     html[data-reader-rail="true"] .cards {
       display: flex;
+      flex: 0 1 auto;
       flex-direction: column;
       gap: 0;
+      min-height: 0;
       margin-top: 0;
       padding: 0.125rem 0 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+      -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.25rem), transparent);
+      mask-image: linear-gradient(to bottom, #000 calc(100% - 1.25rem), transparent);
     }
+    html[data-reader-rail="true"] .cards::-webkit-scrollbar { display: none; }
+    html[data-reader-rail="true"] .cards .card { flex: none; }
     html[data-reader-rail="true"] .cards .card {
       padding: 0 0.25rem 1.125rem;
       border: 0;
@@ -3200,11 +3216,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     .node-outline { display: none; }
     html[data-reader-rail="true"] .node-outline:not([hidden]) {
       display: flex;
+      flex: 1 0 min(13rem, 55%);
       flex-direction: column;
-      /* The index fills what the diagram leaves beside it and scrolls inside;
-         it must not add page height or the reader would shrink the diagram. */
-      align-self: stretch;
-      contain: size;
       min-height: 0;
       margin-top: 0.25rem;
       overflow: hidden;
@@ -3215,7 +3228,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 1.125rem 0.25rem 0;
+      padding: 1.125rem 0.25rem 0.375rem;
     }
     .node-outline-head strong {
       color: var(--text);
@@ -3234,11 +3247,6 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       line-height: 1.3;
       text-align: center;
       font-variant-numeric: tabular-nums;
-    }
-    .node-outline-hint {
-      padding: 0.25rem 0.25rem 0.375rem;
-      color: var(--text-faint);
-      font-size: 0.75rem;
     }
     .node-outline-list {
       flex: 1 1 auto;
@@ -6088,6 +6096,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       </div>
     </div>
 
+    <aside class="reader-rail">
     <!-- ARCHIFY:CARDS_SLOT_START -->
     <div class="cards">
       <div class="card">
@@ -6135,9 +6144,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <strong id="node-outline-title">{{i18n:viewer.outline.title}}</strong>
         <span class="node-outline-count" id="node-outline-count"></span>
       </div>
-      <p class="node-outline-hint">{{i18n:viewer.outline.hint}}</p>
       <ol class="node-outline-list" id="node-outline-list"></ol>
     </nav>
+    </aside>
 
   </div>
 
@@ -13953,7 +13962,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       var groups = [];
       var byContext = Object.create(null);
       nodes.forEach(function (node) {
-        var context = node.getAttribute('data-node-context') || '';
+        // Group by the outermost context (lane or stage); deeper segments
+        // such as workflow groups and columns would split the index into
+        // one-node sections.
+        var context = (node.getAttribute('data-node-context') || '').split(' \u203a ')[0];
         if (!byContext[context]) {
           byContext[context] = { label: context, nodes: [] };
           groups.push(byContext[context]);

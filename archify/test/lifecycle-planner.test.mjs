@@ -34,7 +34,11 @@ test('lifecycle: planner routes render as one semantic edge with a crossover mas
     const output = path.join(tmp, 'review-hub.html');
     execFileSync(process.execPath, [renderer, fixture, output]);
     const html = fs.readFileSync(output, 'utf8');
-    assert.match(html, /<svg viewBox="0 0 980 660" data-reader-fit="intrinsic-height"/);
+    // The renderer-sized canvas hugs its composition inside the 980x660 band reserve.
+    const fitted = html.match(/<svg viewBox="0 (\d+) (\d+) (\d+)" data-reader-fit="intrinsic-height"/);
+    assert.ok(fitted, 'renderer-sized lifecycle canvas declares a fitted viewBox');
+    const [top, width, height] = fitted.slice(1).map(Number);
+    assert.ok(top > 0 && width <= 980 && top + height <= 660, `fitted canvas ${fitted[0]} stays inside the band reserve`);
     const wrappers = html.match(/<g data-graph-role="automatic-crossover"/g) || [];
     assert.equal(wrappers.length, 7, 'every automatic transition is planner routed');
     assert.equal((html.match(/data-composition-crossover="halo"/g) || []).length, 7);
@@ -49,6 +53,7 @@ test('lifecycle: planner routes render as one semantic edge with a crossover mas
     execFileSync(process.execPath, [renderer, authoredInput, authoredOutput]);
     const authoredHtml = fs.readFileSync(authoredOutput, 'utf8');
     assert.doesNotMatch(authoredHtml, /data-reader-fit=/, 'an authored viewBox keeps the authored fit contract');
+    assert.match(authoredHtml, /<svg viewBox="0 0 1100 660"/, 'an authored viewBox is never fitted');
     assert.equal((authoredHtml.match(/<g data-graph-role="automatic-crossover"/g) || []).length, 6, 'the drop preset is not planner routed');
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });

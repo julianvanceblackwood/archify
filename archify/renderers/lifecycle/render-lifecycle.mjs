@@ -469,7 +469,7 @@ function transitionLabelBox(transition) {
 
 function transitionLabelBoxAt(transition, [lx, ly]) {
   const longestLine = Math.max(textUnits(transition.label), textUnits(transition.note || ''));
-  const width = Math.max(32, longestLine * 5.5 + 12);
+  const width = Math.max(32, longestLine * 4.9 + 12);
   const height = transition.label && transition.note ? 27 : 16;
   return { x: lx - width / 2, y: ly - 11, width, height, lx, ly };
 }
@@ -590,7 +590,7 @@ function renderTransitionLabel(transition, index) {
   if (!(transition.label || transition.note)) return '';
   const { lx, ly, width: labelW, height: labelH } = transitionLabelBox(transition);
   const label = transition.label
-    ? `\n          <text x="${lx}" y="${ly}" class="${edgeLabelAccent(transition.variant)}" font-size="9" text-anchor="middle">${esc(transition.label)}</text>`
+    ? `\n          <text x="${lx}" y="${ly}" class="${edgeLabelAccent(transition.variant)}" font-size="8" text-anchor="middle">${esc(transition.label)}</text>`
     : '';
   const note = transition.note
     ? `\n        <text data-detail="fine" x="${lx}" y="${ly + (transition.label ? 11 : 0)}" class="t-dim" font-size="7" text-anchor="middle">${esc(transition.note)}</text>`

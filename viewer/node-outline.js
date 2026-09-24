@@ -36,7 +36,10 @@
       var groups = [];
       var byContext = Object.create(null);
       nodes.forEach(function (node) {
-        var context = node.getAttribute('data-node-context') || '';
+        // Group by the outermost context (lane or stage); deeper segments
+        // such as workflow groups and columns would split the index into
+        // one-node sections.
+        var context = (node.getAttribute('data-node-context') || '').split(' \u203a ')[0];
         if (!byContext[context]) {
           byContext[context] = { label: context, nodes: [] };
           groups.push(byContext[context]);

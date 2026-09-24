@@ -141,7 +141,8 @@ test('Motion Governor preserves mode, ownership, ambient completion and real cal
           security:Array.from(document.querySelectorAll('.a-security'), e => getComputedStyle(e).strokeDasharray) })`);
         assert.equal(ambient.running, true); assert.equal(ambient.ended, true);
         assert.ok(ambient.animations.every(name => name === 'none'));
-        assert.ok(ambient.security.every(dash => dash === '5px, 5px'));
+        // Classic's settled security dash is its authored 5/4 rhythm, not a frozen animation frame.
+        assert.ok(ambient.security.every(dash => dash === '5px, 4px'), JSON.stringify(ambient.security));
       }
       await run(`Archify.motionGovernor.pause(); Archify.motionGovernor.resume();`);
       assert.equal((await snapshot(mode + '-resumed')).ambient, 'settled');

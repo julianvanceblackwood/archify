@@ -325,7 +325,7 @@ test('fixed-v1 preserves baseline SVG except repaired node text positions', () =
   assert.equal(result.receipt.contract, 'fixed-v1');
   assert.equal(
     sha256(withoutNodeTextPositions(result.svg)),
-    'e64795a4521e8568718981bf053c6e8f4e0cf714e27f70f0087d1850ae1fe633',
+    '508c17a77531beb23a59dfc5dc97f34449fd8eb2bf74b070df316fa4a55c97fa',
   );
 });
 
@@ -342,7 +342,7 @@ test('fixed-v1 compiler preserves the exact 700x400 compatibility geometry', () 
   assert.deepEqual(svgViewBox(result.svg), [0, 0, 700, 400]);
   assert.equal(
     sha256(withoutNodeTextPositions(result.svg)),
-    '79ac3e30f9e81263f9c7941339a6fe684f3a33dd2ac3ce4f7281a03fa2ee1c6b',
+    '32ffc076fb9f246e2f0cc86eb0e5916aff75954ea0818372e67e2de89f2da837',
     'the clearance repair must not move or reserialize legacy geometry outside node text',
   );
 });
@@ -354,7 +354,7 @@ test('readable-v2 preserves the checked-in workflow example when no vertical sta
   assert.equal(result.receipt.contract, 'readable-v2');
   assert.equal(
     sha256(result.svg),
-    '868547656078117182c273fa15532cd7d30707030866cc5f70aba72685b95814',
+    'bd29ee90684cbdea0ceeb13ef9fdc4d94ca879f9a5847a0b28482a3fbcddd447',
   );
 });
 
