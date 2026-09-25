@@ -181,7 +181,7 @@ function validateLifecycle() {
       problems.push(`State "${state.id}" exceeds the horizontal bounds of the diagram — reduce state.width or increase meta.viewBox[0].`);
     }
     if (state.y < 64 || state.y + state.height > lifecycleAreaBottom()) {
-      problems.push(`State "${state.id}" exceeds the vertical lifecycle area — keep y between 64 and ${lifecycleAreaBottom()} (adjust yOffset or increase meta.viewBox[1]).`);
+      problems.push(`State "${state.id}" exceeds the vertical lifecycle area — keep y between 64 and ${lifecycleAreaBottom()}. Prefer adjusting yOffset or state placement first. Increase meta.viewBox[1] only if necessary: a taller authored viewBox can fail showcase desktop containment/readability, so rerun visual-check at the target viewport after any height increase.`);
     }
     const estLabelW = textUnits(state.label) * 6.2;
     if (estLabelW > state.width + 6) {
