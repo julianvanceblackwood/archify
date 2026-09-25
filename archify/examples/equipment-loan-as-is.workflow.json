@@ -32,6 +32,11 @@
     {
       "id": "manager",
       "label": "Manager"
+    },
+    {
+      "id": "service_desk_outcomes",
+      "label": "Service Desk outcomes",
+      "variant": "exception"
     }
   ],
   "phases": [
@@ -92,7 +97,8 @@
       "type": "external",
       "label": "Submit request",
       "sublabel": "equipment + return date",
-      "icon": "person"
+      "icon": "person",
+      "width": 112
     },
     {
       "id": "review_request",
@@ -101,7 +107,8 @@
       "type": "backend",
       "label": "Review request",
       "sublabel": "check required details",
-      "icon": "briefcase"
+      "icon": "briefcase",
+      "width": 112
     },
     {
       "id": "check_availability",
@@ -110,17 +117,19 @@
       "type": "backend",
       "label": "Check availability",
       "sublabel": "Service Desk reads equipment register",
-      "icon": "briefcase"
+      "icon": "briefcase",
+      "width": 154
     },
     {
       "id": "notify_unavailable",
-      "lane": "service_desk",
+      "lane": "service_desk_outcomes",
       "col": 3,
       "type": "backend",
       "label": "Notify unavailable",
       "sublabel": "request stops",
       "icon": "flag",
-      "tag": "Unavailable"
+      "tag": "Unavailable",
+      "width": 136
     },
     {
       "id": "manager_approval",
@@ -129,7 +138,8 @@
       "type": "security",
       "label": "Manager approval",
       "sublabel": "human decision",
-      "icon": "person"
+      "icon": "person",
+      "width": 124
     },
     {
       "id": "handover",
@@ -139,18 +149,18 @@
       "label": "Hand over equipment",
       "sublabel": "approved loan",
       "icon": "briefcase",
-      "yOffset": -38
+      "width": 144
     },
     {
       "id": "notify_rejected",
-      "lane": "service_desk",
+      "lane": "service_desk_outcomes",
       "col": 4,
       "type": "backend",
       "label": "Notify rejection",
       "sublabel": "request stops",
       "icon": "flag",
       "tag": "Rejected",
-      "yOffset": 38
+      "width": 124
     },
     {
       "id": "return_equipment",
@@ -159,7 +169,8 @@
       "type": "external",
       "label": "Return equipment",
       "sublabel": "employee returns item",
-      "icon": "person"
+      "icon": "person",
+      "width": 124
     },
     {
       "id": "record_return",
@@ -168,7 +179,8 @@
       "type": "backend",
       "label": "Record return",
       "sublabel": "update equipment register",
-      "icon": "briefcase"
+      "icon": "briefcase",
+      "width": 112
     }
   ],
   "edges": [
