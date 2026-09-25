@@ -123,13 +123,14 @@
     {
       "id": "notify_unavailable",
       "lane": "service_desk_outcomes",
-      "col": 3,
+      "col": 4,
       "type": "backend",
       "label": "Notify unavailable",
       "sublabel": "request stops",
       "icon": "flag",
       "tag": "Unavailable",
-      "width": 136
+      "width": 136,
+      "yOffset": -48
     },
     {
       "id": "manager_approval",
@@ -160,7 +161,8 @@
       "sublabel": "request stops",
       "icon": "flag",
       "tag": "Rejected",
-      "width": 124
+      "width": 124,
+      "yOffset": 48
     },
     {
       "id": "return_equipment",
