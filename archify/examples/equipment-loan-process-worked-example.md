@@ -30,3 +30,12 @@ The proposal does not add an API, automatic reservation, automatic approval, ven
 - [To-be Workflow JSON](equipment-loan-to-be.workflow.json)
 
 Both inputs are Workflow schema v2, use automatic routing, and are expected to render independently. The regression suite checks schema/render success, stable comparison identity, proposal isolation, preserved human approval, and open-question parity.
+
+## Layout findings
+
+The first showcase validation surfaced two concrete business-process layout costs rather than a semantic failure:
+
+- several reader-facing business labels and the availability explanation were wider than the default Workflow node width, so the example reserves measured node width instead of shortening established meaning;
+- the two terminal Service Desk outcomes initially shared routing corridors and made the page too tall for the desktop Reader budget, so they are placed as a same-column vertical stack in one exception lane. Workflow v2 measures that lane and exposes the existing intrinsic-height Reader fit without authored `viewBox` coordinates.
+
+No `via`, `channelX`, `channelY`, `labelAt`, or other absolute route pin is required. These repairs keep the process topology unchanged and document the normal renderer behavior that #512 asked the example to exercise.

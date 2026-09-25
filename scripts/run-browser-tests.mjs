@@ -38,6 +38,7 @@ const testFiles = [
   'viewer-identifiers-browser.test.mjs',
   'repository-evidence.test.mjs',
   'repository-evidence-types-browser.test.mjs',
+  'process-notes-workflows-browser.test.mjs',
 ];
 
 const chrome = findChrome();
