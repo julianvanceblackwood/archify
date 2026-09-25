@@ -8,7 +8,7 @@ Separate every extracted statement into one of four classes before authoring:
 
 - **Documented fact**: directly stated by the source. It may become an as-is node, relationship, lane, decision, waiting state, exception, or card item.
 - **Assumption**: needed to interpret an ambiguous statement but not established by the source. Do not silently render it as topology. Keep it out of the diagram unless the user explicitly accepts it.
-- **Proposed improvement**: a future-state change requested by the source or user. It belongs only in the to-be artifact and must not be described as current behavior.
+- **Proposed improvement**: a future-state change requested by the source or user. It belongs only in the to-be artifact; never render a proposal as current-state fact.
 - **Open question**: a material uncertainty that could change ownership, ordering, a decision, or an exception. Keep it visible in the worked result instead of inventing an answer.
 
 Do not invent integrations, APIs, databases, automation, approval rules, service-level targets, or exception handling that the notes do not establish.
