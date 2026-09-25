@@ -14,7 +14,7 @@ Create an interactive HTML diagram from typed JSON. Static output is the default
 
 Run commands from your working directory, keeping candidate JSON and output artifacts there. Replace `bin/archify.mjs` in the commands below with the installed package's absolute path, or its path relative to your working directory; input and output paths resolve from that working directory.
 
-For a real codebase, read [Repository authoring](references/repository-authoring.md) while tracing the requested behavior. A system description uses the steps below; an existing JSON uses the handoff path.
+For a real codebase, read [Repository authoring](references/repository-authoring.md) while tracing the requested behavior. For meeting notes, interviews, or plain-language process notes that ask for current and proposed workflows, read [Process-note workflows](references/process-notes-workflows.md) before authoring. A system description uses the steps below; an existing JSON uses the handoff path.
 
 ## Existing candidate handoff
 
