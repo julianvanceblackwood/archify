@@ -1,0 +1,260 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Equipment Loan Process — To-Be",
+    "output": "equipment-loan-to-be.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "legend": {
+      "entries": {
+        "external": {
+          "label": "Requester action"
+        },
+        "backend": {
+          "label": "Process step"
+        },
+        "security": {
+          "label": "Human decision"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "requester",
+      "label": "Employee"
+    },
+    {
+      "id": "service_desk",
+      "label": "Service Desk"
+    },
+    {
+      "id": "automation",
+      "label": "Automation"
+    },
+    {
+      "id": "manager",
+      "label": "Manager"
+    }
+  ],
+  "phases": [
+    {
+      "id": "intake",
+      "label": "Intake",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "availability",
+      "label": "Availability",
+      "fromCol": 2,
+      "toCol": 2
+    },
+    {
+      "id": "decision",
+      "label": "Decision",
+      "fromCol": 3,
+      "toCol": 3
+    },
+    {
+      "id": "fulfillment",
+      "label": "Fulfillment & return",
+      "fromCol": 4,
+      "toCol": 5
+    }
+  ],
+  "semanticChecks": {
+    "allowedRoots": [
+      "submit_request"
+    ],
+    "allowedTerminals": [
+      "notify_unavailable",
+      "notify_rejected",
+      "record_return"
+    ],
+    "requiredEdges": [
+      {
+        "from": "check_availability",
+        "to": "manager_approval"
+      },
+      {
+        "from": "manager_approval",
+        "to": "handover"
+      },
+      {
+        "from": "return_equipment",
+        "to": "record_return"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "submit_request",
+      "lane": "requester",
+      "col": 0,
+      "type": "external",
+      "label": "Submit request",
+      "sublabel": "equipment + return date",
+      "icon": "person"
+    },
+    {
+      "id": "review_request",
+      "lane": "service_desk",
+      "col": 1,
+      "type": "backend",
+      "label": "Review request",
+      "sublabel": "check required details",
+      "icon": "briefcase"
+    },
+    {
+      "id": "check_availability",
+      "lane": "automation",
+      "col": 2,
+      "type": "backend",
+      "label": "Check availability",
+      "sublabel": "system reads equipment register",
+      "icon": "database",
+      "tag": "Proposed automation"
+    },
+    {
+      "id": "notify_unavailable",
+      "lane": "service_desk",
+      "col": 3,
+      "type": "backend",
+      "label": "Notify unavailable",
+      "sublabel": "request stops",
+      "icon": "flag",
+      "tag": "Unavailable"
+    },
+    {
+      "id": "manager_approval",
+      "lane": "manager",
+      "col": 3,
+      "type": "security",
+      "label": "Manager approval",
+      "sublabel": "human decision",
+      "icon": "person"
+    },
+    {
+      "id": "handover",
+      "lane": "service_desk",
+      "col": 4,
+      "type": "backend",
+      "label": "Hand over equipment",
+      "sublabel": "approved loan",
+      "icon": "briefcase",
+      "yOffset": -38
+    },
+    {
+      "id": "notify_rejected",
+      "lane": "service_desk",
+      "col": 4,
+      "type": "backend",
+      "label": "Notify rejection",
+      "sublabel": "request stops",
+      "icon": "flag",
+      "tag": "Rejected",
+      "yOffset": 38
+    },
+    {
+      "id": "return_equipment",
+      "lane": "requester",
+      "col": 5,
+      "type": "external",
+      "label": "Return equipment",
+      "sublabel": "employee returns item",
+      "icon": "person"
+    },
+    {
+      "id": "record_return",
+      "lane": "service_desk",
+      "col": 5,
+      "type": "backend",
+      "label": "Record return",
+      "sublabel": "update equipment register",
+      "icon": "briefcase"
+    }
+  ],
+  "edges": [
+    {
+      "id": "request_to_review",
+      "from": "submit_request",
+      "to": "review_request",
+      "label": "loan request"
+    },
+    {
+      "id": "review_to_availability",
+      "from": "review_request",
+      "to": "check_availability",
+      "label": "complete request"
+    },
+    {
+      "id": "availability_to_approval",
+      "from": "check_availability",
+      "to": "manager_approval",
+      "label": "available"
+    },
+    {
+      "id": "availability_to_unavailable",
+      "from": "check_availability",
+      "to": "notify_unavailable",
+      "label": "unavailable",
+      "role": "branch"
+    },
+    {
+      "id": "approval_to_handover",
+      "from": "manager_approval",
+      "to": "handover",
+      "label": "approved"
+    },
+    {
+      "id": "approval_to_rejected",
+      "from": "manager_approval",
+      "to": "notify_rejected",
+      "label": "rejected",
+      "role": "branch"
+    },
+    {
+      "id": "handover_to_return",
+      "from": "handover",
+      "to": "return_equipment",
+      "label": "equipment loaned"
+    },
+    {
+      "id": "return_to_record",
+      "from": "return_equipment",
+      "to": "record_return",
+      "label": "equipment returned"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Proposed change",
+      "items": [
+        "Availability lookup moves to automation",
+        "The system reads the existing equipment register and presents the result",
+        "Manager approval remains a human decision"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Boundaries",
+      "items": [
+        "No automatic reservation or approval",
+        "No new external integration or vendor product",
+        "Request review, handover, return, and return recording stay with people"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Open questions",
+      "items": [
+        "Maximum loan duration is not defined",
+        "Overdue and damaged-equipment handling are not defined",
+        "Approver variation by equipment category is unknown"
+      ]
+    }
+  ]
+}

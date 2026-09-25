@@ -1,0 +1,32 @@
+# Equipment-loan as-is / to-be worked example
+
+This example is fully fictional. Its source is [equipment-loan-process-notes.md](equipment-loan-process-notes.md).
+
+## Source classification
+
+| Source statement | Class | As-is | To-be |
+| --- | --- | --- | --- |
+| Employee submits an equipment-loan request | documented fact | `submit_request` | preserved |
+| Service Desk reviews required request details | documented fact | `review_request` | preserved |
+| Service Desk checks the equipment register | documented fact | `check_availability` in Service Desk | execution moves to Automation |
+| Manager approves or rejects an available request | documented fact | `manager_approval` | preserved as human decision |
+| Service Desk hands over approved equipment | documented fact | `handover` | preserved |
+| Employee returns the equipment | documented fact | `return_equipment` | preserved |
+| Service Desk records the return | documented fact | `record_return` | preserved |
+| Automate only the availability lookup | proposed improvement | absent | `check_availability` moves to Automation |
+| Maximum duration, overdue handling, damage handling, approver variation | open questions | unanswered | unanswered |
+
+No additional assumption is required for the worked pair.
+
+## Comparison contract
+
+The two Workflow documents intentionally reuse the same ids and reader-facing labels for every process step. Their relationship topology is also identical. The proposed state changes only the execution owner and presentation of `check_availability`; manager approval remains human.
+
+The proposal does not add an API, automatic reservation, automatic approval, vendor product, notification platform, or external integration.
+
+## Artifacts
+
+- [As-is Workflow JSON](equipment-loan-as-is.workflow.json)
+- [To-be Workflow JSON](equipment-loan-to-be.workflow.json)
+
+Both inputs are Workflow schema v2, use automatic routing, and are expected to render independently. The regression suite checks schema/render success, stable comparison identity, proposal isolation, preserved human approval, and open-question parity.
